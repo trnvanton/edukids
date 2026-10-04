@@ -87,15 +87,19 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
                       className="btn-recommend"
                       onClick={() => { sound.pop(); onStartExercise(ex.id); }}
                     >
-                      ▶️ Làm Bài: {ex.title} (+{ex.reward_xp} XP)
+                      ▶️ Làm Bài: {ex.title} (+{ex.reward_xp || 40} XP)
                     </button>
                   ))
                 ) : (
                   <button
                     className="btn-recommend"
-                    onClick={() => { sound.pop(); onStartExercise(101); }}
+                    onClick={() => {
+                      sound.pop();
+                      const starterMap = { 1: 1011, 2: 1021, 3: 1031, 4: 101, 5: 1051 };
+                      onStartExercise(starterMap[currentGrade] || 1021);
+                    }}
                   >
-                    ▶️ Thử Thách Phân Số (+50 XP)
+                    ▶️ Khởi Động Bài Học Lớp {currentGrade} (+40 XP)
                   </button>
                 )}
               </div>

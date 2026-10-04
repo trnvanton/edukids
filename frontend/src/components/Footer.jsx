@@ -105,7 +105,7 @@ export default function Footer() {
             © {new Date().getFullYear()} <strong>EduKids Vietnam</strong> • Đồng hành cùng tri thức & niềm vui tuổi thơ ❤️
           </div>
           <div>
-            Công nghệ: React 18 • Vite • Node.js • Aiven Cloud MySQL
+            ☎️ Tổng đài hỗ trợ học tập: <strong>1900 6868</strong> • 📧 Email: <strong>hotro@edukids.edu.vn</strong>
           </div>
         </div>
       </div>

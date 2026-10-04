@@ -141,48 +141,26 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 className="user-badge"
                 onClick={() => { sound.pop(); setShowProfileModal(true); }}
                 title="Bấm để xem hồ sơ và đổi khối lớp"
+                style={{ cursor: 'pointer' }}
               >
                 <span style={{ fontSize: '1.4rem' }}>{getAvatarEmoji(user.avatar)}</span>
                 <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                  <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>{user.full_name}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 800 }}>
-                    [{user.role.toUpperCase()}]
-                  </span>
+                  <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#1E293B' }}>{user.full_name}</span>
                 </div>
               </div>
-
-              {/* Quick Role Switcher */}
-              <select
-                value={user.role}
-                onChange={(e) => { sound.pop(); switchRole(e.target.value); }}
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: '9999px',
-                  border: '2px solid #C7D2FE',
-                  background: '#EEF2FF',
-                  fontWeight: 800,
-                  fontSize: '0.8rem',
-                  color: 'var(--primary)',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="student">👦 Học Sinh</option>
-                <option value="teacher">👩‍🏫 Giáo Viên</option>
-                <option value="admin">👨‍💼 Admin</option>
-              </select>
 
               {/* Logout Button */}
               <button
                 onClick={handleLogout}
                 className="btn-secondary"
                 style={{
-                  padding: '7px 12px',
+                  padding: '7px 14px',
                   borderRadius: 'var(--radius-full)',
                   fontSize: '0.85rem',
                   fontWeight: 800,
                   color: '#DC2626',
                   background: '#FEE2E2',
-                  border: '1px solid #FECDD3',
+                  border: '1.5px solid #FECDD3',
                   cursor: 'pointer'
                 }}
                 title="Đăng xuất tài khoản"

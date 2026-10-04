@@ -9,51 +9,44 @@ class StudentController {
    */
   static async getDashboard(req, res) {
     try {
-      const studentId = req.user ? req.user.id : 1;
+      const studentId = req.user ? req.user.id : null;
 
-      if (getIsConnectedToMySQL()) {
+      if (getIsConnectedToMySQL() && studentId) {
         // 1. Lấy thông tin học sinh
         const studentRows = await query('SELECT id, username, full_name, role, grade_level, avatar, xp, level, streak_days FROM users WHERE id = ?', [studentId]);
-        const student = (studentRows && studentRows.length > 0) ? studentRows[0] : (await query('SELECT * FROM users WHERE role = "student" LIMIT 1'))[0];
-
+        const student = (studentRows && studentRows.length > 0) ? studentRows[0] : req.user;
+        const currentGrade = student ? (student.grade_level || 2) : 2;
         const levelInfo = GradingService.calculateLevel(student ? (student.xp || 0) : 0);
 
-        // 2. Lấy câu trả lời bài nộp để phân tích điểm yếu (Weakness Analytics)
+        // 2. Lấy câu trả lời bài nộp của ĐÚNG học sinh này
         const subAnswerRows = await query(`
           SELECT sa.question_id, sa.is_correct, q.topic_tag
           FROM submission_answers sa
           JOIN submissions s ON sa.submission_id = s.id
           JOIN questions q ON sa.question_id = q.id
           WHERE s.user_id = ?
-        `, [student ? student.id : 1]);
+        `, [student.id]);
 
         let weaknessBreakdown = StatisticsService.analyzeStudentWeaknesses(subAnswerRows);
-        if (weaknessBreakdown.length === 0) {
-          // Default initial breakdown if student hasn't completed many tests yet
-          weaknessBreakdown = [
-            { tag: 'hinh-hoc', name: 'Hình Học', totalQuestions: 12, correctCount: 11, percentage: 92, status: 'strong' },
-            { tag: 'doc-hieu', name: 'Đọc Hiểu', totalQuestions: 10, correctCount: 8, percentage: 80, status: 'strong' },
-            { tag: 'phep-nhan', name: 'Phép Nhân & Chia', totalQuestions: 15, correctCount: 11, percentage: 73, status: 'average' },
-            { tag: 'phan-so', name: 'Phân Số', totalQuestions: 15, correctCount: 9, percentage: 60, status: 'average' }
-          ];
-        }
 
-        // 3. Lấy danh sách bài tập từ MySQL để tạo đề xuất thích ứng (Adaptive Recommendations)
+        // 3. Lấy bài tập của ĐÚNG khối lớp của học sinh
         const exRows = await query(`
           SELECT e.id, e.title, e.difficulty, e.reward_xp, e.time_limit_minutes, l.topic_tag
           FROM exercises e
           JOIN lessons l ON e.lesson_id = l.id
-        `);
+          WHERE l.grade_level = ?
+        `, [currentGrade]);
+
         const recommendations = RecommendationService.getRecommendations(weaknessBreakdown, exRows);
 
-        // 4. Lấy huy hiệu từ MySQL
+        // 4. Lấy huy hiệu
         const badgeRows = await query('SELECT * FROM badges ORDER BY min_xp ASC');
         const badges = badgeRows.map(b => ({
           ...b,
           unlocked: (student ? student.xp : 0) >= b.min_xp
         }));
 
-        // 5. Lịch sử bài làm gần đây
+        // 5. Lịch sử bài làm
         const recentSubs = await query(`
           SELECT s.*, e.title as exerciseTitle
           FROM submissions s
@@ -61,7 +54,7 @@ class StudentController {
           WHERE s.user_id = ?
           ORDER BY s.completed_at DESC
           LIMIT 5
-        `, [student ? student.id : 1]);
+        `, [student.id]);
 
         return res.json({
           success: true,
@@ -78,13 +71,15 @@ class StudentController {
         });
       }
 
-      // Memory Store fallback
-      const student = memoryStore.users.find(u => u.id === studentId) || memoryStore.users[0];
-      const levelInfo = GradingService.calculateLevel(student.xp || 0);
-      const userAnswers = memoryStore.submission_answers || [];
+      // Memory Store or guest
+      const student = (memoryStore.users.find(u => u.id === studentId)) || (req.user || memoryStore.users[0]);
+      const currentGrade = student?.grade_level || 2;
+      const levelInfo = GradingService.calculateLevel(student?.xp || 0);
+      const userAnswers = (memoryStore.submission_answers || []).filter(sa => sa.user_id === student?.id);
       const weaknessBreakdown = StatisticsService.analyzeStudentWeaknesses(userAnswers);
-      const recommendations = RecommendationService.getRecommendations(weaknessBreakdown, memoryStore.exercises);
-      const badges = memoryStore.badges.map(b => ({ ...b, unlocked: (student.xp || 0) >= b.min_xp }));
+      const gradeExercises = (memoryStore.exercises || []).filter(e => e.grade_level === currentGrade);
+      const recommendations = RecommendationService.getRecommendations(weaknessBreakdown, gradeExercises);
+      const badges = (memoryStore.badges || []).map(b => ({ ...b, unlocked: (student?.xp || 0) >= b.min_xp }));
 
       res.json({
         success: true,
@@ -93,7 +88,7 @@ class StudentController {
           weaknessBreakdown,
           recommendations,
           badges,
-          recentSubmissions: memoryStore.submissions.filter(s => s.user_id === student.id)
+          recentSubmissions: (memoryStore.submissions || []).filter(s => s.user_id === student?.id)
         }
       });
     } catch (error) {
