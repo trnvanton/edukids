@@ -1,25 +1,3 @@
-import mysql from 'mysql2/promise';
-
-let pool = null;
-
-function getPool() {
-  if (!pool) {
-    const password = process.env.DB_PASSWORD || Buffer.from('QVZOU19NTlViLUZNY0I3VDNFQWszVFo3', 'base64').toString('utf-8');
-    pool = mysql.createPool({
-      host: process.env.DB_HOST || 'mysql-f67f396-edukids.c.aivencloud.com',
-      port: parseInt(process.env.DB_PORT, 10) || 23951,
-      user: process.env.DB_USER || 'avnadmin',
-      password: password,
-      database: process.env.DB_NAME || 'defaultdb',
-      ssl: { rejectUnauthorized: false },
-      waitForConnections: true,
-      connectionLimit: 5,
-      queueLimit: 0
-    });
-  }
-  return pool;
-}
-
 export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -36,11 +14,27 @@ export default async function handler(req, res) {
   }
 
   try {
-    const db = getPool();
+    let mysql;
+    try {
+      mysql = await import('mysql2/promise');
+    } catch (e) {
+      mysql = (await import('mysql2')).default.promise;
+    }
 
-    // 1. GET: Fetch all synced exercises and submissions
+    const password = process.env.DB_PASSWORD || Buffer.from('QVZOU19NTlViLUZNY0I3VDNFQWszVFo3', 'base64').toString('utf-8');
+    const conn = await mysql.createConnection({
+      host: process.env.DB_HOST || 'mysql-f67f396-edukids.c.aivencloud.com',
+      port: parseInt(process.env.DB_PORT, 10) || 23951,
+      user: process.env.DB_USER || 'avnadmin',
+      password: password,
+      database: process.env.DB_NAME || 'defaultdb',
+      ssl: { rejectUnauthorized: false },
+      connectTimeout: 10000
+    });
+
+    // 1. GET
     if (req.method === 'GET') {
-      const [exRows] = await db.execute('SELECT * FROM cloud_synced_exercises ORDER BY updated_at DESC');
+      const [exRows] = await conn.execute('SELECT * FROM cloud_synced_exercises ORDER BY updated_at DESC');
       const exercises = (exRows || []).map(row => {
         try {
           return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
@@ -49,7 +43,7 @@ export default async function handler(req, res) {
         }
       }).filter(Boolean);
 
-      const [subRows] = await db.execute('SELECT * FROM cloud_synced_submissions ORDER BY created_at DESC LIMIT 200');
+      const [subRows] = await conn.execute('SELECT * FROM cloud_synced_submissions ORDER BY created_at DESC LIMIT 200');
       const submissions = (subRows || []).map(row => {
         try {
           return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
@@ -57,6 +51,8 @@ export default async function handler(req, res) {
           return null;
         }
       }).filter(Boolean);
+
+      await conn.end();
 
       return res.status(200).json({
         success: true,
@@ -67,11 +63,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // 2. POST: Save Exercise, Submission, or Delete
+    // 2. POST
     if (req.method === 'POST') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
 
-      // Case A: Save / Update Exercise
+      // Save Exercise
       if (body.action === 'save_exercise' || body.exercise) {
         const exercise = body.exercise || body;
         const exerciseId = parseInt(exercise.id, 10);
@@ -81,7 +77,7 @@ export default async function handler(req, res) {
         const createdBy = exercise.created_by || 'Cô Hoàng Mai';
         const dataJson = JSON.stringify(exercise);
 
-        await db.execute(`
+        await conn.execute(`
           INSERT INTO cloud_synced_exercises (id, title, grade_level, subject_id, data_json, created_by)
           VALUES (?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE 
@@ -92,6 +88,8 @@ export default async function handler(req, res) {
             updated_at = CURRENT_TIMESTAMP
         `, [exerciseId, title, gradeLevel, subjectId, dataJson, createdBy]);
 
+        await conn.end();
+
         return res.status(200).json({
           success: true,
           message: 'Đã lưu bài tập lên Cloud MySQL thành công!',
@@ -99,10 +97,11 @@ export default async function handler(req, res) {
         });
       }
 
-      // Case B: Delete Exercise
+      // Delete Exercise
       if (body.action === 'delete_exercise' || body.deleteId) {
         const exerciseId = parseInt(body.deleteId || body.id, 10);
-        await db.execute('DELETE FROM cloud_synced_exercises WHERE id = ?', [exerciseId]);
+        await conn.execute('DELETE FROM cloud_synced_exercises WHERE id = ?', [exerciseId]);
+        await conn.end();
 
         return res.status(200).json({
           success: true,
@@ -111,7 +110,7 @@ export default async function handler(req, res) {
         });
       }
 
-      // Case C: Save Student Submission
+      // Save Submission
       if (body.action === 'save_submission' || body.submission) {
         const submission = body.submission || body;
         const subId = String(submission.id || Date.now());
@@ -124,7 +123,7 @@ export default async function handler(req, res) {
         const totalQuestions = parseInt(submission.totalQuestions || submission.total_questions || 10, 10);
         const dataJson = JSON.stringify(submission);
 
-        await db.execute(`
+        await conn.execute(`
           INSERT INTO cloud_synced_submissions 
             (id, exercise_id, student_name, student_avatar, grade_level, score10, correct_count, total_questions, data_json)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -134,6 +133,8 @@ export default async function handler(req, res) {
             data_json = VALUES(data_json)
         `, [subId, exerciseId, studentName, studentAvatar, gradeLevel, score10, correctCount, totalQuestions, dataJson]);
 
+        await conn.end();
+
         return res.status(200).json({
           success: true,
           message: 'Đã lưu kết quả bài làm học sinh lên Cloud MySQL thành công!',
@@ -141,26 +142,18 @@ export default async function handler(req, res) {
         });
       }
 
+      await conn.end();
       return res.status(400).json({ success: false, message: 'Action không hợp lệ' });
     }
 
-    // 3. DELETE
-    if (req.method === 'DELETE') {
-      const { id } = req.query || {};
-      if (id) {
-        const exerciseId = parseInt(id, 10);
-        await db.execute('DELETE FROM cloud_synced_exercises WHERE id = ?', [exerciseId]);
-        return res.status(200).json({ success: true, deletedId: exerciseId });
-      }
-      return res.status(400).json({ success: false, message: 'Thiếu ID bài tập cần xóa' });
-    }
-
+    await conn.end();
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   } catch (error) {
     console.error('Serverless MySQL Sync Error:', error);
-    return res.status(500).json({
+    return res.status(200).json({
       success: false,
-      message: 'Lỗi kết nối MySQL: ' + error.message
+      message: 'Lỗi kết nối MySQL: ' + error.message,
+      error: error.message
     });
   }
 }
