@@ -74,22 +74,12 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
       setRawExercise(ex);
 
       const poolLength = ex.questions?.length || 0;
-      const isRandomPool = ex.is_random_pool || poolLength > 15 || ex.random_mode === 'student_choice';
 
-      if (ex.random_mode === 'student_choice' || (isRandomPool && !ex.random_count)) {
+      // If the exercise has more than 10 questions, ALWAYS let the student choose how many questions to do
+      if (poolLength > 10) {
         setIsPreQuizPrompt(true);
         setSelectedRandomCount(Math.min(10, poolLength));
-      } else if (ex.random_count && ex.random_count < poolLength) {
-        // Teacher fixed random count (e.g., 10 or 20 questions)
-        const sampled = sampleRandomQuestions(ex.questions, {
-          count: ex.random_count,
-          shuffleQuestions: ex.shuffle_questions !== false,
-          shuffleOptions: !!ex.shuffle_options
-        });
-        setActiveQuestions(sampled);
-        setIsPreQuizPrompt(false);
       } else {
-        // Standard full questions list
         setActiveQuestions(ex.questions || []);
         setIsPreQuizPrompt(false);
       }
@@ -231,54 +221,61 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
   // ================= PRE-QUIZ RANDOM SELECTION SCREEN =================
   if (isPreQuizPrompt) {
     const poolSize = rawExercise.questions?.length || 0;
+    const presets = [10, 20, 30, 50, poolSize].filter((cnt, idx, arr) => cnt <= poolSize && arr.indexOf(cnt) === idx);
+
     return (
-      <div className="container" style={{ padding: '40px 0 80px 0', maxWidth: '720px' }}>
-        <div className="card" style={{ padding: '36px', textAlign: 'center', boxShadow: 'var(--card-shadow)' }}>
-          <div style={{ fontSize: '3.5rem', marginBottom: '12px' }}>🎲</div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--primary-dark)', marginBottom: '8px' }}>
+      <div className="container" style={{ padding: '40px 16px 80px 16px', maxWidth: '760px', margin: '0 auto' }}>
+        <div className="card" style={{ padding: '40px 32px', textAlign: 'center', boxShadow: 'var(--card-shadow)' }}>
+          <div style={{ fontSize: '3.8rem', marginBottom: '12px' }}>🎲</div>
+          <h2 style={{ fontSize: '1.85rem', fontWeight: 900, color: 'var(--primary)', marginBottom: '8px' }}>
             {rawExercise.title}
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '1.05rem', marginBottom: '24px' }}>
-            Kho đề hiện có <strong>{poolSize} câu hỏi</strong> tổng hợp. Bé muốn làm bao nhiêu câu ngẫu nhiên trong lượt này?
+          <p style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '1.1rem', marginBottom: '28px' }}>
+            Ngân hàng đề có tổng cộng <strong>{poolSize} câu hỏi</strong>. Bé muốn làm bao nhiêu câu trong lượt thi này?
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px', marginBottom: '32px' }}>
-            {[10, 20, 30, poolSize].filter((cnt, idx, arr) => cnt <= poolSize && arr.indexOf(cnt) === idx).map(cnt => (
-              <button
-                key={cnt}
-                type="button"
-                onClick={() => { sound.pop(); setSelectedRandomCount(cnt); }}
-                style={{
-                  padding: '16px 12px',
-                  borderRadius: '16px',
-                  border: selectedRandomCount === cnt ? '3px solid #4F46E5' : '2px solid #E2E8F0',
-                  background: selectedRandomCount === cnt ? '#EEF2FF' : '#F8FAFC',
-                  color: selectedRandomCount === cnt ? '#4F46E5' : '#334155',
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  textAlign: 'center'
-                }}
-              >
-                <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>
-                  {cnt === 10 ? '⚡' : (cnt === 20 ? '🎯' : (cnt === 30 ? '🔥' : '🏆'))}
-                </div>
-                <div style={{ fontSize: '1.15rem' }}>{cnt === poolSize ? `Tất cả (${cnt} câu)` : `${cnt} Câu`}</div>
-                <div style={{ fontSize: '0.8rem', color: selectedRandomCount === cnt ? '#4338CA' : '#64748B', marginTop: '4px' }}>
-                  {cnt === 10 ? '~5-10 phút' : (cnt === 20 ? '~15-20 phút' : (cnt === 30 ? '~25-30 phút' : 'Ôn toàn bộ'))}
-                </div>
-              </button>
-            ))}
+            {presets.map(cnt => {
+              const isSelected = selectedRandomCount === cnt;
+              return (
+                <button
+                  key={cnt}
+                  type="button"
+                  onClick={() => { sound.pop(); setSelectedRandomCount(cnt); }}
+                  style={{
+                    padding: '18px 12px',
+                    borderRadius: '16px',
+                    border: isSelected ? '3.5px solid #4F46E5' : '2px solid #E2E8F0',
+                    background: isSelected ? '#EEF2FF' : '#F8FAFC',
+                    color: isSelected ? '#4F46E5' : '#334155',
+                    fontWeight: 900,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    textAlign: 'center',
+                    transform: isSelected ? 'translateY(-3px)' : 'none',
+                    boxShadow: isSelected ? '0 8px 20px rgba(79, 70, 229, 0.2)' : '0 2px 6px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div style={{ fontSize: '1.8rem', marginBottom: '6px' }}>
+                    {cnt === 10 ? '⚡' : (cnt === 20 ? '🎯' : (cnt === 30 ? '🔥' : (cnt === 50 ? '⭐' : '👑')))}
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 900 }}>{cnt === poolSize ? `Tất cả (${cnt} câu)` : `${cnt} Câu`}</div>
+                  <div style={{ fontSize: '0.8rem', color: isSelected ? '#4338CA' : '#64748B', marginTop: '6px', fontWeight: 700 }}>
+                    {cnt === 10 ? '~5-10 phút' : (cnt === 20 ? '~15-20 phút' : (cnt === 30 ? '~25-30 phút' : (cnt === 50 ? '~40 phút' : 'Toàn bộ đề')))}
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn-secondary" onClick={() => { sound.pop(); onBack(); }}>
+          <div style={{ display: 'flex', gap: '14px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn-secondary" onClick={() => { sound.pop(); onBack(); }} style={{ padding: '14px 24px' }}>
               ◀️ Quay lại
             </button>
             <button
               className="btn-primary"
               onClick={() => handleStartRandomQuiz(selectedRandomCount)}
-              style={{ padding: '14px 32px', fontSize: '1.15rem', borderRadius: '14px' }}
+              style={{ padding: '14px 36px', fontSize: '1.15rem', borderRadius: '14px', fontWeight: 900 }}
             >
               🚀 Bắt Đầu Làm Bài ({selectedRandomCount} Câu)
             </button>
@@ -316,9 +313,32 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
         gap: '15px',
         flexWrap: 'wrap'
       }}>
-        <button className="btn-secondary" onClick={() => { sound.pop(); onBack(); }}>
-          <span>◀️ Quay Lại</span>
-        </button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button className="btn-secondary" onClick={() => { sound.pop(); onBack(); }}>
+            <span>◀️ Quay Lại</span>
+          </button>
+          {poolLength > 10 && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                sound.pop();
+                setIsPreQuizPrompt(true);
+              }}
+              style={{
+                padding: '8px 12px',
+                fontSize: '0.85rem',
+                background: '#EEF2FF',
+                color: '#4F46E5',
+                borderColor: '#C7D2FE',
+                fontWeight: 800
+              }}
+              title="Đổi số lượng câu hỏi"
+            >
+              <span>🎲 Đổi số câu ({totalQ}/{poolLength})</span>
+            </button>
+          )}
+        </div>
 
         <div style={{ flex: 1, minWidth: '220px', margin: '0 10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '6px' }}>
@@ -343,7 +363,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
       </div>
 
       {/* Random Pool Status Notification Banner */}
-      {isRandomSubset && (
+      {poolLength > 10 && (
         <div style={{
           background: '#EFF6FF',
           border: '1.5px solid #BFDBFE',
@@ -361,24 +381,42 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '1.2rem' }}>🎲</span>
-            <span>Đề ngẫu nhiên: Đang làm <strong>{totalQ} câu</strong> được bốc tự động từ ngân hàng <strong>{poolLength} câu hỏi</strong>.</span>
+            <span>Đang làm <strong>{totalQ} câu</strong> (Ngân hàng <strong>{poolLength} câu hỏi</strong>).</span>
           </div>
-          <button
-            type="button"
-            onClick={() => handleStartRandomQuiz(totalQ)}
-            style={{
-              background: '#DBEAFE',
-              border: '1px solid #93C5FD',
-              color: '#1D4ED8',
-              borderRadius: '8px',
-              padding: '4px 10px',
-              fontSize: '0.8rem',
-              fontWeight: 800,
-              cursor: 'pointer'
-            }}
-          >
-            🔄 Đổi bộ câu hỏi khác
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              type="button"
+              onClick={() => handleStartRandomQuiz(totalQ)}
+              style={{
+                background: '#DBEAFE',
+                border: '1px solid #93C5FD',
+                color: '#1D4ED8',
+                borderRadius: '8px',
+                padding: '6px 12px',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: 'pointer'
+              }}
+            >
+              🔄 Trộn bộ câu khác
+            </button>
+            <button
+              type="button"
+              onClick={() => { sound.pop(); setIsPreQuizPrompt(true); }}
+              style={{
+                background: '#4F46E5',
+                border: 'none',
+                color: 'white',
+                borderRadius: '8px',
+                padding: '6px 14px',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: 'pointer'
+              }}
+            >
+              ⚙️ Chọn số câu (10 / 20 / {poolLength})
+            </button>
+          </div>
         </div>
       )}
 
