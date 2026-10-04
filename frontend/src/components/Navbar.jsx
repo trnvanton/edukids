@@ -97,7 +97,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
         <nav style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
+          gap: '4px',
           flexShrink: 0
         }}>
           {user && user.role === 'student' && (
@@ -106,11 +106,11 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                 type="button"
                 onClick={() => { sound.pop(); setActiveTab('dashboard'); }}
                 style={{
-                  padding: '7px 14px',
+                  padding: '6px 11px',
                   borderRadius: '10px',
                   border: 'none',
                   fontWeight: 800,
-                  fontSize: '0.88rem',
+                  fontSize: '0.85rem',
                   cursor: 'pointer',
                   background: activeTab === 'dashboard' ? '#4F46E5' : 'transparent',
                   color: activeTab === 'dashboard' ? '#FFFFFF' : '#475569',
@@ -118,7 +118,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                   transition: 'all 0.15s ease',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '4px',
                   whiteSpace: 'nowrap',
                   outline: 'none'
                 }}
@@ -131,11 +131,11 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                 type="button"
                 onClick={() => { sound.pop(); setActiveTab('subjects'); }}
                 style={{
-                  padding: '7px 14px',
+                  padding: '6px 11px',
                   borderRadius: '10px',
                   border: 'none',
                   fontWeight: 800,
-                  fontSize: '0.88rem',
+                  fontSize: '0.85rem',
                   cursor: 'pointer',
                   background: activeTab === 'subjects' ? '#4F46E5' : 'transparent',
                   color: activeTab === 'subjects' ? '#FFFFFF' : '#475569',
@@ -143,7 +143,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                   transition: 'all 0.15s ease',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '4px',
                   whiteSpace: 'nowrap',
                   outline: 'none'
                 }}
@@ -156,11 +156,11 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                 type="button"
                 onClick={() => { sound.pop(); setActiveTab('leaderboard'); }}
                 style={{
-                  padding: '7px 14px',
+                  padding: '6px 11px',
                   borderRadius: '10px',
                   border: 'none',
                   fontWeight: 800,
-                  fontSize: '0.88rem',
+                  fontSize: '0.85rem',
                   cursor: 'pointer',
                   background: activeTab === 'leaderboard' ? '#4F46E5' : 'transparent',
                   color: activeTab === 'leaderboard' ? '#FFFFFF' : '#475569',
@@ -168,7 +168,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                   transition: 'all 0.15s ease',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '4px',
                   whiteSpace: 'nowrap',
                   outline: 'none'
                 }}
@@ -184,11 +184,11 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
               type="button"
               onClick={() => { sound.pop(); setActiveTab('teacher'); }}
               style={{
-                padding: '7px 16px',
+                padding: '6px 14px',
                 borderRadius: '10px',
                 border: 'none',
                 fontWeight: 800,
-                fontSize: '0.88rem',
+                fontSize: '0.86rem',
                 cursor: 'pointer',
                 background: '#FEF3C7',
                 color: '#B45309',
@@ -209,11 +209,11 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
               type="button"
               onClick={() => { sound.pop(); setActiveTab('admin'); }}
               style={{
-                padding: '7px 16px',
+                padding: '6px 14px',
                 borderRadius: '10px',
                 border: 'none',
                 fontWeight: 800,
-                fontSize: '0.88rem',
+                fontSize: '0.86rem',
                 cursor: 'pointer',
                 background: '#ECFDF5',
                 color: '#065F46',
@@ -234,7 +234,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '6px',
           flexShrink: 0
         }}>
           {user ? (
@@ -243,32 +243,33 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
               {user.role === 'student' && (
                 <div
                   onClick={() => { sound.pop(); setShowProfileModal(true); }}
-                  title="Bấm để đổi khối lớp hoặc avatar"
+                  title={`Lớp: ${user.class_name || user.class_code || `Khối ${user.grade_level}`} • Bấm để đổi hồ sơ`}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    gap: '6px',
                     background: '#F8FAFC',
                     border: '1.5px solid #E2E8F0',
-                    padding: '4px 10px',
+                    padding: '3px 8px',
                     borderRadius: '9999px',
                     cursor: 'pointer',
-                    fontSize: '0.82rem',
+                    fontSize: '0.8rem',
                     fontWeight: 800,
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
                   }}
                 >
                   <span style={{
                     color: '#4F46E5',
                     background: '#EEF2FF',
-                    padding: '2px 10px',
+                    padding: '2px 8px',
                     borderRadius: '9999px',
                     fontWeight: 900
                   }}>
-                    🏫 {user.class_code ? `Lớp ${user.class_name || user.class_code.split('-')[0]} (${user.class_code})` : `Lớp ${user.grade_level || 2}`}
+                    🏫 Lớp {user.class_name || (user.class_code ? user.class_code.split('-')[0] : (user.grade_level || 2))}
                   </span>
                   <span style={{ color: '#D97706', fontWeight: 800 }}>
-                    ⭐ {user.xp || 0} XP
+                    ⭐ {user.xp || 0}
                   </span>
                   <span style={{ color: '#EF4444', fontWeight: 800 }}>
                     🔥 {user.streak_days || 1}d
@@ -284,13 +285,13 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                 style={{
                   background: '#F8FAFC',
                   border: '1.5px solid #E2E8F0',
-                  borderRadius: '10px',
-                  width: '34px',
-                  height: '34px',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '0.95rem',
+                  fontSize: '0.9rem',
                   cursor: 'pointer',
                   outline: 'none',
                   flexShrink: 0
@@ -310,63 +311,68 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                     border: '1.5px solid #C7D2FE',
                     color: '#4338CA',
                     fontWeight: 800,
-                    fontSize: '0.82rem',
+                    fontSize: '0.78rem',
                     cursor: 'pointer',
-                    padding: '5px 10px',
-                    borderRadius: '10px',
+                    padding: '5px 8px',
+                    borderRadius: '8px',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    gap: '3px',
                     whiteSpace: 'nowrap',
-                    outline: 'none'
+                    outline: 'none',
+                    flexShrink: 0
                   }}
                 >
                   <span>🔑</span>
-                  <span>Đổi / Vào Lớp</span>
+                  <span>Vào Lớp</span>
                 </button>
               )}
 
               {/* User Avatar & Name Profile Chip */}
               <div
                 onClick={() => { sound.pop(); setShowProfileModal(true); }}
-                title="Hồ sơ tài khoản"
+                title={`Hồ sơ: ${user.full_name || user.username}`}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '5px',
                   cursor: 'pointer',
-                  padding: '4px 10px',
-                  borderRadius: '10px',
+                  padding: '4px 8px',
+                  borderRadius: '8px',
                   background: '#F1F5F9',
                   border: '1.5px solid #E2E8F0',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  maxWidth: '120px',
+                  flexShrink: 1
                 }}
               >
-                <span style={{ fontSize: '1.25rem' }}>{getAvatarEmoji(user.avatar)}</span>
-                <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1E293B' }}>
+                <span style={{ fontSize: '1.15rem', flexShrink: 0 }}>{getAvatarEmoji(user.avatar)}</span>
+                <span style={{ fontWeight: 800, fontSize: '0.8rem', color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {user.full_name || user.username}
                 </span>
               </div>
 
-              {/* Logout Button */}
+              {/* Logout Button (High Priority, Always Visible) */}
               <button
                 type="button"
                 onClick={handleLogout}
-                title="Đăng xuất"
+                title="Đăng xuất khỏi tài khoản"
                 style={{
                   background: '#FEF2F2',
                   border: '1.5px solid #FECDD3',
                   color: '#DC2626',
-                  fontWeight: 800,
+                  fontWeight: 900,
                   fontSize: '0.82rem',
                   cursor: 'pointer',
                   padding: '5px 10px',
-                  borderRadius: '10px',
+                  borderRadius: '8px',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
                   whiteSpace: 'nowrap',
-                  outline: 'none'
+                  outline: 'none',
+                  flexShrink: 0,
+                  boxShadow: '0 1px 3px rgba(220, 38, 38, 0.1)'
                 }}
               >
                 <span>🚪</span>
