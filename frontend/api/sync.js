@@ -99,14 +99,33 @@ export default async function handler(req, res) {
 
       let students = [];
       try {
-        const [stRows] = await conn.execute('SELECT * FROM cloud_synced_students ORDER BY created_at DESC');
-        students = (stRows || []).map(row => {
+        const [stRows] = await conn.execute('SELECT * FROM cloud_synced_students ORDER BY updated_at DESC, created_at DESC');
+        const rawStudents = (stRows || []).map(row => {
           try {
             return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
           } catch (e) {
             return null;
           }
         }).filter(Boolean);
+
+        const phoneMap = new Map();
+        const hasToan2004 = rawStudents.some(s => (s.full_name || s.student_name || '').toLowerCase() === 'toan2004');
+
+        students = rawStudents.filter(st => {
+          const name = (st.full_name || st.student_name || '').toLowerCase();
+          const phone = (st.parent_phone || '').trim();
+
+          if (hasToan2004 && (name === 'andrew' || name === 'trịnh văn toàn')) {
+            return false;
+          }
+
+          if (phone) {
+            if (phoneMap.has(phone)) return false;
+            phoneMap.set(phone, true);
+          }
+
+          return true;
+        });
       } catch (e) {}
 
       await conn.end();

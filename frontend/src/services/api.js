@@ -200,14 +200,23 @@ class ApiService {
               if (!deletedStudentSet.has(name) && !deletedStudentSet.has(id)) {
                 const existing = stMap.get(id);
                 if (existing) {
-                  // Keep local existing names/avatars if recently edited, take max XP
                   stMap.set(id, { ...s, ...existing, xp: Math.max(existing.xp || 0, s.xp || 0) });
                 } else {
                   stMap.set(id, s);
                 }
               }
             });
-            localStorage.setItem('edukids_custom_students', JSON.stringify(Array.from(stMap.values())));
+
+            // Global purge of ghost aliases if Toan2004 exists
+            const allStList = Array.from(stMap.values());
+            const hasToan = allStList.some(s => (s.full_name || s.student_name || '').toLowerCase() === 'toan2004');
+            const filteredStList = allStList.filter(s => {
+              const n = (s.full_name || s.student_name || '').toLowerCase();
+              if (hasToan && (n === 'andrew' || n === 'trịnh văn toàn')) return false;
+              return true;
+            });
+
+            localStorage.setItem('edukids_custom_students', JSON.stringify(filteredStList));
 
             // Cross-device sync: If current logged-in user exists on this device (phone/laptop), update XP & class from cloud
             const currentUser = JSON.parse(localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user') || '{}');
@@ -635,7 +644,35 @@ class ApiService {
         }
       });
 
-      // 4. Compute true cumulative XP from all submissions for each student
+      // 4. Global Deduplication across all portals:
+      // If 'Toan2004' is in the roster, purge ghost aliases 'Andrew' and 'Trịnh Văn Toàn'
+      const hasToan2004 = Array.from(studentMap.keys()).some(k => k === 'toan2004');
+      if (hasToan2004) {
+        studentMap.delete('trịnh văn toàn');
+        studentMap.delete('andrew');
+      }
+
+      // Deduplicate by parent_phone: keep the student with highest XP
+      const phoneToKeyMap = new Map();
+      for (const [key, student] of Array.from(studentMap.entries())) {
+        const phone = (student.parent_phone || '').trim();
+        if (phone) {
+          if (phoneToKeyMap.has(phone)) {
+            const existingKey = phoneToKeyMap.get(phone);
+            const existingSt = studentMap.get(existingKey);
+            if (existingSt && (existingSt.xp || 0) < (student.xp || 0)) {
+              studentMap.delete(existingKey);
+              phoneToKeyMap.set(phone, key);
+            } else {
+              studentMap.delete(key);
+            }
+          } else {
+            phoneToKeyMap.set(phone, key);
+          }
+        }
+      }
+
+      // 5. Compute true cumulative XP from all submissions for each student
       for (const [key, student] of studentMap.entries()) {
         const studentSubs = allSubmissions.filter(s => {
           const subName = (s.student_name || s.user_name || '').toLowerCase();
