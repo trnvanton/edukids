@@ -1,4 +1,6 @@
 // Client API Service with Complete Multi-Grade Curriculum & Intelligent Fallback
+import { generate100QuestionsPool } from './randomPoolService';
+
 const API_BASE = '/api';
 
 // Full 5-Grade x 4-Subject Curriculum Dataset
@@ -510,9 +512,44 @@ const curriculumDatabase = {
           ]
         }
       ]
+    },
+
+    // 🏆 100-Question Comprehensive Bank with Random Sampling (Exercise 2001)
+    2001: {
+      id: 2001,
+      title: '🏆 Ngân Hàng 100 Câu Hỏi Ôn Luyện Đấu Trường Tri Thức (Lấy Ngẫu Nhiên 10 / 20 Câu)',
+      difficulty: 'challenge',
+      time_limit_minutes: 20,
+      reward_xp: 150,
+      grade_level: 4,
+      subject_id: 1,
+      subject_name: 'Toán & Tổng Hợp',
+      assigned_to: 'Lớp 4A1',
+      due_date: 'Chủ nhật tuần này (23:59)',
+      is_random_pool: true,
+      random_mode: 'student_choice', // 'student_choice' | 'fixed_10' | 'fixed_20' | 'all'
+      random_count: 10,
+      total_pool_count: 100,
+      shuffle_questions: true,
+      shuffle_options: true,
+      questions: generate100QuestionsPool()
     }
   }
 };
+
+// Also inject lesson into grade 4
+if (curriculumDatabase.lessonsByGradeAndSubject[4]?.[1]) {
+  curriculumDatabase.lessonsByGradeAndSubject[4][1].push({
+    id: 992001,
+    subject_id: 1,
+    grade_level: 4,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Đấu Trường Tri Thức (Trộn 10 / 20 câu)',
+    topic_tag: 'ngan-hang-100-cau',
+    description: 'Kho 100 câu hỏi tổng hợp, tự động bốc ngẫu nhiên 10 hoặc 20 câu mỗi lần làm',
+    icon: '🎲',
+    exercise_id: 2001
+  });
+}
 
 // Hydrate saved custom exercises from localStorage
 try {
@@ -915,8 +952,14 @@ class ApiService {
       subject_id: subjectId,
       reward_xp: exercise.reward_xp || 50,
       questions: exercise.questions || [],
-      assigned_to: exercise.assigned_to || 'Lớp 4A1',
-      due_date: exercise.due_date || 'Chủ nhật tuần này (23:59)'
+      assigned_to: exercise.assigned_to || `Lớp ${grade}A1`,
+      due_date: exercise.due_date || 'Chủ nhật tuần này (23:59)',
+      is_random_pool: !!exercise.is_random_pool,
+      random_mode: exercise.random_mode || (exercise.is_random_pool ? 'fixed_10' : 'all'),
+      random_count: exercise.random_count || (exercise.is_random_pool ? 10 : exercise.questions?.length || 0),
+      total_pool_count: exercise.questions?.length || 0,
+      shuffle_questions: exercise.shuffle_questions !== undefined ? exercise.shuffle_questions : true,
+      shuffle_options: exercise.shuffle_options !== undefined ? exercise.shuffle_options : false
     };
 
     curriculumDatabase.exercises[id] = fullExercise;
@@ -935,8 +978,10 @@ class ApiService {
       grade_level: grade,
       title: fullExercise.title,
       topic_tag: `custom-${id}`,
-      description: `Bài tập gồm ${fullExercise.questions.length} câu hỏi tương tác (Trắc nghiệm, Điền ô, Nối cặp, Đúng/Sai)`,
-      icon: subjectId === 1 ? '📐' : (subjectId === 2 ? '📖' : (subjectId === 3 ? '🔬' : '🇬🇧')),
+      description: fullExercise.is_random_pool
+        ? `Ngân hàng ${fullExercise.questions.length} câu (Random ${fullExercise.random_count || 10} câu)`
+        : `Bài tập gồm ${fullExercise.questions.length} câu hỏi`,
+      icon: fullExercise.is_random_pool ? '🎲' : (subjectId === 1 ? '📐' : (subjectId === 2 ? '📖' : (subjectId === 3 ? '🔬' : '🇬🇧'))),
       exercise_id: id
     };
 
@@ -1008,7 +1053,13 @@ class ApiService {
         submissions_count: subCount,
         total_students: 3,
         average_score: avgScore,
-        submissionsList: exSubs
+        submissionsList: exSubs,
+        is_random_pool: !!ex.is_random_pool,
+        random_mode: ex.random_mode || 'all',
+        random_count: ex.random_count || (ex.is_random_pool ? 10 : null),
+        total_pool_count: ex.questions?.length || 0,
+        shuffle_questions: ex.shuffle_questions,
+        shuffle_options: ex.shuffle_options
       });
     }
     return { success: true, exercises: list };
@@ -1031,7 +1082,9 @@ class ApiService {
       const lesson = curriculumDatabase.lessonsByGradeAndSubject[g][s].find(l => l.exercise_id === numericId);
       if (lesson) {
         lesson.title = merged.title;
-        lesson.description = `Bài tập gồm ${merged.questions?.length || 0} câu hỏi`;
+        lesson.description = merged.is_random_pool
+          ? `Ngân hàng ${merged.questions?.length || 0} câu (Random ${merged.random_count || 10} câu)`
+          : `Bài tập gồm ${merged.questions?.length || 0} câu hỏi`;
       }
     }
 
@@ -1069,7 +1122,7 @@ class ApiService {
     return { success: true };
   }
 
-  async submitExercise(exerciseId, answers, timeTakenSeconds) {
+  async submitExercise(exerciseId, answers, timeTakenSeconds, sessionQuestions = null) {
     const res = await this.request('/exercises/submit', {
       method: 'POST',
       body: JSON.stringify({ exerciseId, answers, timeTakenSeconds })
@@ -1080,7 +1133,7 @@ class ApiService {
     const ex = curriculumDatabase.exercises[exerciseId] || curriculumDatabase.exercises[1021] || curriculumDatabase.exercises[101];
     let totalScore = 0;
     let earnedXp = 0;
-    const questions = ex?.questions || [];
+    const questions = (Array.isArray(sessionQuestions) && sessionQuestions.length > 0) ? sessionQuestions : (ex?.questions || []);
 
     const detailedFeedback = questions.map((q, idx) => {
       const studentAns = answers[q.id];

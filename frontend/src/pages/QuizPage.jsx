@@ -1,19 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { sound } from '../services/audio';
+import { sampleRandomQuestions } from '../services/randomPoolService';
 import { useDialog } from '../context/DialogContext';
 import { useToast } from '../context/ToastContext';
 
 export default function QuizPage({ exerciseId, onFinish, onBack }) {
   const { confirm } = useDialog();
   const { showError } = useToast();
-  const [exercise, setExercise] = useState(null);
+  
+  const [rawExercise, setRawExercise] = useState(null);
+  const [activeQuestions, setActiveQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({}); // { questionId: 'A' | 'string' | { "1": "B" } }
   const [showHint, setShowHint] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Random Pool Mode State
+  const [isPreQuizPrompt, setIsPreQuizPrompt] = useState(false);
+  const [selectedRandomCount, setSelectedRandomCount] = useState(10);
 
   // Matching interaction state for current question
   const [selectedLeft, setSelectedLeft] = useState(null);
@@ -22,18 +29,20 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
     loadExercise();
   }, [exerciseId]);
 
-  // Timer interval
+  // Timer interval (only runs when quiz has actively started)
   useEffect(() => {
+    if (isPreQuizPrompt || loading || !activeQuestions.length) return;
     const timer = setInterval(() => {
       setSecondsElapsed(prev => prev + 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isPreQuizPrompt, loading, activeQuestions.length]);
 
   // Keyboard navigation & option selection
   useEffect(() => {
+    if (isPreQuizPrompt) return;
     const handleKeyDown = (e) => {
-      const q = exercise?.questions[currentIdx];
+      const q = activeQuestions[currentIdx];
       if (!q) return;
 
       if (q.question_type === 'multiple_choice' || !q.question_type) {
@@ -46,7 +55,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
         }
       }
 
-      if (e.key === 'ArrowRight' && currentIdx < (exercise.questions.length - 1)) {
+      if (e.key === 'ArrowRight' && currentIdx < (activeQuestions.length - 1)) {
         nextQuestion();
       } else if (e.key === 'ArrowLeft' && currentIdx > 0) {
         prevQuestion();
@@ -55,15 +64,51 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [exercise, currentIdx]);
+  }, [activeQuestions, currentIdx, isPreQuizPrompt]);
 
   const loadExercise = async () => {
     setLoading(true);
     const res = await api.getExercise(exerciseId);
     if (res.success && res.exercise) {
-      setExercise(res.exercise);
+      const ex = res.exercise;
+      setRawExercise(ex);
+
+      const poolLength = ex.questions?.length || 0;
+      const isRandomPool = ex.is_random_pool || poolLength > 15 || ex.random_mode === 'student_choice';
+
+      if (ex.random_mode === 'student_choice' || (isRandomPool && !ex.random_count)) {
+        setIsPreQuizPrompt(true);
+        setSelectedRandomCount(Math.min(10, poolLength));
+      } else if (ex.random_count && ex.random_count < poolLength) {
+        // Teacher fixed random count (e.g., 10 or 20 questions)
+        const sampled = sampleRandomQuestions(ex.questions, {
+          count: ex.random_count,
+          shuffleQuestions: ex.shuffle_questions !== false,
+          shuffleOptions: !!ex.shuffle_options
+        });
+        setActiveQuestions(sampled);
+        setIsPreQuizPrompt(false);
+      } else {
+        // Standard full questions list
+        setActiveQuestions(ex.questions || []);
+        setIsPreQuizPrompt(false);
+      }
     }
     setLoading(false);
+  };
+
+  const handleStartRandomQuiz = (count) => {
+    sound.click();
+    const sampled = sampleRandomQuestions(rawExercise.questions, {
+      count: count || selectedRandomCount,
+      shuffleQuestions: rawExercise.shuffle_questions !== false,
+      shuffleOptions: !!rawExercise.shuffle_options
+    });
+    setActiveQuestions(sampled);
+    setCurrentIdx(0);
+    setAnswers({});
+    setSecondsElapsed(0);
+    setIsPreQuizPrompt(false);
   };
 
   const selectOption = (qId, optionLabel) => {
@@ -117,7 +162,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
 
   const nextQuestion = () => {
     sound.pop();
-    if (currentIdx < exercise.questions.length - 1) {
+    if (currentIdx < activeQuestions.length - 1) {
       setCurrentIdx(prev => prev + 1);
       setShowHint(false);
       setSelectedLeft(null);
@@ -134,7 +179,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
   };
 
   const handleSubmit = async () => {
-    const total = exercise.questions.length;
+    const total = activeQuestions.length;
     const answeredCount = Object.keys(answers).filter(k => answers[k] !== undefined && answers[k] !== '').length;
 
     if (answeredCount < total) {
@@ -149,7 +194,8 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
     }
 
     setIsSubmitting(true);
-    const res = await api.submitExercise(exercise.id, answers, secondsElapsed);
+    // Grade precisely against the randomized active subset of questions
+    const res = await api.submitExercise(rawExercise.id, answers, secondsElapsed, activeQuestions);
     setIsSubmitting(false);
 
     if (res.success && res.result) {
@@ -159,7 +205,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
     }
   };
 
-  if (loading || !exercise) {
+  if (loading || !rawExercise) {
     return (
       <div className="container" style={{ padding: '40px 0', textAlign: 'center' }}>
         <h2>⏳ Đang chuẩn bị đề bài tập...</h2>
@@ -167,8 +213,68 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
     );
   }
 
-  const currentQ = exercise.questions[currentIdx] || {};
-  const totalQ = exercise.questions.length;
+  // ================= PRE-QUIZ RANDOM SELECTION SCREEN =================
+  if (isPreQuizPrompt) {
+    const poolSize = rawExercise.questions?.length || 0;
+    return (
+      <div className="container" style={{ padding: '40px 0 80px 0', maxWidth: '720px' }}>
+        <div className="card" style={{ padding: '36px', textAlign: 'center', boxShadow: 'var(--card-shadow)' }}>
+          <div style={{ fontSize: '3.5rem', marginBottom: '12px' }}>🎲</div>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--primary-dark)', marginBottom: '8px' }}>
+            {rawExercise.title}
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontWeight: 700, fontSize: '1.05rem', marginBottom: '24px' }}>
+            Kho đề hiện có <strong>{poolSize} câu hỏi</strong> tổng hợp. Bé muốn làm bao nhiêu câu ngẫu nhiên trong lượt này?
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px', marginBottom: '32px' }}>
+            {[10, 20, 30, poolSize].filter((cnt, idx, arr) => cnt <= poolSize && arr.indexOf(cnt) === idx).map(cnt => (
+              <button
+                key={cnt}
+                type="button"
+                onClick={() => { sound.pop(); setSelectedRandomCount(cnt); }}
+                style={{
+                  padding: '16px 12px',
+                  borderRadius: '16px',
+                  border: selectedRandomCount === cnt ? '3px solid #4F46E5' : '2px solid #E2E8F0',
+                  background: selectedRandomCount === cnt ? '#EEF2FF' : '#F8FAFC',
+                  color: selectedRandomCount === cnt ? '#4F46E5' : '#334155',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  textAlign: 'center'
+                }}
+              >
+                <div style={{ fontSize: '1.6rem', marginBottom: '4px' }}>
+                  {cnt === 10 ? '⚡' : (cnt === 20 ? '🎯' : (cnt === 30 ? '🔥' : '🏆'))}
+                </div>
+                <div style={{ fontSize: '1.15rem' }}>{cnt === poolSize ? `Tất cả (${cnt} câu)` : `${cnt} Câu`}</div>
+                <div style={{ fontSize: '0.8rem', color: selectedRandomCount === cnt ? '#4338CA' : '#64748B', marginTop: '4px' }}>
+                  {cnt === 10 ? '~5-10 phút' : (cnt === 20 ? '~15-20 phút' : (cnt === 30 ? '~25-30 phút' : 'Ôn toàn bộ'))}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn-secondary" onClick={() => { sound.pop(); onBack(); }}>
+              ◀️ Quay lại
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => handleStartRandomQuiz(selectedRandomCount)}
+              style={{ padding: '14px 32px', fontSize: '1.15rem', borderRadius: '14px' }}
+            >
+              🚀 Bắt Đầu Làm Bài ({selectedRandomCount} Câu)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQ = activeQuestions[currentIdx] || {};
+  const totalQ = activeQuestions.length;
   const progressPct = ((currentIdx + 1) / totalQ) * 100;
   const mins = Math.floor(secondsElapsed / 60);
   const secs = secondsElapsed % 60;
@@ -176,6 +282,8 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
   const qType = currentQ.question_type || 'multiple_choice';
 
   const pairColors = ['#4F46E5', '#059669', '#D97706', '#DB2777', '#7C3AED'];
+  const poolLength = rawExercise.questions?.length || 0;
+  const isRandomSubset = poolLength > totalQ;
 
   return (
     <div className="container" style={{ padding: '24px 0 60px 0' }}>
@@ -189,7 +297,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
         justifyContent: 'space-between',
         boxShadow: 'var(--card-shadow)',
         border: '2px solid var(--border-color)',
-        marginBottom: '24px',
+        marginBottom: '20px',
         gap: '15px',
         flexWrap: 'wrap'
       }}>
@@ -199,7 +307,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
 
         <div style={{ flex: 1, minWidth: '220px', margin: '0 10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-muted)', marginBottom: '6px' }}>
-            <span>{exercise.title}</span>
+            <span>{rawExercise.title}</span>
             <span>Câu <strong>{currentIdx + 1}</strong> / {totalQ}</span>
           </div>
           <div className="progress-track" style={{ height: '12px' }}>
@@ -214,10 +322,50 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
           </div>
           <div className="chip chip-xp">
             <span>⭐</span>
-            <span>+{exercise.reward_xp} XP</span>
+            <span>+{rawExercise.reward_xp || 50} XP</span>
           </div>
         </div>
       </div>
+
+      {/* Random Pool Status Notification Banner */}
+      {isRandomSubset && (
+        <div style={{
+          background: '#EFF6FF',
+          border: '1.5px solid #BFDBFE',
+          borderRadius: '12px',
+          padding: '10px 16px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '8px',
+          fontSize: '0.9rem',
+          color: '#1E40AF',
+          fontWeight: 800
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>🎲</span>
+            <span>Đề ngẫu nhiên: Đang làm <strong>{totalQ} câu</strong> được bốc tự động từ ngân hàng <strong>{poolLength} câu hỏi</strong>.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleStartRandomQuiz(totalQ)}
+            style={{
+              background: '#DBEAFE',
+              border: '1px solid #93C5FD',
+              color: '#1D4ED8',
+              borderRadius: '8px',
+              padding: '4px 10px',
+              fontSize: '0.8rem',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            🔄 Đổi bộ câu hỏi khác
+          </button>
+        </div>
+      )}
 
       {/* Main Question Card */}
       <div className="card" style={{ padding: '36px', position: 'relative' }}>
@@ -260,242 +408,173 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
           <div style={{ marginBottom: '24px', textAlign: 'center' }}>
             <img
               src={currentQ.image_url}
-              alt="Hình minh họa câu hỏi"
+              alt="Hình ảnh minh họa câu hỏi"
               style={{
                 maxWidth: '100%',
-                maxHeight: '260px',
+                maxHeight: '340px',
                 borderRadius: '16px',
-                border: '2px solid #E2E8F0',
-                boxShadow: '0 8px 20px rgba(0,0,0,0.06)',
+                border: '2px solid var(--border-color)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
                 objectFit: 'contain'
               }}
             />
           </div>
         )}
 
-        {/* Hint Drawer */}
-        {currentQ.hint && (
-          <div style={{ marginBottom: '22px' }}>
-            <button
-              onClick={() => { sound.pop(); setShowHint(!showHint); }}
-              style={{
-                background: '#FEF3C7',
-                border: 'none',
-                color: '#D97706',
-                fontWeight: 800,
-                fontSize: '0.9rem',
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-full)',
-                cursor: 'pointer'
-              }}
-            >
-              <span>💡 {showHint ? 'Ẩn gợi ý' : 'Bé cần gợi ý của cô giáo không?'}</span>
-            </button>
-
-            {showHint && (
-              <div style={{
-                marginTop: '10px',
-                background: '#FFFBEB',
-                borderLeft: '4px solid #F59E0B',
-                padding: '12px 16px',
-                borderRadius: '0 8px 8px 0',
-                color: '#92400E',
-                fontWeight: 700,
-                fontSize: '0.95rem'
-              }}>
-                💡 Gợi ý từ cô giáo: {currentQ.hint}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* TYPE 1: MULTIPLE CHOICE (4 Options) */}
-        {/* ========================================================================= */}
-        {(qType === 'multiple_choice' || !qType) && currentQ.options && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginBottom: '32px' }}>
-            {currentQ.options.map(opt => {
+        {/* ================= TYPE 1: MULTIPLE CHOICE ================= */}
+        {(qType === 'multiple_choice' || !qType) && (
+          <div className="options-grid">
+            {currentQ.options?.map((opt, idx) => {
               const isSelected = answers[currentQ.id] === opt.option_label;
               return (
-                <div
-                  key={opt.option_label}
+                <button
+                  key={opt.option_label || idx}
+                  className={`option-card ${isSelected ? 'selected' : ''}`}
                   onClick={() => selectOption(currentQ.id, opt.option_label)}
-                  style={{
-                    background: isSelected ? '#EEF2FF' : '#F8FAFC',
-                    border: isSelected ? '2.5px solid var(--primary)' : '2px solid var(--border-color)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '18px 22px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '14px',
-                    cursor: 'pointer',
-                    boxShadow: isSelected ? '0 4px 14px rgba(79, 70, 229, 0.2)' : 'none',
-                    transform: isSelected ? 'translateY(-2px)' : 'none',
-                    transition: 'var(--transition)'
-                  }}
+                  style={{ textAlign: 'left', minHeight: '68px', display: 'flex', alignItems: 'center' }}
                 >
-                  <div style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '50%',
-                    background: isSelected ? 'var(--primary)' : 'white',
-                    color: isSelected ? 'white' : 'var(--text-main)',
-                    border: isSelected ? 'none' : '2px solid var(--border-color)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 900,
-                    fontSize: '1.1rem',
-                    flexShrink: 0
-                  }}>
-                    {opt.option_label}
-                  </div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>
+                  <div className="option-badge">{opt.option_label}</div>
+                  <div className="option-text" style={{ fontSize: '1.15rem', fontWeight: 700 }}>
                     {opt.answer_text}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TYPE 2: FILL IN THE BLANK / NUMBER */}
-        {/* ========================================================================= */}
+        {/* ================= TYPE 2: FILL IN BLANK / NUMBER ================= */}
         {qType === 'fill_blank' && (
-          <div style={{ marginBottom: '32px', background: '#F8FAFC', padding: '24px', borderRadius: '18px', border: '2px solid #E2E8F0' }}>
-            <label style={{ display: 'block', fontWeight: 800, fontSize: '1rem', color: '#1E293B', marginBottom: '10px' }}>
-              👉 Bé hãy nhập câu trả lời hoặc số vào ô bên dưới:
-            </label>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ margin: '20px 0' }}>
+            <div style={{
+              background: '#F8FAFC',
+              border: '2px dashed #CBD5E1',
+              borderRadius: '16px',
+              padding: '24px',
+              textAlign: 'center',
+              marginBottom: '16px'
+            }}>
+              <label style={{ display: 'block', fontWeight: 800, color: '#475569', marginBottom: '12px', fontSize: '1.05rem' }}>
+                ✏️ Nhập câu trả lời hoặc kết quả của bé vào ô dưới đây:
+              </label>
               <input
                 type="text"
                 value={answers[currentQ.id] || ''}
-                onChange={e => handleFillChange(currentQ.id, e.target.value)}
-                placeholder="Nhập câu trả lời tại đây..."
+                onChange={(e) => handleFillChange(currentQ.id, e.target.value)}
+                placeholder="Gõ đáp án ở đây..."
                 autoFocus
                 style={{
-                  flex: 1,
-                  minWidth: '240px',
-                  padding: '16px 20px',
-                  borderRadius: '14px',
-                  border: '2.5px solid #059669',
-                  background: 'white',
+                  fontSize: '1.5rem',
                   fontWeight: 900,
-                  fontSize: '1.35rem',
-                  color: '#065F46',
+                  textAlign: 'center',
+                  padding: '14px 20px',
+                  width: '100%',
+                  maxWidth: '360px',
+                  border: '2.5px solid #4F46E5',
+                  borderRadius: '14px',
                   outline: 'none',
-                  boxShadow: '0 4px 14px rgba(5, 150, 105, 0.15)'
+                  boxShadow: '0 4px 14px rgba(79, 70, 229, 0.15)',
+                  background: 'white',
+                  color: '#1E293B'
                 }}
               />
-              {answers[currentQ.id] && (
-                <button
-                  type="button"
-                  onClick={() => handleFillChange(currentQ.id, '')}
-                  style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', padding: '12px 18px', borderRadius: '12px', fontWeight: 800, cursor: 'pointer' }}
-                >
-                  ✕ Xóa
-                </button>
-              )}
             </div>
 
-            {/* Quick Math Keypad Helper */}
-            <div style={{ marginTop: '16px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748B' }}>Bàn phím nhanh:</span>
-              {['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', 'cm', 'kg'].map(sym => (
+            {/* Quick Math Pad for Numbers */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '-', '=', '/', ','].map(char => (
                 <button
-                  key={sym}
+                  key={char}
                   type="button"
-                  onClick={() => handleFillChange(currentQ.id, (answers[currentQ.id] || '') + sym)}
+                  onClick={() => handleFillChange(currentQ.id, (answers[currentQ.id] || '') + char)}
                   style={{
-                    padding: '6px 14px',
+                    background: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
                     borderRadius: '8px',
-                    border: '1.5px solid #CBD5E1',
-                    background: 'white',
+                    padding: '8px 14px',
                     fontWeight: 800,
-                    fontSize: '0.95rem',
-                    cursor: 'pointer'
+                    fontSize: '1.1rem',
+                    cursor: 'pointer',
+                    color: '#334155'
                   }}
                 >
-                  {sym}
+                  {char}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => handleFillChange(currentQ.id, '')}
+                style={{
+                  background: '#FEE2E2',
+                  border: '1px solid #FECDD3',
+                  borderRadius: '8px',
+                  padding: '8px 14px',
+                  fontWeight: 800,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  color: '#DC2626'
+                }}
+              >
+                Xóa ô
+              </button>
             </div>
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TYPE 3: TRUE / FALSE */}
-        {/* ========================================================================= */}
+        {/* ================= TYPE 3: TRUE OR FALSE ================= */}
         {qType === 'true_false' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
-            <div
-              onClick={() => selectOption(currentQ.id, 'Đúng')}
-              style={{
-                background: answers[currentQ.id] === 'Đúng' ? '#D1FAE5' : '#F8FAFC',
-                border: answers[currentQ.id] === 'Đúng' ? '3px solid #059669' : '2px solid #E2E8F0',
-                borderRadius: '20px',
-                padding: '24px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                boxShadow: answers[currentQ.id] === 'Đúng' ? '0 8px 24px rgba(5, 150, 105, 0.25)' : 'none',
-                transform: answers[currentQ.id] === 'Đúng' ? 'scale(1.03)' : 'none',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{ fontSize: '3rem', marginBottom: '8px' }}>👍</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#065F46' }}>ĐÚNG</div>
-              <div style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 700, marginTop: '4px' }}>Khẳng định trên là chính xác</div>
-            </div>
-
-            <div
-              onClick={() => selectOption(currentQ.id, 'Sai')}
-              style={{
-                background: answers[currentQ.id] === 'Sai' ? '#FEE2E2' : '#F8FAFC',
-                border: answers[currentQ.id] === 'Sai' ? '3px solid #DC2626' : '2px solid #E2E8F0',
-                borderRadius: '20px',
-                padding: '24px',
-                textAlign: 'center',
-                cursor: 'pointer',
-                boxShadow: answers[currentQ.id] === 'Sai' ? '0 8px 24px rgba(220, 38, 38, 0.25)' : 'none',
-                transform: answers[currentQ.id] === 'Sai' ? 'scale(1.03)' : 'none',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{ fontSize: '3rem', marginBottom: '8px' }}>👎</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#991B1B' }}>SAI</div>
-              <div style={{ fontSize: '0.85rem', color: '#B91C1C', fontWeight: 700, marginTop: '4px' }}>Khẳng định trên là chưa đúng</div>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', margin: '24px 0' }}>
+            {[
+              { label: 'Đúng', icon: '✅', color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+              { label: 'Sai', icon: '❌', color: '#DC2626', bg: '#FEF2F2', border: '#FECDD3' }
+            ].map((tf) => {
+              const isSelected = (answers[currentQ.id] || '').toLowerCase() === tf.label.toLowerCase();
+              return (
+                <button
+                  key={tf.label}
+                  type="button"
+                  onClick={() => selectOption(currentQ.id, tf.label)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '30px 20px',
+                    borderRadius: '20px',
+                    border: isSelected ? `4px solid ${tf.color}` : `2px solid ${tf.border}`,
+                    background: isSelected ? tf.bg : '#F8FAFC',
+                    cursor: 'pointer',
+                    boxShadow: isSelected ? `0 8px 24px rgba(0,0,0,0.12)` : 'none',
+                    transform: isSelected ? 'scale(1.02)' : 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <span style={{ fontSize: '3rem', marginBottom: '12px' }}>{tf.icon}</span>
+                  <span style={{ fontSize: '1.6rem', fontWeight: 900, color: tf.color }}>
+                    {tf.label.toUpperCase()}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TYPE 4: MATCHING (2-Column Pair Connect) */}
-        {/* ========================================================================= */}
-        {qType === 'matching' && currentQ.matching_data && (
-          <div style={{ marginBottom: '32px' }}>
-            <div style={{
-              background: '#FFFBEB',
-              border: '1.5px solid #FDE68A',
-              padding: '12px 18px',
-              borderRadius: '12px',
-              fontSize: '0.9rem',
-              fontWeight: 800,
-              color: '#92400E',
-              marginBottom: '16px'
-            }}>
-              👉 Hướng dẫn: Bấm chọn 1 mục ở <strong>Cột Trái</strong>, sau đó bấm vào mục tương ứng ở <strong>Cột Phải</strong> để nối cặp!
-            </div>
+        {/* ================= TYPE 4: MATCHING PAIRS ================= */}
+        {qType === 'matching' && (
+          <div style={{ margin: '20px 0' }}>
+            <p style={{ fontWeight: 700, color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.95rem' }}>
+              💡 <strong>Hướng dẫn:</strong> Bấm chọn 1 ô ở <strong>Cột A</strong>, sau đó bấm chọn 1 ô tương ứng ở <strong>Cột B</strong> để nối cặp!
+            </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              {/* Left Column */}
+              {/* Left Column (Items) */}
               <div>
-                <h4 style={{ fontWeight: 900, color: '#475569', marginBottom: '12px', textAlign: 'center' }}>CỘT A</h4>
+                <h4 style={{ color: '#4F46E5', fontWeight: 800, marginBottom: '12px' }}>Cột A</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {currentQ.matching_data.left.map((item, idx) => {
-                    const matchedRightId = answers[currentQ.id]?.[item.id];
-                    const isLeftSelected = selectedLeft === item.id;
-                    const color = matchedRightId ? pairColors[idx % pairColors.length] : '#4F46E5';
+                  {(currentQ.matching_data?.leftItems || []).map((item, idx) => {
+                    const currentPair = answers[currentQ.id]?.[item.id];
+                    const isSelected = selectedLeft === item.id;
+                    const pairColor = currentPair ? pairColors[idx % pairColors.length] : undefined;
 
                     return (
                       <div
@@ -503,35 +582,29 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
                         onClick={() => handleMatchingClickLeft(item.id)}
                         style={{
                           padding: '14px 18px',
-                          borderRadius: '14px',
-                          border: isLeftSelected ? '2.5px solid #D97706' : (matchedRightId ? `2px solid ${color}` : '2px solid #E2E8F0'),
-                          background: isLeftSelected ? '#FEF3C7' : (matchedRightId ? `${color}15` : '#F8FAFC'),
+                          borderRadius: '12px',
+                          border: isSelected ? '3px solid #4F46E5' : (currentPair ? `2px solid ${pairColor}` : '2px solid #E2E8F0'),
+                          background: isSelected ? '#EEF2FF' : (currentPair ? `${pairColor}15` : '#F8FAFC'),
+                          color: isSelected ? '#4F46E5' : '#1E293B',
+                          fontWeight: 800,
                           cursor: 'pointer',
                           display: 'flex',
-                          alignItems: 'center',
                           justifyContent: 'space-between',
-                          fontWeight: 800,
-                          fontSize: '1.05rem',
-                          transition: 'all 0.2s ease',
-                          transform: isLeftSelected ? 'scale(1.02)' : 'none'
+                          alignItems: 'center'
                         }}
                       >
                         <span>{item.text}</span>
-                        {matchedRightId ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ background: color, color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 900 }}>
-                              ➔ {currentQ.matching_data.right.find(r => r.id === matchedRightId)?.text || matchedRightId}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleRemoveMatchingPair(currentQ.id, item.id); }}
-                              style={{ background: '#FEE2E2', border: 'none', color: '#EF4444', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', fontWeight: 900 }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ) : (
-                          <span style={{ color: '#94A3B8', fontSize: '0.8rem' }}>Chọn nối ➔</span>
+                        {currentPair && (
+                          <span style={{
+                            background: pairColor,
+                            color: 'white',
+                            borderRadius: '9999px',
+                            padding: '2px 8px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800
+                          }}>
+                            ➔ Nối {currentPair}
+                          </span>
                         )}
                       </div>
                     );
@@ -539,37 +612,54 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
                 </div>
               </div>
 
-              {/* Right Column */}
+              {/* Right Column (Targets) */}
               <div>
-                <h4 style={{ fontWeight: 900, color: '#475569', marginBottom: '12px', textAlign: 'center' }}>CỘT B</h4>
+                <h4 style={{ color: '#059669', fontWeight: 800, marginBottom: '12px' }}>Cột B</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {currentQ.matching_data.right.map((item) => {
-                    const connectedLeftKey = answers[currentQ.id] ? Object.keys(answers[currentQ.id]).find(k => answers[currentQ.id][k] === item.id) : null;
-                    const color = connectedLeftKey ? pairColors[(parseInt(connectedLeftKey, 10) - 1) % pairColors.length] || '#059669' : '#059669';
+                  {(currentQ.matching_data?.rightItems || []).map((target) => {
+                    // Check if this right item is linked by any left item
+                    const matchingState = answers[currentQ.id] || {};
+                    const connectedLeft = Object.keys(matchingState).find(k => matchingState[k] === target.id);
 
                     return (
                       <div
-                        key={item.id}
-                        onClick={() => handleMatchingClickRight(currentQ.id, item.id)}
+                        key={target.id}
+                        onClick={() => handleMatchingClickRight(currentQ.id, target.id)}
                         style={{
                           padding: '14px 18px',
-                          borderRadius: '14px',
-                          border: connectedLeftKey ? `2px solid ${color}` : (selectedLeft ? '2px dashed #D97706' : '2px solid #E2E8F0'),
-                          background: connectedLeftKey ? `${color}15` : (selectedLeft ? '#FFFBEB' : '#F8FAFC'),
-                          cursor: selectedLeft ? 'pointer' : 'default',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
+                          borderRadius: '12px',
+                          border: selectedLeft ? '2px dashed #059669' : (connectedLeft ? '2px solid #059669' : '2px solid #E2E8F0'),
+                          background: connectedLeft ? '#ECFDF5' : (selectedLeft ? '#F0FDF4' : '#F8FAFC'),
+                          color: '#1E293B',
                           fontWeight: 800,
-                          fontSize: '1.05rem',
-                          transition: 'all 0.2s ease'
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
                         }}
                       >
-                        <span>{item.text}</span>
-                        {connectedLeftKey && (
-                          <span style={{ background: color, color: 'white', padding: '2px 8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 900 }}>
-                            ✅ Đã nối
-                          </span>
+                        <span><strong>{target.id}.</strong> {target.text}</span>
+                        {connectedLeft && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveMatchingPair(currentQ.id, connectedLeft);
+                            }}
+                            title="Hủy nối cặp này"
+                            style={{
+                              background: '#FEE2E2',
+                              color: '#DC2626',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '2px 6px',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ✖ Hủy
+                          </button>
                         )}
                       </div>
                     );
@@ -580,31 +670,103 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
           </div>
         )}
 
-        {/* Navigation Footer */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+        {/* Pedagogical Hint Toggle */}
+        <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <button
             className="btn-secondary"
-            onClick={prevQuestion}
-            style={{ visibility: currentIdx > 0 ? 'visible' : 'hidden' }}
+            onClick={() => { sound.pop(); setShowHint(prev => !prev); }}
+            style={{ fontSize: '0.9rem', color: '#D97706', borderColor: '#FDE68A', background: '#FFFBEB' }}
           >
-            <span>◀️ Câu Trước</span>
+            <span>💡 {showHint ? 'Ẩn Gợi Ý' : 'Xem Gợi Ý Sư Phạm'}</span>
           </button>
 
-          {currentIdx === totalQ - 1 ? (
-            <button
-              className="btn-primary"
-              style={{ background: 'linear-gradient(135deg, #10B981, #059669)', padding: '12px 28px' }}
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-            >
-              <span>{isSubmitting ? '⏳ Đang chấm bài...' : 'Nộp Bài Chấm Điểm 🎉'}</span>
-            </button>
-          ) : (
-            <button className="btn-primary" onClick={nextQuestion} style={{ padding: '12px 24px' }}>
-              <span>Câu Tiếp Theo ▶️</span>
-            </button>
-          )}
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+            {answers[currentQ.id] !== undefined && answers[currentQ.id] !== '' ? '✅ Đã chọn đáp án' : '⏳ Chưa trả lời'}
+          </span>
         </div>
+
+        {/* Hint Content Box */}
+        {showHint && (
+          <div style={{
+            marginTop: '16px',
+            padding: '16px',
+            borderRadius: 'var(--radius-md)',
+            background: '#FEF3C7',
+            border: '2px solid #FDE68A',
+            color: '#92400E',
+            fontSize: '0.95rem',
+            lineHeight: 1.6,
+            fontWeight: 700
+          }}>
+            <strong>💡 Gợi ý tư duy:</strong> {currentQ.hint || 'Bé hãy đọc kỹ đề bài và loại trừ các đáp án chưa chính xác nhé!'}
+          </div>
+        )}
+      </div>
+
+      {/* Action Footer Navigation */}
+      <div style={{
+        marginTop: '24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '12px'
+      }}>
+        <button
+          className="btn-secondary"
+          onClick={prevQuestion}
+          disabled={currentIdx === 0}
+          style={{ opacity: currentIdx === 0 ? 0.5 : 1 }}
+        >
+          <span>⬅️ Câu Trước</span>
+        </button>
+
+        {/* Navigation Quick Dots */}
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {activeQuestions.map((q, idx) => {
+            const isAnswered = answers[q.id] !== undefined && answers[q.id] !== '';
+            const isCurrent = idx === currentIdx;
+            return (
+              <button
+                key={q.id || idx}
+                type="button"
+                onClick={() => { sound.pop(); setCurrentIdx(idx); setShowHint(false); setSelectedLeft(null); }}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: isCurrent ? '2.5px solid #4F46E5' : '1.5px solid #CBD5E1',
+                  background: isCurrent ? '#4F46E5' : (isAnswered ? '#10B981' : '#F1F5F9'),
+                  color: isCurrent || isAnswered ? 'white' : '#64748B',
+                  fontWeight: 800,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {idx + 1}
+              </button>
+            );
+          })}
+        </div>
+
+        {currentIdx < activeQuestions.length - 1 ? (
+          <button className="btn-primary" onClick={nextQuestion}>
+            <span>Câu Tiếp Theo ➡️</span>
+          </button>
+        ) : (
+          <button
+            className="btn-primary"
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            style={{ background: 'linear-gradient(135deg, #10B981, #059669)', border: 'none' }}
+          >
+            <span>{isSubmitting ? '⏳ Đang Chấm Điểm...' : '🚀 Hoàn Thành & Nộp Bài'}</span>
+          </button>
+        )}
       </div>
     </div>
   );

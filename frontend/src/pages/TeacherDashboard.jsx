@@ -65,6 +65,11 @@ export default function TeacherDashboard() {
   const [selectedViewExercise, setSelectedViewExercise] = useState(null);
   const [editingExercise, setEditingExercise] = useState(null);
 
+  // Random Pool Mode States
+  const [randomMode, setRandomMode] = useState('all'); // 'all' | 'fixed_10' | 'fixed_20' | 'fixed_30' | 'student_choice'
+  const [shuffleQuestions, setShuffleQuestions] = useState(true);
+  const [shuffleOptions, setShuffleOptions] = useState(true);
+
   // Assign state
   const [assignClassId, setAssignClassId] = useState('1');
   const [assignTitle, setAssignTitle] = useState('Ôn tập phân số cuối tuần');
@@ -192,6 +197,9 @@ export default function TeacherDashboard() {
     }
 
     sound.fanfare();
+    const isRandom = randomMode !== 'all';
+    const randomCount = randomMode === 'fixed_10' ? 10 : (randomMode === 'fixed_20' ? 20 : (randomMode === 'fixed_30' ? 30 : 10));
+
     const newEx = {
       id: Date.now() % 100000,
       title: exerciseTitle,
@@ -199,8 +207,14 @@ export default function TeacherDashboard() {
       subject_id: parseInt(exerciseSubject, 10),
       reward_xp: parseInt(exerciseXp, 10) || 50,
       questions: draftQuestions,
-      assigned_to: 'Lớp 4A1',
-      due_date: 'Chủ nhật tuần này'
+      assigned_to: `Lớp ${exerciseGrade}A1`,
+      due_date: 'Chủ nhật tuần này (23:59)',
+      is_random_pool: isRandom,
+      random_mode: randomMode,
+      random_count: isRandom ? randomCount : draftQuestions.length,
+      total_pool_count: draftQuestions.length,
+      shuffle_questions: shuffleQuestions,
+      shuffle_options: shuffleOptions
     };
 
     api.saveCustomExercise(newEx);
@@ -242,6 +256,9 @@ export default function TeacherDashboard() {
     }
 
     sound.fanfare();
+    const isRandom = randomMode !== 'all';
+    const randomCount = randomMode === 'fixed_10' ? 10 : (randomMode === 'fixed_20' ? 20 : (randomMode === 'fixed_30' ? 30 : 10));
+
     const newEx = {
       id: Date.now() % 100000,
       title: exerciseTitle || 'Bài Tập Nhập Từ Excel',
@@ -249,8 +266,14 @@ export default function TeacherDashboard() {
       subject_id: parseInt(exerciseSubject, 10),
       reward_xp: parseInt(exerciseXp, 10) || 50,
       questions: excelQuestions,
-      assigned_to: 'Lớp 4A1',
-      due_date: 'Chủ nhật tuần này'
+      assigned_to: `Lớp ${exerciseGrade}A1`,
+      due_date: 'Chủ nhật tuần này (23:59)',
+      is_random_pool: isRandom,
+      random_mode: randomMode,
+      random_count: isRandom ? randomCount : excelQuestions.length,
+      total_pool_count: excelQuestions.length,
+      shuffle_questions: shuffleQuestions,
+      shuffle_options: shuffleOptions
     };
 
     api.saveCustomExercise(newEx);
@@ -649,7 +672,25 @@ export default function TeacherDashboard() {
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontWeight: 800, color: '#059669' }}>{ex.questionsCount || ex.questions?.length || 0} câu</span>
+                        {ex.is_random_pool || (ex.random_count && ex.random_count < (ex.questionsCount || ex.questions?.length)) ? (
+                          <span style={{
+                            padding: '4px 10px',
+                            borderRadius: '9999px',
+                            fontWeight: 900,
+                            fontSize: '0.82rem',
+                            background: '#F5F3FF',
+                            color: '#7C3AED',
+                            border: '1.5px solid #DDD6FE',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            <span>🎲</span>
+                            <span>Random {ex.random_count || 10}/{ex.questionsCount || ex.questions?.length || 0} câu</span>
+                          </span>
+                        ) : (
+                          <span style={{ fontWeight: 800, color: '#059669' }}>{ex.questionsCount || ex.questions?.length || 0} câu</span>
+                        )}
                       </td>
                       <td>
                         <span style={{ fontWeight: 700, color: '#334155' }}>{ex.assigned_to || 'Lớp 4A1'}</span>
@@ -1098,6 +1139,61 @@ export default function TeacherDashboard() {
                   <option value="50">⭐ +50 XP (Chuẩn)</option>
                   <option value="100">⭐ +100 XP (Thử thách)</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Random Question Pool & Shuffling Settings */}
+            <div style={{
+              marginTop: '18px',
+              padding: '16px 20px',
+              background: '#F5F3FF',
+              borderRadius: '14px',
+              border: '1.5px solid #DDD6FE'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', color: '#6D28D9', fontWeight: 900, fontSize: '0.95rem' }}>
+                <span>🎲</span>
+                <span>Cấu Hình Chế Độ Ngân Hàng Đề & Trộn Câu Hỏi Ngẫu Nhiên</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#4C1D95', marginBottom: '4px' }}>
+                    Chế độ phát đề cho học sinh:
+                  </label>
+                  <select
+                    value={randomMode}
+                    onChange={e => setRandomMode(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #C4B5FD', background: 'white', fontWeight: 800, color: '#4C1D95', cursor: 'pointer' }}
+                  >
+                    <option value="all">📋 Làm toàn bộ câu hỏi trong đề (Mặc định)</option>
+                    <option value="fixed_10">🎲 Ngân hàng đề: Lấy ngẫu nhiên 10 câu mỗi lượt</option>
+                    <option value="fixed_20">🎲 Ngân hàng đề: Lấy ngẫu nhiên 20 câu mỗi lượt</option>
+                    <option value="fixed_30">🎲 Ngân hàng đề: Lấy ngẫu nhiên 30 câu mỗi lượt</option>
+                    <option value="student_choice">🎯 Học sinh tự chọn số lượng (10 / 20 / 30 / Tất cả)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                    <input
+                      type="checkbox"
+                      checked={shuffleQuestions}
+                      onChange={e => setShuffleQuestions(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: '#7C3AED' }}
+                    />
+                    <span>🔀 Đảo ngẫu nhiên thứ tự câu hỏi mỗi lượt làm</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                    <input
+                      type="checkbox"
+                      checked={shuffleOptions}
+                      onChange={e => setShuffleOptions(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: '#7C3AED' }}
+                    />
+                    <span>🔀 Đảo ngẫu nhiên vị trí các đáp án (A, B, C, D)</span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
@@ -1652,6 +1748,61 @@ export default function TeacherDashboard() {
                   <option value="4">🚀 Lớp 4</option>
                   <option value="5">👑 Lớp 5</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Random Question Pool & Shuffling Settings for Excel */}
+            <div style={{
+              padding: '16px 20px',
+              background: '#F5F3FF',
+              borderRadius: '14px',
+              border: '1.5px solid #DDD6FE',
+              marginBottom: '20px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', color: '#6D28D9', fontWeight: 900, fontSize: '0.95rem' }}>
+                <span>🎲</span>
+                <span>Cấu Hình Chế Độ Ngân Hàng Đề & Trộn Ngẫu Nhiên (Ví dụ nhập file 100 câu ➔ Random 10 hoặc 20 câu)</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#4C1D95', marginBottom: '4px' }}>
+                    Chế độ phát đề cho học sinh:
+                  </label>
+                  <select
+                    value={randomMode}
+                    onChange={e => setRandomMode(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #C4B5FD', background: 'white', fontWeight: 800, color: '#4C1D95', cursor: 'pointer' }}
+                  >
+                    <option value="all">📋 Làm toàn bộ câu hỏi trong file Excel (Mặc định)</option>
+                    <option value="fixed_10">🎲 Ngân hàng đề: Lấy ngẫu nhiên 10 câu mỗi lượt làm</option>
+                    <option value="fixed_20">🎲 Ngân hàng đề: Lấy ngẫu nhiên 20 câu mỗi lượt làm</option>
+                    <option value="fixed_30">🎲 Ngân hàng đề: Lấy ngẫu nhiên 30 câu mỗi lượt làm</option>
+                    <option value="student_choice">🎯 Học sinh tự chọn số lượng (10 / 20 / 30 / Tất cả)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '6px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                    <input
+                      type="checkbox"
+                      checked={shuffleQuestions}
+                      onChange={e => setShuffleQuestions(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: '#7C3AED' }}
+                    />
+                    <span>🔀 Đảo ngẫu nhiên thứ tự câu hỏi mỗi lượt làm</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>
+                    <input
+                      type="checkbox"
+                      checked={shuffleOptions}
+                      onChange={e => setShuffleOptions(e.target.checked)}
+                      style={{ width: '16px', height: '16px', accentColor: '#7C3AED' }}
+                    />
+                    <span>🔀 Đảo ngẫu nhiên vị trí các đáp án (A, B, C, D)</span>
+                  </label>
+                </div>
               </div>
             </div>
 
