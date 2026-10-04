@@ -1,4 +1,4 @@
-const mysql = require('mysql2/promise');
+import mysql from 'mysql2/promise';
 
 let pool = null;
 
@@ -13,15 +13,15 @@ function getPool() {
       database: process.env.DB_NAME || 'defaultdb',
       ssl: { rejectUnauthorized: false },
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 5,
       queueLimit: 0
     });
   }
   return pool;
 }
 
-module.exports = async function handler(req, res) {
-  // Enable CORS
+export default async function handler(req, res) {
+  // CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -144,7 +144,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ success: false, message: 'Action không hợp lệ' });
     }
 
-    // 3. DELETE method
+    // 3. DELETE
     if (req.method === 'DELETE') {
       const { id } = req.query || {};
       if (id) {
@@ -163,4 +163,4 @@ module.exports = async function handler(req, res) {
       message: 'Lỗi kết nối MySQL: ' + error.message
     });
   }
-};
+}
