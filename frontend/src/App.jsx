@@ -12,6 +12,8 @@ import TeacherDashboard from './pages/TeacherDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import LeaderboardPage from './pages/LeaderboardPage';
 
+import Footer from './components/Footer';
+
 export default function App() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -101,19 +103,7 @@ export default function App() {
         )}
       </main>
 
-      <footer style={{
-        background: 'white',
-        borderTop: '1.5px solid var(--border-color)',
-        padding: '20px 0',
-        textAlign: 'center',
-        fontSize: '0.9rem',
-        color: 'var(--text-muted)',
-        fontWeight: 600
-      }}>
-        <div className="container">
-          🏫 EduKids – Nền Tảng Học Tập & Gamification Tiểu Học (Lớp 1 - 5) • React + Vite + Node.js + MySQL Aiven ❤️
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

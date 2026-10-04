@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { sound } from '../services/audio';
 
 export default function Navbar({ activeTab, setActiveTab }) {
@@ -14,6 +15,7 @@ export default function Navbar({ activeTab, setActiveTab }) {
     setIsMuted,
     setShowProfileModal
   } = useAuth();
+  const { showInfo } = useToast();
 
   const handleSound = () => {
     const muted = sound.toggleMute();
@@ -27,9 +29,8 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
   const handleLogout = () => {
     sound.pop();
-    if (window.confirm('Bạn có chắc chắn muốn đăng xuất tài khoản?')) {
-      logout();
-    }
+    logout();
+    showInfo('Đã đăng xuất', 'Hẹn gặp lại bạn trong buổi học tiếp theo! 👋');
   };
 
   return (

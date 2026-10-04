@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth, mascotMap } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { sound } from '../services/audio';
 
 export default function ProfileModal() {
   const { user, updateProfile, showProfileModal, setShowProfileModal } = useAuth();
+  const { showSuccess } = useToast();
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [gradeLevel, setGradeLevel] = useState(user?.grade_level || 1);
   const [avatar, setAvatar] = useState(user?.avatar || 'mascot-bear');
@@ -27,7 +29,10 @@ export default function ProfileModal() {
       avatar
     });
     setShowProfileModal(false);
-    alert(`🎉 Đã cập nhật thành công! Bé hiện đang học Lớp ${gradeLevel}. Toàn bộ bài học đã được điều chỉnh sang Lớp ${gradeLevel}!`);
+    showSuccess(
+      'Cập nhật thành công! 🎒',
+      `Bé hiện đang học Lớp ${gradeLevel}. Toàn bộ bài học đã được điều chỉnh sang Lớp ${gradeLevel}!`
+    );
   };
 
   return (

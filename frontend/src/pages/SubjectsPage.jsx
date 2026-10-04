@@ -172,16 +172,7 @@ export default function SubjectsPage({ onStartExercise }) {
                     style={{ width: '100%', justifyContent: 'center' }}
                     onClick={() => {
                       sound.pop();
-                      // Map lesson to appropriate grade exercise
-                      let targetExId = 101;
-                      if (currentGrade === 1) targetExId = 10;
-                      else if (currentGrade === 2) targetExId = 20;
-                      else if (currentGrade === 3) targetExId = 30;
-                      else if (currentGrade === 4) {
-                        targetExId = lesson.id === 2 ? 102 : (lesson.id === 4 ? 103 : 101);
-                      } else if (currentGrade === 5) {
-                        targetExId = 50;
-                      }
+                      const targetExId = lesson.exercise_id || lesson.id;
                       onStartExercise(targetExId);
                     }}
                   >

@@ -16,7 +16,7 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
 
   const loadDashboard = async () => {
     setLoading(true);
-    const res = await api.getStudentDashboard();
+    const res = await api.getStudentDashboard(user);
     if (res.success && res.dashboard) {
       setData(res.dashboard);
     }

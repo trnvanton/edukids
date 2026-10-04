@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth, mascotMap } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { sound } from '../services/audio';
 
 export default function AuthModal() {
@@ -11,6 +12,7 @@ export default function AuthModal() {
     login,
     register
   } = useAuth();
+  const { showSuccess, showError } = useToast();
 
   // Login form states
   const [loginUsername, setLoginUsername] = useState('');
@@ -38,8 +40,10 @@ export default function AuthModal() {
     setLoading(false);
     if (!res.success) {
       setErrorMsg(res.message);
+      showError('Đăng nhập thất bại', res.message);
     } else {
       sound.correct();
+      showSuccess('Đăng nhập thành công! 🚀', `Chào mừng ${res.user?.full_name || loginUsername} quay trở lại học tập!`);
     }
   };
 
@@ -59,9 +63,13 @@ export default function AuthModal() {
     setLoading(false);
     if (!res.success) {
       setErrorMsg(res.message);
+      showError('Đăng ký thất bại', res.message);
     } else {
       sound.fanfare();
-      alert(`🎉 Chúc mừng ${regFullName} đã đăng ký thành công! Bạn được tặng 50 XP khởi động và vào thẳng Lớp ${regGrade}!`);
+      showSuccess(
+        `Chào mừng ${regFullName}! 🎉`,
+        `Đăng ký thành công! Bé được tặng +50 XP khởi động và vào thẳng Lớp ${regGrade}!`
+      );
     }
   };
 
