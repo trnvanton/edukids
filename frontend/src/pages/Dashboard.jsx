@@ -33,28 +33,33 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
 
   const { student, weaknessBreakdown, recommendations, badges } = data;
 
+  const currentName = user?.full_name || student.full_name;
+  const currentAvatar = user?.avatar || student.avatar;
+  const currentStreak = user?.streak_days || student.streak_days || 1;
+  const currentGrade = user?.grade_level || student.grade_level || 4;
+
   return (
     <div className="container" style={{ paddingBottom: '50px' }}>
       {/* Hero Welcome Banner */}
       <div className="hero-banner">
         <div>
           <h2 className="hero-title">
-            Chào Mừng {student.full_name}! {getAvatarEmoji(student.avatar)}
+            Chào Mừng {currentName}! {getAvatarEmoji(currentAvatar)}
           </h2>
           <p className="hero-desc">
-            Hôm nay bé có <strong>{student.streak_days} ngày học liên tiếp 🔥</strong>. Hoàn thành thử thách hôm nay để nhận thêm <strong>+50 XP</strong> và mở khóa huy hiệu <strong>Trạng Nguyên</strong> nhé!
+            Hôm nay bé có <strong>{currentStreak} ngày học liên tiếp 🔥</strong> (Khối Lớp {currentGrade}). Hoàn thành thử thách hôm nay để nhận thêm <strong>+50 XP</strong> và mở khóa huy hiệu <strong>Trạng Nguyên</strong> nhé!
           </p>
           <div style={{ marginTop: '18px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button className="btn-primary" onClick={() => { sound.pop(); onGoToSubjects(); }}>
-              <span>🚀 Bắt Đầu Học Ngay</span>
+              <span>🚀 Bắt Đầu Học Lớp {currentGrade} Ngay</span>
             </button>
             <div className="chip chip-level" style={{ fontSize: '1rem' }}>
               <span>{student.levelInfo?.icon || '👑'}</span>
-              <span>Level {student.levelInfo?.level || 1} – {student.levelInfo?.title || 'Mầm Non'}</span>
+              <span>Level {student.levelInfo?.level || 1} – {student.levelInfo?.title || 'Học Sinh Chăm Chỉ'}</span>
             </div>
           </div>
         </div>
-        <div className="hero-mascot">🦁</div>
+        <div className="hero-mascot">{getAvatarEmoji(currentAvatar)}</div>
       </div>
 
       {/* Grid 2 Columns: Adaptive Recommendations & Weakness Analytics */}

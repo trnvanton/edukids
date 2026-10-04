@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import ProfileModal from './components/ProfileModal';
 import AuthModal from './components/AuthModal';
+import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import SubjectsPage from './pages/SubjectsPage';
 import QuizPage from './pages/QuizPage';
@@ -51,19 +52,24 @@ export default function App() {
       <AuthModal />
 
       <main style={{ flex: 1 }}>
-        {/* Student Views */}
-        {activeTab === 'dashboard' && (
+        {/* Unauthenticated View: Landing Page */}
+        {!user && (
+          <LandingPage />
+        )}
+
+        {/* Authenticated Student Views */}
+        {user && user.role === 'student' && activeTab === 'dashboard' && (
           <Dashboard
             onStartExercise={handleStartExercise}
             onGoToSubjects={() => setActiveTab('subjects')}
           />
         )}
 
-        {activeTab === 'subjects' && (
+        {user && user.role === 'student' && activeTab === 'subjects' && (
           <SubjectsPage onStartExercise={handleStartExercise} />
         )}
 
-        {activeTab === 'quiz' && (
+        {user && user.role === 'student' && activeTab === 'quiz' && (
           <QuizPage
             exerciseId={selectedExerciseId}
             onFinish={handleQuizFinish}
@@ -71,7 +77,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'result' && (
+        {user && user.role === 'student' && activeTab === 'result' && (
           <ResultPage
             result={quizResult}
             onRetake={() => setActiveTab('quiz')}
@@ -80,17 +86,17 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'leaderboard' && (
+        {user && user.role === 'student' && activeTab === 'leaderboard' && (
           <LeaderboardPage />
         )}
 
         {/* Teacher Views */}
-        {activeTab === 'teacher' && (
+        {user && user.role === 'teacher' && activeTab === 'teacher' && (
           <TeacherDashboard />
         )}
 
         {/* Admin Views */}
-        {activeTab === 'admin' && (
+        {user && user.role === 'admin' && activeTab === 'admin' && (
           <AdminDashboard />
         )}
       </main>

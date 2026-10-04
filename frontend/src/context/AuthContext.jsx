@@ -14,18 +14,7 @@ export const mascotMap = {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('edukids_user');
-    return saved ? JSON.parse(saved) : {
-      id: 1,
-      username: 'student1',
-      full_name: 'Nguyễn Minh Anh',
-      role: 'student',
-      grade_level: 4,
-      avatar: 'mascot-bear',
-      xp: 1250,
-      level: 5,
-      streak_days: 7,
-      levelInfo: { level: 5, title: 'Siêu Học Sinh', icon: '👑', progress: 100 }
-    };
+    return saved ? JSON.parse(saved) : null;
   });
 
   const [isMuted, setIsMuted] = useState(false);
