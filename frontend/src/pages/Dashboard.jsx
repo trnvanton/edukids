@@ -107,11 +107,10 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
                     className="btn-recommend"
                     onClick={() => {
                       sound.pop();
-                      const starterMap = { 1: 1011, 2: 1021, 3: 1031, 4: 101, 5: 1051 };
-                      onStartExercise(starterMap[currentGrade] || 1021);
+                      onGoToSubjects();
                     }}
                   >
-                    ▶️ Khởi Động Bài Học Lớp {currentGrade} (+40 XP)
+                    📚 Mở Danh Sách Bài Tập Môn Học
                   </button>
                 )}
               </div>
