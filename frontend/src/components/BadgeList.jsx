@@ -61,8 +61,9 @@ export default function BadgeList({ badges = [] }) {
         gap: '16px'
       }}>
         {list.map(b => {
-          const isUnlocked = b.unlocked || currentXp >= (b.min_xp || 0);
-          const percent = Math.min(100, Math.round((currentXp / (b.min_xp || 1)) * 100));
+          const minXp = b.min_xp || 100;
+          const isUnlocked = currentXp >= minXp;
+          const percent = Math.min(100, Math.round((currentXp / minXp) * 100));
 
           return (
             <div
