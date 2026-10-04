@@ -1212,9 +1212,9 @@ class ApiService {
       localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
       
       // Async Cloud sync to Aiven MySQL
-      this.request('/sync/exercise', {
+      this.request('/sync', {
         method: 'POST',
-        body: JSON.stringify({ exercise: fullExercise })
+        body: JSON.stringify({ action: 'save_exercise', exercise: fullExercise })
       }).catch(() => {});
     } catch (e) {
       console.warn('Cannot persist to localStorage:', e);
@@ -1325,9 +1325,9 @@ class ApiService {
       localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
 
       // Async Cloud sync to Aiven MySQL
-      this.request('/sync/exercise', {
+      this.request('/sync', {
         method: 'POST',
-        body: JSON.stringify({ exercise: merged })
+        body: JSON.stringify({ action: 'save_exercise', exercise: merged })
       }).catch(() => {});
     } catch (e) {}
 
@@ -1361,8 +1361,9 @@ class ApiService {
       localStorage.setItem('edukids_deleted_exercises', JSON.stringify(deletedList));
 
       // Async Cloud sync delete on Aiven MySQL
-      this.request(`/sync/exercise/${numericId}`, {
-        method: 'DELETE'
+      this.request('/sync', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete_exercise', deleteId: numericId })
       }).catch(() => {});
     } catch (e) {
       console.warn('Cannot persist deleted exercise:', e);
@@ -1501,9 +1502,9 @@ class ApiService {
       localStorage.setItem('edukids_submissions', JSON.stringify(currentSubs));
 
       // Async Cloud sync submission to Aiven MySQL
-      this.request('/sync/submission', {
+      this.request('/sync', {
         method: 'POST',
-        body: JSON.stringify({ submission: newSubmission })
+        body: JSON.stringify({ action: 'save_submission', submission: newSubmission })
       }).catch(() => {});
     } catch (e) {
       console.warn('Cannot record submission:', e);
