@@ -74,10 +74,19 @@ export default function TeacherDashboard() {
   const [assignClassId, setAssignClassId] = useState('1');
   const [assignTitle, setAssignTitle] = useState('Ôn tập phân số cuối tuần');
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
   useEffect(() => {
-    loadTeacherData();
-    loadExercisesList();
+    handleSyncAndLoad();
   }, []);
+
+  const handleSyncAndLoad = async () => {
+    setIsSyncing(true);
+    await api.initCloudSync();
+    await loadTeacherData();
+    loadExercisesList();
+    setIsSyncing(false);
+  };
 
   const loadTeacherData = async () => {
     setLoading(true);
@@ -517,6 +526,34 @@ export default function TeacherDashboard() {
         >
           <span>➕</span>
           <span>Tạo Lớp & Học Sinh</span>
+        </button>
+
+        <button
+          onClick={async () => {
+            sound.pop();
+            await handleSyncAndLoad();
+            showSuccess('Đã Đồng Bộ Cloud', 'Dữ liệu bài tập & nộp bài đã được đồng bộ 2 chiều với Cloud MySQL!');
+          }}
+          disabled={isSyncing}
+          style={{
+            marginLeft: 'auto',
+            padding: '10px 18px',
+            borderRadius: '12px',
+            border: '1.5px solid #10B981',
+            fontWeight: 800,
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            background: '#ECFDF5',
+            color: '#059669',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s ease'
+          }}
+          title="Đồng bộ 2 chiều tức thì với Cơ sở dữ liệu Cloud MySQL"
+        >
+          <span>{isSyncing ? '⏳' : '☁️'}</span>
+          <span>{isSyncing ? 'Đang đồng bộ Cloud...' : 'Đồng Bộ Cloud 2 Chiều'}</span>
         </button>
       </div>
 

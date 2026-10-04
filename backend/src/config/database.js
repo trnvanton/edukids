@@ -197,16 +197,16 @@ const memoryStore = {
 };
 
 async function initDatabaseConnection() {
-  const host = process.env.DB_HOST || 'localhost';
-  const isCloud = host.includes('aivencloud.com') || host.includes('tidbcloud.com') || process.env.DB_SSL === 'true';
+  const host = process.env.DB_HOST || 'mysql-f67f396-edukids.c.aivencloud.com';
+  const isCloud = host.includes('aivencloud.com') || host.includes('tidbcloud.com') || process.env.DB_SSL === 'true' || true;
 
   try {
     const config = {
-      host: host,
-      user: process.env.DB_USER || 'root',
+      host: process.env.DB_HOST || 'mysql-f67f396-edukids.c.aivencloud.com',
+      user: process.env.DB_USER || 'avnadmin',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'defaultdb',
-      port: parseInt(process.env.DB_PORT, 10) || 3306,
+      port: parseInt(process.env.DB_PORT, 10) || 23951,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0

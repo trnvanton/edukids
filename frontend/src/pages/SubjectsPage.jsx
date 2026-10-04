@@ -32,6 +32,7 @@ export default function SubjectsPage({ onStartExercise }) {
 
   const loadLessons = async (subjId, grade) => {
     setLoading(true);
+    await api.initCloudSync();
     const res = await api.getLessons(subjId, grade);
     if (res.success && res.lessons) {
       setLessons(res.lessons);

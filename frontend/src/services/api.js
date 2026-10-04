@@ -750,6 +750,70 @@ class ApiService {
     }
   }
 
+  async initCloudSync() {
+    try {
+      const res = await this.request('/sync');
+      if (res && res.success) {
+        if (Array.isArray(res.exercises)) {
+          const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
+          const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
+
+          res.exercises.forEach(ex => {
+            if (ex && ex.id && !deletedSet.has(parseInt(ex.id, 10)) && Array.isArray(ex.questions) && ex.questions.length > 0) {
+              const numericId = parseInt(ex.id, 10);
+              curriculumDatabase.exercises[numericId] = ex;
+              const g = ex.grade_level || 4;
+              const s = ex.subject_id || 1;
+              if (!curriculumDatabase.lessonsByGradeAndSubject[g]) {
+                curriculumDatabase.lessonsByGradeAndSubject[g] = { 1: [], 2: [], 3: [], 4: [] };
+              }
+              if (!curriculumDatabase.lessonsByGradeAndSubject[g][s]) {
+                curriculumDatabase.lessonsByGradeAndSubject[g][s] = [];
+              }
+              const exists = curriculumDatabase.lessonsByGradeAndSubject[g][s].some(l => l.exercise_id === numericId);
+              if (!exists) {
+                curriculumDatabase.lessonsByGradeAndSubject[g][s].unshift({
+                  id: numericId + 50000,
+                  subject_id: s,
+                  grade_level: g,
+                  title: ex.title,
+                  topic_tag: `custom-${numericId}`,
+                  description: ex.is_random_pool ? `Ngân hàng ${ex.questions.length} câu (Random ${ex.random_count || 10} câu)` : `Bài tập gồm ${ex.questions.length} câu hỏi`,
+                  icon: ex.is_random_pool ? '🎲' : (s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧'))),
+                  exercise_id: numericId
+                });
+              }
+            }
+          });
+
+          try {
+            const localCustom = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
+            const map = new Map();
+            localCustom.forEach(ex => map.set(parseInt(ex.id, 10), ex));
+            res.exercises.forEach(ex => map.set(parseInt(ex.id, 10), ex));
+            const mergedList = Array.from(map.values()).filter(ex => !deletedSet.has(parseInt(ex.id, 10)));
+            localStorage.setItem('edukids_custom_exercises', JSON.stringify(mergedList));
+          } catch (e) {}
+        }
+
+        if (Array.isArray(res.submissions)) {
+          try {
+            const localSubs = JSON.parse(localStorage.getItem('edukids_submissions') || '[]');
+            const subMap = new Map();
+            localSubs.forEach(s => subMap.set(String(s.id), s));
+            res.submissions.forEach(s => subMap.set(String(s.id), s));
+            localStorage.setItem('edukids_submissions', JSON.stringify(Array.from(subMap.values())));
+          } catch (e) {}
+        }
+
+        return { success: true, count: res.exercises?.length || 0 };
+      }
+    } catch (e) {
+      console.warn('Cloud sync error:', e);
+    }
+    return { success: false };
+  }
+
   // Auth
   async login(username, password) {
     const res = await this.request('/auth/login', {
@@ -1146,6 +1210,12 @@ class ApiService {
       const stored = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
       stored.push(fullExercise);
       localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
+      
+      // Async Cloud sync to Aiven MySQL
+      this.request('/sync/exercise', {
+        method: 'POST',
+        body: JSON.stringify({ exercise: fullExercise })
+      }).catch(() => {});
     } catch (e) {
       console.warn('Cannot persist to localStorage:', e);
     }
@@ -1253,6 +1323,12 @@ class ApiService {
         stored.push(merged);
       }
       localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
+
+      // Async Cloud sync to Aiven MySQL
+      this.request('/sync/exercise', {
+        method: 'POST',
+        body: JSON.stringify({ exercise: merged })
+      }).catch(() => {});
     } catch (e) {}
 
     return { success: true, exercise: merged };
@@ -1283,6 +1359,11 @@ class ApiService {
         deletedList.push(numericId);
       }
       localStorage.setItem('edukids_deleted_exercises', JSON.stringify(deletedList));
+
+      // Async Cloud sync delete on Aiven MySQL
+      this.request(`/sync/exercise/${numericId}`, {
+        method: 'DELETE'
+      }).catch(() => {});
     } catch (e) {
       console.warn('Cannot persist deleted exercise:', e);
     }
@@ -1393,7 +1474,7 @@ class ApiService {
     const score10 = Math.round((totalScore / maxScore) * 10);
     const scorePercentage = Math.round((totalScore / maxScore) * 100);
 
-    // Record Real Submission Record
+    // Record Real Submission Record & Sync to Cloud MySQL
     try {
       const userStored = JSON.parse(localStorage.getItem('edukids_user') || '{}');
       const newSubmission = {
@@ -1418,6 +1499,12 @@ class ApiService {
       const currentSubs = JSON.parse(localStorage.getItem('edukids_submissions') || '[]');
       currentSubs.unshift(newSubmission);
       localStorage.setItem('edukids_submissions', JSON.stringify(currentSubs));
+
+      // Async Cloud sync submission to Aiven MySQL
+      this.request('/sync/submission', {
+        method: 'POST',
+        body: JSON.stringify({ submission: newSubmission })
+      }).catch(() => {});
     } catch (e) {
       console.warn('Cannot record submission:', e);
     }

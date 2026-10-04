@@ -13,12 +13,22 @@ import AdminDashboard from './pages/AdminDashboard';
 import LeaderboardPage from './pages/LeaderboardPage';
 
 import Footer from './components/Footer';
+import { api } from './services/api';
 
 export default function App() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedExerciseId, setSelectedExerciseId] = useState(101);
   const [quizResult, setQuizResult] = useState(null);
+
+  // Background Cloud Sync on app boot & periodic auto-sync
+  React.useEffect(() => {
+    api.initCloudSync();
+    const interval = setInterval(() => {
+      api.initCloudSync();
+    }, 30000); // 30s auto-refresh
+    return () => clearInterval(interval);
+  }, []);
 
   // Switch active tab automatically if role changes
   React.useEffect(() => {
