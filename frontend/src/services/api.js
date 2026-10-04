@@ -1,5 +1,6 @@
 // Client API Service with Complete Multi-Grade Curriculum & Intelligent Fallback
 import { generate100QuestionsPool } from './randomPoolService';
+import officialQuestions from '../data/officialQuestions.json';
 
 const API_BASE = '/api';
 
@@ -537,17 +538,130 @@ const curriculumDatabase = {
   }
 };
 
-// Also inject lesson into grade 4
-if (curriculumDatabase.lessonsByGradeAndSubject[4]?.[1]) {
-  curriculumDatabase.lessonsByGradeAndSubject[4][1].push({
+// Register Official 100-Question Standard Banks for Grade 1 & 2
+if (officialQuestions?.toan1?.length > 0) {
+  curriculumDatabase.exercises[1001] = {
+    id: 1001,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Toán Học Lớp 1 (Chuẩn SGK)',
+    grade_level: 1,
+    subject_id: 1,
+    difficulty: 'mastery',
+    time_limit_minutes: 25,
+    reward_xp: 80,
+    subject_name: 'Toán Học',
+    is_random_pool: true,
+    random_mode: 'student_choice',
+    random_count: 10,
+    total_pool_count: officialQuestions.toan1.length,
+    shuffle_questions: true,
+    shuffle_options: false,
+    questions: officialQuestions.toan1
+  };
+  if (!curriculumDatabase.lessonsByGradeAndSubject[1]) curriculumDatabase.lessonsByGradeAndSubject[1] = { 1: [], 2: [], 3: [], 4: [] };
+  if (!curriculumDatabase.lessonsByGradeAndSubject[1][1]) curriculumDatabase.lessonsByGradeAndSubject[1][1] = [];
+  curriculumDatabase.lessonsByGradeAndSubject[1][1].unshift({
+    id: 991001,
+    subject_id: 1,
+    grade_level: 1,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Toán Học Lớp 1 (Chuẩn SGK)',
+    topic_tag: 'toan-1-100-cau',
+    description: 'Trọn bộ 100 câu hỏi độc lập Toán Lớp 1 (Tùy chọn làm 10 / 20 / 30 / 50 hoặc toàn bộ)',
+    icon: '📐',
+    exercise_id: 1001
+  });
+}
+
+if (officialQuestions?.tv1?.length > 0) {
+  curriculumDatabase.exercises[1002] = {
+    id: 1002,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Tiếng Việt Lớp 1 (Chuẩn SGK)',
+    grade_level: 1,
+    subject_id: 2,
+    difficulty: 'mastery',
+    time_limit_minutes: 25,
+    reward_xp: 80,
+    subject_name: 'Tiếng Việt',
+    is_random_pool: true,
+    random_mode: 'student_choice',
+    random_count: 10,
+    total_pool_count: officialQuestions.tv1.length,
+    shuffle_questions: true,
+    shuffle_options: false,
+    questions: officialQuestions.tv1
+  };
+  if (!curriculumDatabase.lessonsByGradeAndSubject[1][2]) curriculumDatabase.lessonsByGradeAndSubject[1][2] = [];
+  curriculumDatabase.lessonsByGradeAndSubject[1][2].unshift({
+    id: 991002,
+    subject_id: 2,
+    grade_level: 1,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Tiếng Việt Lớp 1 (Chuẩn SGK)',
+    topic_tag: 'tv-1-100-cau',
+    description: 'Trọn bộ 100 câu hỏi độc lập Tiếng Việt Lớp 1 (Tùy chọn làm 10 / 20 / 30 / 50 hoặc toàn bộ)',
+    icon: '📖',
+    exercise_id: 1002
+  });
+}
+
+if (officialQuestions?.toan2?.length > 0) {
+  curriculumDatabase.exercises[2001] = {
+    id: 2001,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Toán Học Lớp 2 (Chuẩn SGK)',
+    grade_level: 2,
+    subject_id: 1,
+    difficulty: 'mastery',
+    time_limit_minutes: 25,
+    reward_xp: 80,
+    subject_name: 'Toán Học',
+    is_random_pool: true,
+    random_mode: 'student_choice',
+    random_count: 10,
+    total_pool_count: officialQuestions.toan2.length,
+    shuffle_questions: true,
+    shuffle_options: false,
+    questions: officialQuestions.toan2
+  };
+  if (!curriculumDatabase.lessonsByGradeAndSubject[2]) curriculumDatabase.lessonsByGradeAndSubject[2] = { 1: [], 2: [], 3: [], 4: [] };
+  if (!curriculumDatabase.lessonsByGradeAndSubject[2][1]) curriculumDatabase.lessonsByGradeAndSubject[2][1] = [];
+  curriculumDatabase.lessonsByGradeAndSubject[2][1].unshift({
     id: 992001,
     subject_id: 1,
-    grade_level: 4,
-    title: '🏆 Ngân Hàng 100 Câu Hỏi: Đấu Trường Tri Thức (Trộn 10 / 20 câu)',
-    topic_tag: 'ngan-hang-100-cau',
-    description: 'Kho 100 câu hỏi tổng hợp, tự động bốc ngẫu nhiên 10 hoặc 20 câu mỗi lần làm',
-    icon: '🎲',
+    grade_level: 2,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Toán Học Lớp 2 (Chuẩn SGK)',
+    topic_tag: 'toan-2-100-cau',
+    description: 'Trọn bộ 100 câu hỏi độc lập Toán Lớp 2 (Tùy chọn làm 10 / 20 / 30 / 50 hoặc toàn bộ)',
+    icon: '📐',
     exercise_id: 2001
+  });
+}
+
+if (officialQuestions?.tv2?.length > 0) {
+  curriculumDatabase.exercises[2002] = {
+    id: 2002,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Tiếng Việt Lớp 2 (Chuẩn SGK)',
+    grade_level: 2,
+    subject_id: 2,
+    difficulty: 'mastery',
+    time_limit_minutes: 25,
+    reward_xp: 80,
+    subject_name: 'Tiếng Việt',
+    is_random_pool: true,
+    random_mode: 'student_choice',
+    random_count: 10,
+    total_pool_count: officialQuestions.tv2.length,
+    shuffle_questions: true,
+    shuffle_options: false,
+    questions: officialQuestions.tv2
+  };
+  if (!curriculumDatabase.lessonsByGradeAndSubject[2][2]) curriculumDatabase.lessonsByGradeAndSubject[2][2] = [];
+  curriculumDatabase.lessonsByGradeAndSubject[2][2].unshift({
+    id: 992002,
+    subject_id: 2,
+    grade_level: 2,
+    title: '🏆 Ngân Hàng 100 Câu Hỏi: Tiếng Việt Lớp 2 (Chuẩn SGK)',
+    topic_tag: 'tv-2-100-cau',
+    description: 'Trọn bộ 100 câu hỏi độc lập Tiếng Việt Lớp 2 (Tùy chọn làm 10 / 20 / 30 / 50 hoặc toàn bộ)',
+    icon: '📖',
+    exercise_id: 2002
   });
 }
 
