@@ -537,16 +537,60 @@ export default function TeacherDashboard() {
   const handleCreateClass = (e) => {
     e.preventDefault();
     sound.pop();
-    showSuccess('Tạo Lớp Thành Công', `Đã tạo thành công Lớp ${newClassName} (Khối ${newClassGrade})!`);
+    if (!newClassName.trim()) return;
+    const newClassObj = {
+      id: Date.now(),
+      className: newClassName.trim(),
+      grade_level: parseInt(newClassGrade, 10)
+    };
+    api.saveCustomClass(newClassObj);
+    showSuccess('Tạo Lớp Thành Công! 🚀', `Đã tạo thành công Lớp ${newClassName} (Khối ${newClassGrade})!`);
+    setNewClassName('');
+    loadTeacherData();
     setActiveTeacherTab('classes');
   };
 
   const handleAddStudent = (e) => {
     e.preventDefault();
     sound.pop();
-    if (!newStudentName) return;
-    showSuccess('Thêm Học Sinh', `Đã thêm học sinh "${newStudentName}" vào Lớp 4A1 thành công!`);
+    if (!newStudentName.trim()) return;
+    
+    // Find target class
+    let grade = 2;
+    if (targetClassForStudent) {
+      const cls = classAnalytics.find(c => String(c.classId) === String(targetClassForStudent) || c.className === targetClassForStudent);
+      if (cls) grade = cls.gradeLevel;
+    }
+
+    const newStudentObj = {
+      id: Date.now(),
+      full_name: newStudentName.trim(),
+      grade_level: grade,
+      class_id: targetClassForStudent || `${grade}A1`,
+      avatar: 'mascot-bear',
+      xp: 0
+    };
+    api.saveCustomStudent(newStudentObj);
+    showSuccess('Thêm Học Sinh Thành Công! 🎉', `Đã thêm học sinh "${newStudentName}" vào danh sách!`);
     setNewStudentName('');
+    loadTeacherData();
+    setActiveTeacherTab('classes');
+  };
+
+  const handleDeleteStudent = async (student) => {
+    sound.pop();
+    const isConfirmed = await confirm({
+      title: 'Xóa Học Sinh?',
+      message: `Cô có chắc muốn xóa học sinh "${student.full_name}" khỏi danh sách lớp không?`,
+      icon: '🗑️',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy'
+    });
+    if (isConfirmed) {
+      api.deleteCustomStudent(student.id);
+      showSuccess('Đã Xóa Học Sinh', `Đã xóa học sinh "${student.full_name}" khỏi danh sách lớp.`);
+      loadTeacherData();
+    }
   };
 
   const handleAssign = (e) => {
@@ -800,54 +844,83 @@ export default function TeacherDashboard() {
                 </div>
               )}
 
-              {/* Student Table with Scores */}
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Học Sinh</th>
-                    <th>Khối Lớp</th>
-                    <th>XP Tích Lũy</th>
-                    <th>Bài Đã Làm</th>
-                    <th>Điểm TB</th>
-                    <th>Đánh Giá Sư Phạm</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cls.stats.studentSummary.map(st => (
-                    <tr key={st.id}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '1.4rem' }}>{st.avatar === 'mascot-bear' ? '🐻' : (st.avatar === 'mascot-lion' ? '🦁' : '🐰')}</span>
-                          <strong>{st.full_name}</strong>
-                        </div>
-                      </td>
-                      <td>Lớp {st.grade_level}</td>
-                      <td><span style={{ color: '#B45309', fontWeight: 900 }}>⭐ {st.xp} XP</span></td>
-                      <td>{st.submissionsCount > 0 ? `${st.submissionsCount} bài` : '0 bài'}</td>
-                      <td>
-                        {st.averageScore !== null ? (
-                          <span className={`score-tag ${parseFloat(st.averageScore) >= 8.5 ? 'high' : (parseFloat(st.averageScore) >= 7.0 ? 'mid' : 'low')}`}>
-                            {st.averageScore} / 10
-                          </span>
-                        ) : (
-                          <span style={{ color: '#94A3B8', fontWeight: 700 }}>Chưa có</span>
-                        )}
-                      </td>
-                      <td>
-                        {st.averageScore === null ? (
-                          <span style={{ color: '#94A3B8', fontWeight: 700 }}>⏳ Chưa làm bài tập nào</span>
-                        ) : parseFloat(st.averageScore) >= 8.5 ? (
-                          <span style={{ color: '#059669', fontWeight: 800 }}>🌟 Nắm rất vững kiến thức</span>
-                        ) : parseFloat(st.averageScore) >= 7.0 ? (
-                          <span style={{ color: '#D97706', fontWeight: 800 }}>👍 Đạt chuẩn kiến thức kỹ năng</span>
-                        ) : (
-                          <span style={{ color: '#DC2626', fontWeight: 800 }}>⚡ Cần ôn thêm chuyên đề</span>
-                        )}
-                      </td>
+              {/* Student Table with Scores or Empty State */}
+              {(!cls.stats.studentSummary || cls.stats.studentSummary.length === 0) ? (
+                <div style={{ textAlign: 'center', padding: '36px 20px', background: '#F8FAFC', borderRadius: '12px', border: '1.5px dashed #CBD5E1' }}>
+                  <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '8px' }}>🎓</span>
+                  <h4 style={{ fontWeight: 800, color: '#334155', marginBottom: '6px' }}>Chưa có học sinh trong danh sách Lớp {cls.className}</h4>
+                  <p style={{ color: '#64748B', fontSize: '0.9rem', maxWidth: '480px', margin: '0 auto 16px auto', lineHeight: 1.5 }}>
+                    Học sinh sẽ tự động hiển thị tại đây khi đăng nhập và nộp bài tập thực tế. Thầy/Cô cũng có thể thêm trước danh sách học sinh vào lớp!
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { sound.pop(); setActiveTeacherTab('create-class'); }}
+                    className="btn-primary"
+                    style={{ padding: '8px 18px', fontSize: '0.88rem' }}
+                  >
+                    <span>➕ Thêm Học Sinh Vào Lớp Ngay</span>
+                  </button>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Học Sinh</th>
+                      <th>Khối Lớp</th>
+                      <th>XP Tích Lũy</th>
+                      <th>Bài Đã Làm</th>
+                      <th>Điểm TB</th>
+                      <th>Đánh Giá Sư Phạm</th>
+                      <th style={{ textAlign: 'center' }}>Thao Tác</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {cls.stats.studentSummary.map(st => (
+                      <tr key={st.id}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '1.4rem' }}>{st.avatar === 'mascot-bear' ? '🐻' : (st.avatar === 'mascot-lion' ? '🦁' : '🐰')}</span>
+                            <strong>{st.full_name}</strong>
+                          </div>
+                        </td>
+                        <td>Lớp {st.grade_level}</td>
+                        <td><span style={{ color: '#B45309', fontWeight: 900 }}>⭐ {st.xp} XP</span></td>
+                        <td>{st.submissionsCount > 0 ? `${st.submissionsCount} bài` : '0 bài'}</td>
+                        <td>
+                          {st.averageScore !== null ? (
+                            <span className={`score-tag ${parseFloat(st.averageScore) >= 8.5 ? 'high' : (parseFloat(st.averageScore) >= 7.0 ? 'mid' : 'low')}`}>
+                              {st.averageScore} / 10
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontWeight: 700 }}>Chưa có</span>
+                          )}
+                        </td>
+                        <td>
+                          {st.averageScore === null ? (
+                            <span style={{ color: '#94A3B8', fontWeight: 700 }}>⏳ Chưa làm bài tập nào</span>
+                          ) : parseFloat(st.averageScore) >= 8.5 ? (
+                            <span style={{ color: '#059669', fontWeight: 800 }}>🌟 Nắm rất vững kiến thức</span>
+                          ) : parseFloat(st.averageScore) >= 7.0 ? (
+                            <span style={{ color: '#D97706', fontWeight: 800 }}>👍 Đạt chuẩn kiến thức kỹ năng</span>
+                          ) : (
+                            <span style={{ color: '#DC2626', fontWeight: 800 }}>⚡ Cần ôn thêm chuyên đề</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStudent(st)}
+                            style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
+                            title="Xóa học sinh khỏi lớp"
+                          >
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           ))}
         </div>
@@ -2699,9 +2772,11 @@ export default function TeacherDashboard() {
                   onChange={e => setTargetClassForStudent(e.target.value)}
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid var(--border-color)', fontWeight: 700 }}
                 >
-                  <option value="1">Lớp 4A1 (Cô Hoàng Mai)</option>
-                  <option value="2">Lớp 2A3</option>
-                  <option value="3">Lớp 1B</option>
+                  {classAnalytics.map(cls => (
+                    <option key={cls.classId} value={cls.classId}>
+                      Lớp {cls.className} (Khối {cls.gradeLevel} • {cls.stats.totalStudents} học sinh)
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -2740,9 +2815,11 @@ export default function TeacherDashboard() {
                 onChange={e => setAssignClassId(e.target.value)}
                 style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid var(--border-color)', fontWeight: 700 }}
               >
-                <option value="1">Lớp 4A1 (3 học sinh)</option>
-                <option value="2">Lớp 2A3 (1 học sinh)</option>
-                <option value="3">Lớp 1B</option>
+                {classAnalytics.map(cls => (
+                  <option key={cls.classId} value={cls.classId}>
+                    Lớp {cls.className} (Khối {cls.gradeLevel} • {cls.stats.totalStudents} học sinh)
+                  </option>
+                ))}
               </select>
             </div>
 

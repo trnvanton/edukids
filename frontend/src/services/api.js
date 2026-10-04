@@ -410,60 +410,232 @@ class ApiService {
     }
   }
 
-  // Teacher Dashboard - Calculated with 100% REAL student submissions
+  // Real Students Aggregator from Cloud/Local Submissions & Registered accounts
+  getRealStudents() {
+    try {
+      const customStudents = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
+      const allSubmissions = this.getRealSubmissions();
+      const currentUser = JSON.parse(localStorage.getItem('edukids_user') || '{}');
+
+      const studentMap = new Map();
+
+      // 1. Add students from custom teacher list
+      if (Array.isArray(customStudents)) {
+        customStudents.forEach(st => {
+          if (st && (st.full_name || st.name)) {
+            const name = st.full_name || st.name;
+            studentMap.set(name.toLowerCase(), {
+              id: st.id || Date.now(),
+              full_name: name,
+              avatar: st.avatar || 'mascot-bear',
+              grade_level: parseInt(st.grade_level || 2, 10),
+              class_id: st.class_id || `${st.grade_level || 2}A1`,
+              xp: st.xp || 0
+            });
+          }
+        });
+      }
+
+      // 2. Add current active student if student role
+      if (currentUser && currentUser.role === 'student' && currentUser.full_name) {
+        const nameKey = currentUser.full_name.toLowerCase();
+        if (!studentMap.has(nameKey)) {
+          studentMap.set(nameKey, {
+            id: currentUser.id || Date.now(),
+            full_name: currentUser.full_name,
+            avatar: currentUser.avatar || 'mascot-bear',
+            grade_level: parseInt(currentUser.grade_level || 2, 10),
+            class_id: `Lớp ${currentUser.grade_level || 2}A1`,
+            xp: currentUser.xp || 50
+          });
+        }
+      }
+
+      // 3. Add any student from real submissions
+      allSubmissions.forEach(sub => {
+        const name = sub.student_name || sub.user_name;
+        if (name && name !== 'Cô Hoàng Mai' && name !== 'Quản Trị Viên EduKids') {
+          const nameKey = name.toLowerCase();
+          const existing = studentMap.get(nameKey);
+          if (!existing) {
+            studentMap.set(nameKey, {
+              id: sub.user_id || Date.now(),
+              full_name: name,
+              avatar: sub.student_avatar || sub.user_avatar || 'mascot-bear',
+              grade_level: parseInt(sub.grade_level || 2, 10),
+              class_id: `Lớp ${sub.grade_level || 2}A1`,
+              xp: sub.xpEarned || 30
+            });
+          }
+        }
+      });
+
+      return Array.from(studentMap.values());
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveCustomClass(newClass) {
+    try {
+      let stored = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
+      stored.push(newClass);
+      localStorage.setItem('edukids_custom_classes', JSON.stringify(stored));
+      return { success: true, classes: stored };
+    } catch (e) {
+      return { success: false };
+    }
+  }
+
+  saveCustomStudent(newStudent) {
+    try {
+      let stored = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
+      stored.push(newStudent);
+      localStorage.setItem('edukids_custom_students', JSON.stringify(stored));
+      return { success: true, students: stored };
+    } catch (e) {
+      return { success: false };
+    }
+  }
+
+  deleteCustomStudent(studentId) {
+    try {
+      let stored = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
+      stored = stored.filter(s => s.id !== studentId);
+      localStorage.setItem('edukids_custom_students', JSON.stringify(stored));
+      return { success: true, students: stored };
+    } catch (e) {
+      return { success: false };
+    }
+  }
+
+  // Teacher Dashboard - Calculated with 100% REAL student submissions & classes
   async getTeacherDashboard() {
     const res = await this.request('/teachers/dashboard');
-    if (res.success && res.classAnalytics) return res;
+    if (res.success && res.classAnalytics && res.classAnalytics.length > 0) return res;
 
     const allSubmissions = this.getRealSubmissions();
-    const students = [
-      { id: 1, full_name: 'Nguyễn Minh Anh', avatar: 'mascot-bear', grade_level: 4, xp: 1250 },
-      { id: 2, full_name: 'Trần Bình', avatar: 'mascot-lion', grade_level: 4, xp: 850 },
-      { id: 3, full_name: 'Lê Minh', avatar: 'mascot-rabbit', grade_level: 4, xp: 420 }
-    ];
+    const students = this.getRealStudents();
 
-    const studentSummary = students.map(st => {
-      const userSubs = allSubmissions.filter(s => s.user_id === st.id || s.user_name === st.full_name);
-      let avg = null;
-      if (userSubs.length > 0) {
-        const total = userSubs.reduce((acc, c) => acc + (c.score10 !== undefined ? c.score10 : 0), 0);
-        avg = (total / userSubs.length).toFixed(1);
-      }
-      return {
-        ...st,
-        submissionsCount: userSubs.length,
-        averageScore: avg,
-        isStruggling: avg !== null && parseFloat(avg) < 7.0
-      };
-    });
+    let customClasses = [];
+    try {
+      customClasses = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
+    } catch (e) {}
 
-    const studentsWithScore = studentSummary.filter(s => s.averageScore !== null);
-    let classAvg = null;
-    if (studentsWithScore.length > 0) {
-      const sum = studentsWithScore.reduce((acc, c) => acc + parseFloat(c.averageScore), 0);
-      classAvg = (sum / studentsWithScore.length).toFixed(1);
+    const gradesSet = new Set([2]);
+    students.forEach(st => gradesSet.add(st.grade_level || 2));
+    customClasses.forEach(cls => gradesSet.add(parseInt(cls.grade_level || 2, 10)));
+
+    const teacherExs = this.getTeacherExercises();
+    if (teacherExs.success && teacherExs.exercises) {
+      teacherExs.exercises.forEach(ex => gradesSet.add(ex.grade_level || 2));
     }
 
-    const struggling = studentSummary.filter(s => s.isStruggling);
+    const classAnalytics = [];
+
+    if (customClasses.length > 0) {
+      customClasses.forEach(cls => {
+        const classStudents = students.filter(st =>
+          st.class_id === cls.id ||
+          st.class_id === cls.className ||
+          st.grade_level === parseInt(cls.grade_level, 10)
+        );
+
+        const studentSummary = classStudents.map(st => {
+          const userSubs = allSubmissions.filter(s => s.user_id === st.id || s.user_name === st.full_name || s.student_name === st.full_name);
+          let avg = null;
+          let totalXpEarned = 0;
+          if (userSubs.length > 0) {
+            const total = userSubs.reduce((acc, c) => acc + (c.score10 !== undefined ? c.score10 : 0), 0);
+            avg = (total / userSubs.length).toFixed(1);
+            totalXpEarned = userSubs.reduce((acc, c) => acc + (c.xpEarned || 0), 0);
+          }
+          return {
+            ...st,
+            xp: (st.xp || 0) + totalXpEarned,
+            submissionsCount: userSubs.length,
+            averageScore: avg,
+            isStruggling: avg !== null && parseFloat(avg) < 7.0
+          };
+        });
+
+        const studentsWithScore = studentSummary.filter(s => s.averageScore !== null);
+        let classAvg = null;
+        if (studentsWithScore.length > 0) {
+          const sum = studentsWithScore.reduce((acc, c) => acc + parseFloat(c.averageScore), 0);
+          classAvg = (sum / studentsWithScore.length).toFixed(1);
+        }
+
+        const classSubmissions = allSubmissions.filter(s =>
+          classStudents.some(st => st.id === s.user_id || st.full_name === s.user_name || st.full_name === s.student_name) ||
+          s.grade_level === parseInt(cls.grade_level, 10)
+        );
+
+        classAnalytics.push({
+          classId: cls.id || 1,
+          className: cls.className || `${cls.grade_level}A1`,
+          gradeLevel: parseInt(cls.grade_level || 2, 10),
+          schoolYear: '2025-2026',
+          stats: {
+            totalStudents: classStudents.length,
+            totalSubmissionsCount: classSubmissions.length,
+            classAverageScore: classAvg,
+            strugglingStudents: studentSummary.filter(s => s.isStruggling),
+            studentSummary
+          }
+        });
+      });
+    } else {
+      Array.from(gradesSet).sort().forEach(g => {
+        const classStudents = students.filter(st => st.grade_level === g);
+
+        const studentSummary = classStudents.map(st => {
+          const userSubs = allSubmissions.filter(s => s.user_id === st.id || s.user_name === st.full_name || s.student_name === st.full_name);
+          let avg = null;
+          let totalXpEarned = 0;
+          if (userSubs.length > 0) {
+            const total = userSubs.reduce((acc, c) => acc + (c.score10 !== undefined ? c.score10 : 0), 0);
+            avg = (total / userSubs.length).toFixed(1);
+            totalXpEarned = userSubs.reduce((acc, c) => acc + (c.xpEarned || 0), 0);
+          }
+          return {
+            ...st,
+            xp: (st.xp || 0) + totalXpEarned,
+            submissionsCount: userSubs.length,
+            averageScore: avg,
+            isStruggling: avg !== null && parseFloat(avg) < 7.0
+          };
+        });
+
+        const studentsWithScore = studentSummary.filter(s => s.averageScore !== null);
+        let classAvg = null;
+        if (studentsWithScore.length > 0) {
+          const sum = studentsWithScore.reduce((acc, c) => acc + parseFloat(c.averageScore), 0);
+          classAvg = (sum / studentsWithScore.length).toFixed(1);
+        }
+
+        const classSubmissions = allSubmissions.filter(s => s.grade_level === g);
+
+        classAnalytics.push({
+          classId: g,
+          className: `${g}A1`,
+          gradeLevel: g,
+          schoolYear: '2025-2026',
+          stats: {
+            totalStudents: classStudents.length,
+            totalSubmissionsCount: classSubmissions.length,
+            classAverageScore: classAvg,
+            strugglingStudents: studentSummary.filter(s => s.isStruggling),
+            studentSummary
+          }
+        });
+      });
+    }
 
     return {
       success: true,
       teacher: { id: 10, full_name: 'Cô Hoàng Mai', role: 'teacher', avatar: 'mascot-panda' },
-      classAnalytics: [
-        {
-          classId: 1,
-          className: '4A1',
-          gradeLevel: 4,
-          schoolYear: '2025-2026',
-          stats: {
-            totalStudents: students.length,
-            totalSubmissionsCount: allSubmissions.length,
-            classAverageScore: classAvg,
-            strugglingStudents: struggling,
-            studentSummary
-          }
-        }
-      ]
+      classAnalytics
     };
   }
 
@@ -900,14 +1072,12 @@ class ApiService {
   async getLeaderboard() {
     const res = await this.request('/leaderboard');
     if (res.success && res.leaderboard) return res;
+
+    const realStudents = this.getRealStudents();
+    const sorted = [...realStudents].sort((a, b) => (b.xp || 0) - (a.xp || 0));
     return {
       success: true,
-      leaderboard: [
-        { id: 1, full_name: 'Nguyễn Minh Anh', avatar: 'mascot-bear', grade_level: 4, xp: 1250, streak_days: 7 },
-        { id: 2, full_name: 'Trần Bình', avatar: 'mascot-lion', grade_level: 4, xp: 850, streak_days: 5 },
-        { id: 3, full_name: 'Bé Bảo Ngọc', avatar: 'mascot-rabbit', grade_level: 2, xp: 320, streak_days: 4 },
-        { id: 4, full_name: 'Lê Minh', avatar: 'mascot-panda', grade_level: 4, xp: 420, streak_days: 2 }
-      ]
+      leaderboard: sorted
     };
   }
 }

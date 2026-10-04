@@ -40,20 +40,27 @@ export default function AdminDashboard() {
   const [excelQuestions, setExcelQuestions] = useState([]);
   const fileInputRef = useRef(null);
 
-  const stats = [
-    { label: 'Tổng Học Sinh', val: '128', icon: '👦', color: '#3B82F6' },
-    { label: 'Giáo Viên', val: '12', icon: '👩‍🏫', color: '#10B981' },
-    { label: 'Tổng Bài Tập / Đề Thi', val: `${exercisesList.length || 14}`, icon: '📝', color: '#8B5CF6' },
-    { label: 'Ngân Hàng Câu Hỏi', val: '450+', icon: '❓', color: '#F59E0B' }
-  ];
+  const realStudents = typeof api.getRealStudents === 'function' ? api.getRealStudents() : [];
+  const dynamicStudents = realStudents.map(st => ({
+    id: st.id,
+    name: st.full_name,
+    role: 'student',
+    grade: `Lớp ${st.grade_level || 2}`,
+    xp: st.xp || 0,
+    status: 'Hoạt động'
+  }));
 
   const userList = [
-    { id: 1, name: 'Nguyễn Minh Anh', role: 'student', grade: 'Lớp 4', xp: 1250, status: 'Hoạt động' },
-    { id: 2, name: 'Trần Bình', role: 'student', grade: 'Lớp 4', xp: 850, status: 'Hoạt động' },
-    { id: 3, name: 'Lê Minh', role: 'student', grade: 'Lớp 4', xp: 420, status: 'Hoạt động' },
-    { id: 4, name: 'Bé Bảo Ngọc', role: 'student', grade: 'Lớp 2', xp: 350, status: 'Hoạt động' },
-    { id: 10, name: 'Cô Hoàng Mai', role: 'teacher', grade: 'Khối 4', xp: 0, status: 'Giáo viên chủ nhiệm' },
-    { id: 11, name: 'Thầy Nguyễn Văn Đức', role: 'teacher', grade: 'Khối 2', xp: 0, status: 'Giáo viên bộ môn' }
+    ...dynamicStudents,
+    { id: 10, name: 'Cô Hoàng Mai', role: 'teacher', grade: 'Khối 2 & 4', xp: 0, status: 'Giáo viên chủ nhiệm' },
+    { id: 99, name: 'Quản Trị Viên EduKids', role: 'admin', grade: 'Toàn trường', xp: 9999, status: 'Quản trị hệ thống' }
+  ];
+
+  const stats = [
+    { label: 'Tổng Học Sinh', val: `${realStudents.length}`, icon: '👦', color: '#3B82F6' },
+    { label: 'Giáo Viên', val: '1', icon: '👩‍🏫', color: '#10B981' },
+    { label: 'Tổng Bài Tập / Đề Thi', val: `${exercisesList.length || 0}`, icon: '📝', color: '#8B5CF6' },
+    { label: 'Ngân Hàng Câu Hỏi', val: `${exercisesList.reduce((acc, ex) => acc + (ex.questions?.length || 0), 0)} câu`, icon: '❓', color: '#F59E0B' }
   ];
 
   useEffect(() => {
