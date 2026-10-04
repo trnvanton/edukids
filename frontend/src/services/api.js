@@ -252,11 +252,79 @@ class ApiService {
     });
     if (res.success && res.user) return res;
 
-    // Fallback demo login
+    // Fallback demo logins
+    if (username === 'student_lop2') {
+      return {
+        success: true,
+        token: 'demo-token-lop2',
+        user: {
+          id: 2,
+          username: 'student_lop2',
+          full_name: 'Bé Bảo Ngọc',
+          role: 'student',
+          grade_level: 2,
+          avatar: 'mascot-rabbit',
+          xp: 320,
+          level: 2,
+          streak_days: 4,
+          levelInfo: { level: 2, title: 'Học Sinh Chăm Chỉ', icon: '🥈', progress: 50 }
+        }
+      };
+    }
+    if (username === 'teacher1') {
+      return {
+        success: true,
+        token: 'demo-token-teacher',
+        user: {
+          id: 10,
+          username: 'teacher1',
+          full_name: 'Cô Hoàng Mai',
+          role: 'teacher',
+          avatar: 'mascot-panda',
+          xp: 0,
+          streak_days: 10
+        }
+      };
+    }
+    if (username === 'admin') {
+      return {
+        success: true,
+        token: 'demo-token-admin',
+        user: {
+          id: 99,
+          username: 'admin',
+          full_name: 'Quản Trị Viên EduKids',
+          role: 'admin',
+          avatar: 'mascot-fox',
+          xp: 9999,
+          streak_days: 30
+        }
+      };
+    }
+    if (username === 'student1') {
+      return {
+        success: true,
+        token: 'demo-token',
+        user: fallbackData.studentDashboard.student
+      };
+    }
+
+    // Dynamic fallback for custom username
     return {
       success: true,
       token: 'demo-token',
-      user: fallbackData.studentDashboard.student
+      user: {
+        id: Date.now(),
+        username: username || 'hocsinh',
+        full_name: username ? `${username}` : 'Học Sinh Mới',
+        role: 'student',
+        grade_level: 2,
+        avatar: 'mascot-lion',
+        xp: 100,
+        level: 1,
+        streak_days: 1,
+        levelInfo: { level: 1, title: 'Tân Thủ', icon: '🌱', progress: 20 }
+      }
     };
   }
 
@@ -269,7 +337,18 @@ class ApiService {
     return {
       success: true,
       token: 'demo-token',
-      user: { ...fallbackData.studentDashboard.student, full_name: payload.full_name || 'Bé Mới' }
+      user: {
+        id: Date.now(),
+        username: payload.username || 'newuser',
+        full_name: payload.full_name || 'Học Sinh Mới',
+        role: payload.role || 'student',
+        grade_level: payload.grade_level ? parseInt(payload.grade_level, 10) : 2,
+        avatar: payload.avatar || 'mascot-bear',
+        xp: 50,
+        level: 1,
+        streak_days: 1,
+        levelInfo: { level: 1, title: 'Tân Thủ Chăm Học', icon: '🌱', progress: 10 }
+      }
     };
   }
 

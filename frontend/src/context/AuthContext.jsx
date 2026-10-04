@@ -11,10 +11,24 @@ export const mascotMap = {
   'mascot-panda': '🐼'
 };
 
+// Automatically wipe legacy mock session on load
+try {
+  if (localStorage.getItem('edukids_user')) {
+    localStorage.removeItem('edukids_user');
+    localStorage.removeItem('edukids_token');
+  }
+} catch (e) {
+  // Ignore localStorage errors
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('edukids_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('edukids_v2_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
   });
 
   const [isMuted, setIsMuted] = useState(false);
@@ -23,12 +37,15 @@ export const AuthProvider = ({ children }) => {
   const [authModalMode, setAuthModalMode] = useState('login'); // 'login' or 'register'
 
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('edukids_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('edukids_user');
-      localStorage.removeItem('edukids_token');
-    }
+    try {
+      if (user) {
+        localStorage.setItem('edukids_v2_user', JSON.stringify(user));
+      } else {
+        localStorage.removeItem('edukids_v2_user');
+        localStorage.removeItem('edukids_user');
+        localStorage.removeItem('edukids_token');
+      }
+    } catch (e) {}
   }, [user]);
 
   const login = async (username, password) => {
@@ -55,8 +72,11 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('edukids_user');
-    localStorage.removeItem('edukids_token');
+    try {
+      localStorage.removeItem('edukids_v2_user');
+      localStorage.removeItem('edukids_user');
+      localStorage.removeItem('edukids_token');
+    } catch (e) {}
     api.setToken(null);
   };
 
