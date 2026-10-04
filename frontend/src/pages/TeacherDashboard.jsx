@@ -10,7 +10,7 @@ export default function TeacherDashboard() {
   const { alert: dialogAlert, confirm } = useDialog();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTeacherTab, setActiveTeacherTab] = useState('classes'); // 'classes', 'create-exercise', 'import-excel', 'create-class', 'assign'
+  const [activeTeacherTab, setActiveTeacherTab] = useState('classes'); // 'classes', 'assigned-list', 'create-exercise', 'import-excel', 'create-class', 'assign'
 
   // Form states - Create Class & Add Student
   const [newClassName, setNewClassName] = useState('5A2');
@@ -60,12 +60,18 @@ export default function TeacherDashboard() {
   const [isParsingExcel, setIsParsingExcel] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Assigned Exercises List State
+  const [teacherExercises, setTeacherExercises] = useState([]);
+  const [selectedViewExercise, setSelectedViewExercise] = useState(null);
+  const [editingExercise, setEditingExercise] = useState(null);
+
   // Assign state
   const [assignClassId, setAssignClassId] = useState('1');
-  const [assignTitle, setAssignTitle] = useState('Ôn tập cuối tuần');
+  const [assignTitle, setAssignTitle] = useState('Ôn tập phân số cuối tuần');
 
   useEffect(() => {
     loadTeacherData();
+    loadExercisesList();
   }, []);
 
   const loadTeacherData = async () => {
@@ -77,7 +83,14 @@ export default function TeacherDashboard() {
     setLoading(false);
   };
 
-  // Image upload helper (converts local file to base64)
+  const loadExercisesList = () => {
+    const res = api.getTeacherExercises();
+    if (res.success && res.exercises) {
+      setTeacherExercises(res.exercises);
+    }
+  };
+
+  // Image upload helper
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -146,7 +159,6 @@ export default function TeacherDashboard() {
         correctPairs[`${idx + 1}`] = String.fromCharCode(65 + idx);
       });
 
-      // Shuffle right for display
       const shuffledRight = [...right].sort(() => Math.random() - 0.5);
 
       qData.matching_data = {
@@ -160,7 +172,6 @@ export default function TeacherDashboard() {
     setDraftQuestions(prev => [...prev, qData]);
     showSuccess('Đã thêm câu hỏi', `Câu hỏi dạng [${getQuestionTypeLabel(questionType)}] đã được thêm vào đề!`);
 
-    // Reset prompt fields for next question
     setQuestionText('');
     setImageUrl('');
     setHint('');
@@ -173,7 +184,7 @@ export default function TeacherDashboard() {
     setDraftQuestions(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // Save complete exercise to bank & database
+  // Save complete exercise
   const handleSaveFullExercise = () => {
     if (draftQuestions.length === 0) {
       showError('Chưa có câu hỏi', 'Vui lòng soạn ít nhất 1 câu hỏi trước khi lưu bài tập!');
@@ -187,13 +198,16 @@ export default function TeacherDashboard() {
       grade_level: parseInt(exerciseGrade, 10),
       subject_id: parseInt(exerciseSubject, 10),
       reward_xp: parseInt(exerciseXp, 10) || 50,
-      questions: draftQuestions
+      questions: draftQuestions,
+      assigned_to: 'Lớp 4A1',
+      due_date: 'Chủ nhật tuần này'
     };
 
     api.saveCustomExercise(newEx);
-    showSuccess('Lưu Thành Công! 🎉', `Đã lưu "${exerciseTitle}" gồm ${draftQuestions.length} câu hỏi vào Ngân hàng đề thi! Học sinh có thể làm ngay.`);
+    showSuccess('Lưu Thành Công! 🎉', `Đã lưu "${exerciseTitle}" gồm ${draftQuestions.length} câu hỏi vào Ngân hàng đề thi!`);
     setDraftQuestions([]);
-    setActiveTeacherTab('classes');
+    loadExercisesList();
+    setActiveTeacherTab('assigned-list');
   };
 
   // Excel handlers
@@ -234,22 +248,58 @@ export default function TeacherDashboard() {
       grade_level: parseInt(exerciseGrade, 10),
       subject_id: parseInt(exerciseSubject, 10),
       reward_xp: parseInt(exerciseXp, 10) || 50,
-      questions: excelQuestions
+      questions: excelQuestions,
+      assigned_to: 'Lớp 4A1',
+      due_date: 'Chủ nhật tuần này'
     };
 
     api.saveCustomExercise(newEx);
     showSuccess('Nhập Excel Thành Công! 🚀', `Đã lưu toàn bộ ${excelQuestions.length} câu hỏi vào Ngân hàng đề thi Khối ${exerciseGrade}!`);
     setExcelQuestions([]);
     setExcelFile(null);
-    setActiveTeacherTab('classes');
+    loadExercisesList();
+    setActiveTeacherTab('assigned-list');
   };
 
-  // Helpers for question types
+  // Edit / Delete / View Exercise Actions
+  const handleStartEdit = (ex) => {
+    sound.pop();
+    setEditingExercise(JSON.parse(JSON.stringify(ex)));
+  };
+
+  const handleSaveEditedExercise = (e) => {
+    e.preventDefault();
+    sound.pop();
+    if (!editingExercise) return;
+
+    api.updateExercise(editingExercise.id, editingExercise);
+    showSuccess('Cập Nhật Thành Công! ✨', `Đã lưu các thay đổi cho bài tập "${editingExercise.title}"!`);
+    setEditingExercise(null);
+    loadExercisesList();
+  };
+
+  const handleDeleteExercise = async (ex) => {
+    sound.pop();
+    const isConfirmed = await confirm({
+      title: 'Xóa Bài Tập?',
+      message: `Cô có chắc chắn muốn xóa bài tập "${ex.title}" khỏi danh sách giao bài không?`,
+      icon: '🗑️',
+      confirmText: 'Xóa luôn',
+      cancelText: 'Hủy bỏ'
+    });
+
+    if (isConfirmed) {
+      api.deleteExercise(ex.id);
+      showSuccess('Đã Xóa Bài Tập', `Bài tập "${ex.title}" đã được xóa an toàn!`);
+      loadExercisesList();
+    }
+  };
+
   const getQuestionTypeLabel = (type) => {
     switch (type) {
-      case 'multiple_choice': return '🎯 Trắc Nghiệm (4 Đáp Án)';
-      case 'fill_blank': return '✏️ Điền Từ / Điền Số';
-      case 'matching': return '🔗 Nối Cặp Vế Tương Ứng';
+      case 'multiple_choice': return '🎯 Trắc Nghiệm';
+      case 'fill_blank': return '✏️ Điền Ô / Số';
+      case 'matching': return '🔗 Nối Cặp';
       case 'true_false': return '✅ Đúng / Sai';
       default: return 'Trắc Nghiệm';
     }
@@ -274,7 +324,7 @@ export default function TeacherDashboard() {
     e.preventDefault();
     sound.pop();
     showSuccess('Giao Bài Tập', `Đã giao bài "${assignTitle}" cho lớp thành công!`);
-    setActiveTeacherTab('classes');
+    setActiveTeacherTab('assigned-list');
   };
 
   if (loading || !data) {
@@ -313,7 +363,7 @@ export default function TeacherDashboard() {
             Góc Giáo Viên: {teacher.full_name} 🎓
           </h2>
           <p style={{ fontSize: '0.95rem', opacity: 0.95, lineHeight: 1.6, fontWeight: 500 }}>
-            Quản lý lớp học, soạn bài tập đa dạng (Trắc nghiệm, Điền ô, Nối cặp, Đúng/Sai), thêm hình ảnh minh họa và nhập hàng loạt câu hỏi bằng file Excel!
+            Quản lý lớp học, theo dõi bài tập đã giao, chỉnh sửa câu hỏi trực quan và nhập đề hàng loạt bằng Excel!
           </p>
         </div>
         <div style={{ fontSize: '4.5rem', filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.15))' }}>
@@ -355,6 +405,30 @@ export default function TeacherDashboard() {
         </button>
 
         <button
+          onClick={() => { sound.pop(); loadExercisesList(); setActiveTeacherTab('assigned-list'); }}
+          style={{
+            padding: '10px 18px',
+            borderRadius: '12px',
+            border: 'none',
+            fontWeight: 800,
+            fontSize: '0.92rem',
+            cursor: 'pointer',
+            background: activeTeacherTab === 'assigned-list' ? '#059669' : 'transparent',
+            color: activeTeacherTab === 'assigned-list' ? 'white' : '#475569',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span>📋</span>
+          <span>Bài Tập Đã Giao & Chỉnh Sửa</span>
+          <span style={{ background: '#EEF2FF', color: '#4F46E5', padding: '2px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 900 }}>
+            {teacherExercises.length} bài
+          </span>
+        </button>
+
+        <button
           onClick={() => { sound.pop(); setActiveTeacherTab('create-exercise'); }}
           style={{
             padding: '10px 18px',
@@ -372,7 +446,7 @@ export default function TeacherDashboard() {
           }}
         >
           <span>✍️</span>
-          <span>Soạn Bài Tập Đa Dạng</span>
+          <span>Soạn Bài Mới</span>
           {draftQuestions.length > 0 && (
             <span style={{ background: '#F59E0B', color: 'white', padding: '2px 8px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 900 }}>
               {draftQuestions.length} câu
@@ -398,7 +472,7 @@ export default function TeacherDashboard() {
           }}
         >
           <span>📊</span>
-          <span>Nhập Bằng Excel / CSV</span>
+          <span>Nhập Excel / CSV</span>
         </button>
 
         <button
@@ -420,27 +494,6 @@ export default function TeacherDashboard() {
         >
           <span>➕</span>
           <span>Tạo Lớp & Học Sinh</span>
-        </button>
-
-        <button
-          onClick={() => { sound.pop(); setActiveTeacherTab('assign'); }}
-          style={{
-            padding: '10px 18px',
-            borderRadius: '12px',
-            border: 'none',
-            fontWeight: 800,
-            fontSize: '0.92rem',
-            cursor: 'pointer',
-            background: activeTeacherTab === 'assign' ? '#059669' : 'transparent',
-            color: activeTeacherTab === 'assign' ? 'white' : '#475569',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            transition: 'all 0.2s ease'
-          }}
-        >
-          <span>📤</span>
-          <span>Giao Bài Cho Lớp</span>
         </button>
       </div>
 
@@ -537,7 +590,398 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 2: RICH MULTI-TYPE EXERCISE CREATOR */}
+      {/* TAB 2: ASSIGNED EXERCISES LIST & VIEW / EDIT STUDIO */}
+      {activeTeacherTab === 'assigned-list' && (
+        <div>
+          <div className="card" style={{ marginBottom: '24px' }}>
+            <div className="card-title" style={{ justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>📋</span>
+                <span>Danh Sách Bài Tập Đã Giao Cho Học Sinh ({teacherExercises.length} bài)</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { sound.pop(); setActiveTeacherTab('create-exercise'); }}
+                className="btn-primary"
+                style={{ padding: '8px 16px', fontSize: '0.88rem' }}
+              >
+                <span>➕ Soạn Bài Tập Mới</span>
+              </button>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Tên Bài Tập</th>
+                    <th>Khối / Môn</th>
+                    <th>Số Câu Hỏi</th>
+                    <th>Lớp Nhận Bài</th>
+                    <th>Tiến Độ Nộp</th>
+                    <th>Điểm TB</th>
+                    <th style={{ textAlign: 'center' }}>Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {teacherExercises.map(ex => (
+                    <tr key={ex.id}>
+                      <td>
+                        <strong>{ex.title}</strong>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mã đề: #{ex.id} • Hạn: {ex.due_date}</div>
+                      </td>
+                      <td>
+                        <span style={{
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          background: '#EEF2FF',
+                          color: '#4F46E5'
+                        }}>
+                          {ex.subject_icon || '📚'} Lớp {ex.grade_level}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 800, color: '#059669' }}>{ex.questionsCount || ex.questions?.length || 0} câu</span>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700, color: '#334155' }}>{ex.assigned_to || 'Lớp 4A1'}</span>
+                      </td>
+                      <td>
+                        <span style={{
+                          padding: '3px 8px',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          background: '#D1FAE5',
+                          color: '#065F46'
+                        }}>
+                          {ex.submissions_count || 3}/{ex.total_students || 3} đã nộp
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 900, color: '#B45309' }}>{ex.average_score || 8.5}/10</span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => { sound.pop(); setSelectedViewExercise(ex); }}
+                            title="Xem chi tiết câu hỏi"
+                            style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#4F46E5', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
+                          >
+                            👁️ Xem
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(ex)}
+                            title="Chỉnh sửa câu hỏi và đáp án"
+                            style={{ background: '#FEF3C7', border: '1px solid #FDE68A', color: '#B45309', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
+                          >
+                            ✏️ Sửa
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteExercise(ex)}
+                            title="Xóa bài tập"
+                            style={{ background: '#FEE2E2', border: '1px solid #FECDD3', color: '#DC2626', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
+                          >
+                            🗑️ Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* VIEW DETAIL MODAL */}
+          {selectedViewExercise && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '20px'
+            }}>
+              <div className="card" style={{ maxWidth: '680px', width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: '28px', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1E293B', margin: 0 }}>
+                      👁️ Chi Tiết Đề Bài: {selectedViewExercise.title}
+                    </h3>
+                    <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 700 }}>
+                      Khối {selectedViewExercise.grade_level} • Gồm {selectedViewExercise.questions?.length || 0} câu hỏi • +{selectedViewExercise.reward_xp || 50} XP
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedViewExercise(null)}
+                    style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 900, cursor: 'pointer' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {(selectedViewExercise.questions || []).map((q, idx) => (
+                    <div key={q.id || idx} style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: '14px', padding: '16px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: 900, color: '#4F46E5' }}>Câu {idx + 1}</span>
+                        <span style={{ background: '#EEF2FF', color: '#4338CA', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800 }}>
+                          {getQuestionTypeLabel(q.question_type)}
+                        </span>
+                      </div>
+
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1E293B', marginBottom: '8px' }}>
+                        {q.question_text}
+                      </div>
+
+                      {q.image_url && (
+                        <div style={{ marginBottom: '10px' }}>
+                          <img src={q.image_url} alt="q" style={{ maxHeight: '120px', borderRadius: '8px', border: '1px solid #CBD5E1', objectFit: 'contain' }} />
+                        </div>
+                      )}
+
+                      {/* Options or Answer */}
+                      {q.options && q.options.length > 0 && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                          {q.options.map(opt => (
+                            <div
+                              key={opt.option_label}
+                              style={{
+                                padding: '8px 12px',
+                                borderRadius: '8px',
+                                background: opt.option_label === q.correct_answer ? '#D1FAE5' : 'white',
+                                border: opt.option_label === q.correct_answer ? '2px solid #059669' : '1px solid #CBD5E1',
+                                fontSize: '0.88rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              <strong>[{opt.option_label}]</strong> {opt.answer_text}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ background: '#ECFDF5', padding: '8px 12px', borderRadius: '8px', color: '#065F46', fontSize: '0.85rem', fontWeight: 800, marginBottom: '6px' }}>
+                        🎯 Đáp án đúng: {q.correct_answer}
+                      </div>
+
+                      {q.explanation && (
+                        <div style={{ background: '#FFFBEB', padding: '8px 12px', borderRadius: '8px', color: '#92400E', fontSize: '0.82rem', fontWeight: 600 }}>
+                          💡 Giải thích: {q.explanation}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: '20px', textAlign: 'right' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedViewExercise(null); handleStartEdit(selectedViewExercise); }}
+                    className="btn-primary"
+                    style={{ padding: '8px 20px', fontSize: '0.9rem' }}
+                  >
+                    <span>✏️ Chỉnh Sửa Bài Tập Này</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* EDIT EXERCISE MODAL */}
+          {editingExercise && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 99999,
+              padding: '20px'
+            }}>
+              <div className="card" style={{ maxWidth: '720px', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '28px', position: 'relative' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px' }}>
+                  <h3 style={{ fontSize: '1.3rem', fontWeight: 900, color: '#1E293B', margin: 0 }}>
+                    ✏️ Chỉnh Sửa Bài Tập: {editingExercise.title}
+                  </h3>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditingExercise(null)}
+                    style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 900, cursor: 'pointer' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEditedExercise}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px' }}>Tên bài tập:</label>
+                      <input
+                        type="text"
+                        value={editingExercise.title}
+                        onChange={e => setEditingExercise({ ...editingExercise, title: e.target.value })}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontWeight: 700 }}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px' }}>Khối lớp:</label>
+                      <select
+                        value={editingExercise.grade_level}
+                        onChange={e => setEditingExercise({ ...editingExercise, grade_level: parseInt(e.target.value, 10) })}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontWeight: 700 }}
+                      >
+                        <option value="1">Lớp 1</option>
+                        <option value="2">Lớp 2</option>
+                        <option value="3">Lớp 3</option>
+                        <option value="4">Lớp 4</option>
+                        <option value="5">Lớp 5</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px' }}>Lớp nhận bài:</label>
+                      <input
+                        type="text"
+                        value={editingExercise.assigned_to || 'Lớp 4A1'}
+                        onChange={e => setEditingExercise({ ...editingExercise, assigned_to: e.target.value })}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontWeight: 700 }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* List of Questions for Quick Edit */}
+                  <h4 style={{ fontWeight: 900, color: '#334155', marginBottom: '12px' }}>
+                    Danh Sách Câu Hỏi ({editingExercise.questions?.length || 0} câu):
+                  </h4>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
+                    {(editingExercise.questions || []).map((q, idx) => (
+                      <div key={q.id || idx} style={{ background: '#F8FAFC', border: '1.5px solid #CBD5E1', borderRadius: '12px', padding: '14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontWeight: 900, color: '#4F46E5' }}>Câu hỏi #{idx + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedQ = editingExercise.questions.filter((_, i) => i !== idx);
+                              setEditingExercise({ ...editingExercise, questions: updatedQ });
+                            }}
+                            style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', padding: '4px 8px', borderRadius: '6px', fontWeight: 800, fontSize: '0.75rem', cursor: 'pointer' }}
+                          >
+                            ✕ Xóa câu này
+                          </button>
+                        </div>
+
+                        <div style={{ marginBottom: '8px' }}>
+                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px' }}>Nội dung câu hỏi:</label>
+                          <input
+                            type="text"
+                            value={q.question_text}
+                            onChange={e => {
+                              const updatedQ = [...editingExercise.questions];
+                              updatedQ[idx].question_text = e.target.value;
+                              setEditingExercise({ ...editingExercise, questions: updatedQ });
+                            }}
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontWeight: 700 }}
+                            required
+                          />
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px' }}>Đáp án đúng:</label>
+                            <input
+                              type="text"
+                              value={q.correct_answer}
+                              onChange={e => {
+                                const updatedQ = [...editingExercise.questions];
+                                updatedQ[idx].correct_answer = e.target.value;
+                                setEditingExercise({ ...editingExercise, questions: updatedQ });
+                              }}
+                              style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #10B981', background: '#ECFDF5', fontWeight: 800, color: '#065F46' }}
+                              required
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px' }}>Link ảnh minh họa (nếu có):</label>
+                            <input
+                              type="text"
+                              value={q.image_url || ''}
+                              onChange={e => {
+                                const updatedQ = [...editingExercise.questions];
+                                updatedQ[idx].image_url = e.target.value;
+                                setEditingExercise({ ...editingExercise, questions: updatedQ });
+                              }}
+                              placeholder="URL ảnh..."
+                              style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.8rem' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px' }}>Lời giải thích chi tiết:</label>
+                          <input
+                            type="text"
+                            value={q.explanation || ''}
+                            onChange={e => {
+                              const updatedQ = [...editingExercise.questions];
+                              updatedQ[idx].explanation = e.target.value;
+                              setEditingExercise({ ...editingExercise, questions: updatedQ });
+                            }}
+                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      onClick={() => setEditingExercise(null)}
+                      style={{ padding: '10px 20px', borderRadius: '10px', border: '1.5px solid #CBD5E1', background: '#F8FAFC', fontWeight: 800, cursor: 'pointer' }}
+                    >
+                      Hủy Bỏ
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      style={{ background: 'linear-gradient(135deg, #10B981, #059669)', padding: '10px 24px' }}
+                    >
+                      <span>💾 Lưu Toàn Bộ Thay Đổi 🚀</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: RICH MULTI-TYPE EXERCISE CREATOR */}
       {activeTeacherTab === 'create-exercise' && (
         <div>
           {/* Exercise Info Card */}
@@ -767,7 +1211,6 @@ export default function TeacherDashboard() {
                 )}
               </div>
 
-              {/* DYNAMIC FORM PER QUESTION TYPE */}
               {/* 1. Multiple Choice 4 Options */}
               {questionType === 'multiple_choice' && (
                 <div style={{ marginBottom: '18px' }}>
@@ -929,7 +1372,7 @@ export default function TeacherDashboard() {
               {/* Hint & Explanation */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px' }}>💡 Gợi ý cho bé (Khi bấm nút cần giúp đỡ):</label>
+                  <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px' }}>💡 Gợi ý cho bé (Khi bấm nút trợ giúp):</label>
                   <input
                     type="text"
                     value={hint}
@@ -1058,7 +1501,7 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 3: EXCEL / CSV IMPORT STUDIO */}
+      {/* TAB 4: EXCEL / CSV IMPORT STUDIO */}
       {activeTeacherTab === 'import-excel' && (
         <div>
           <div className="card" style={{ marginBottom: '24px' }}>
@@ -1262,7 +1705,7 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 4: CREATE CLASS & ADD STUDENT */}
+      {/* TAB 5: CREATE CLASS & ADD STUDENT */}
       {activeTeacherTab === 'create-class' && (
         <div className="grid-2">
           {/* Create Class Card */}
@@ -1345,7 +1788,7 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 5: ASSIGN EXERCISE */}
+      {/* TAB 6: ASSIGN EXERCISE */}
       {activeTeacherTab === 'assign' && (
         <div className="card" style={{ maxWidth: '600px', margin: '0 auto' }}>
           <div className="card-title">

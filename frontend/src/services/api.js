@@ -912,6 +912,87 @@ class ApiService {
     return { success: true, exercise: fullExercise, lesson: newLesson };
   }
 
+  getTeacherExercises() {
+    const list = [];
+    for (const [id, ex] of Object.entries(curriculumDatabase.exercises)) {
+      if (!ex) continue;
+      const numericId = parseInt(id, 10);
+      const subjectObj = curriculumDatabase.subjects.find(s => s.id === ex.subject_id) || { name: 'Toán Học', icon: '📐' };
+      list.push({
+        id: numericId,
+        title: ex.title,
+        grade_level: ex.grade_level || 4,
+        subject_id: ex.subject_id || 1,
+        subject_name: subjectObj.name,
+        subject_icon: subjectObj.icon,
+        reward_xp: ex.reward_xp || 50,
+        questionsCount: ex.questions?.length || 0,
+        questions: ex.questions || [],
+        assigned_to: ex.assigned_to || 'Lớp 4A1',
+        due_date: ex.due_date || 'Chủ nhật tuần này (23:59)',
+        submissions_count: ex.submissions_count !== undefined ? ex.submissions_count : 3,
+        total_students: 3,
+        average_score: ex.average_score || 8.5
+      });
+    }
+    return { success: true, exercises: list };
+  }
+
+  updateExercise(id, updatedData) {
+    const numericId = parseInt(id, 10);
+    const existing = curriculumDatabase.exercises[numericId] || {};
+    const merged = {
+      ...existing,
+      ...updatedData,
+      id: numericId
+    };
+    curriculumDatabase.exercises[numericId] = merged;
+
+    // Update in lessons
+    const g = merged.grade_level || 4;
+    const s = merged.subject_id || 1;
+    if (curriculumDatabase.lessonsByGradeAndSubject[g]?.[s]) {
+      const lesson = curriculumDatabase.lessonsByGradeAndSubject[g][s].find(l => l.exercise_id === numericId);
+      if (lesson) {
+        lesson.title = merged.title;
+        lesson.description = `Bài tập gồm ${merged.questions?.length || 0} câu hỏi`;
+      }
+    }
+
+    try {
+      let stored = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
+      stored = stored.map(ex => ex.id === numericId ? merged : ex);
+      if (!stored.some(ex => ex.id === numericId)) {
+        stored.push(merged);
+      }
+      localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
+    } catch (e) {}
+
+    return { success: true, exercise: merged };
+  }
+
+  deleteExercise(id) {
+    const numericId = parseInt(id, 10);
+    delete curriculumDatabase.exercises[numericId];
+
+    // Remove from lessons
+    for (const g of Object.keys(curriculumDatabase.lessonsByGradeAndSubject)) {
+      for (const s of Object.keys(curriculumDatabase.lessonsByGradeAndSubject[g])) {
+        curriculumDatabase.lessonsByGradeAndSubject[g][s] = curriculumDatabase.lessonsByGradeAndSubject[g][s].filter(
+          l => l.exercise_id !== numericId
+        );
+      }
+    }
+
+    try {
+      let stored = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
+      stored = stored.filter(ex => ex.id !== numericId);
+      localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
+    } catch (e) {}
+
+    return { success: true };
+  }
+
   async submitExercise(exerciseId, answers, timeTakenSeconds) {
     const res = await this.request('/exercises/submit', {
       method: 'POST',
