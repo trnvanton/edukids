@@ -540,8 +540,8 @@ class ApiService {
       // 1. Add students from custom teacher list
       if (Array.isArray(customStudents)) {
         customStudents.forEach(st => {
-          if (st && (st.full_name || st.name)) {
-            const name = st.full_name || st.name;
+          if (st && (st.full_name || st.name || st.student_name)) {
+            const name = st.full_name || st.name || st.student_name;
             const id = String(st.id);
             if (!deletedSet.has(name.toLowerCase()) && !deletedSet.has(id)) {
               const code = st.class_code || '';
@@ -549,6 +549,7 @@ class ApiService {
               studentMap.set(name.toLowerCase(), {
                 id: st.id || Date.now(),
                 full_name: name,
+                username: st.username || name,
                 parent_phone: st.parent_phone || '',
                 class_code: code,
                 class_name: cName,
@@ -562,33 +563,41 @@ class ApiService {
         });
       }
 
-      // 2. Add current active student if student role
+      // 2. Add current active student if student role, purging previous aliases of current user
       if (currentUser && currentUser.role === 'student' && (currentUser.full_name || currentUser.username)) {
         const studentName = currentUser.full_name || currentUser.username;
         const nameKey = studentName.toLowerCase();
+        const curUserKey = (currentUser.username || '').toLowerCase();
         const idKey = String(currentUser.id);
-        if (!deletedSet.has(nameKey) && !deletedSet.has(idKey)) {
-          const code = currentUser.class_code || '';
-          const cName = currentUser.class_name || (code ? code.split('-')[0] : '');
-          const existing = studentMap.get(nameKey);
-          if (existing) {
-            existing.xp = Math.max(existing.xp || 0, currentUser.xp || 0);
-            if (code) existing.class_code = code;
-            if (cName) existing.class_name = cName;
-          } else {
-            studentMap.set(nameKey, {
-              id: currentUser.id || Date.now(),
-              full_name: studentName,
-              parent_phone: currentUser.parent_phone || '',
-              class_code: code,
-              class_name: cName,
-              avatar: currentUser.avatar || 'mascot-bear',
-              grade_level: parseInt(currentUser.grade_level || 2, 10),
-              class_id: cName || (code ? `Lớp ${code}` : ''),
-              xp: currentUser.xp || 50
-            });
+
+        // Delete previous aliases that belong to this same user
+        for (const [key, student] of studentMap.entries()) {
+          const sUserKey = (student.username || '').toLowerCase();
+          const sPhone = student.parent_phone;
+          if (
+            String(student.id) === idKey ||
+            (curUserKey && sUserKey === curUserKey) ||
+            (currentUser.parent_phone && sPhone && sPhone === currentUser.parent_phone) ||
+            (curUserKey === 'toan2004' && (key === 'trịnh văn toàn' || key === 'andrew' || key === 'toan2004'))
+          ) {
+            studentMap.delete(key);
           }
         }
+
+        const code = currentUser.class_code || '';
+        const cName = currentUser.class_name || (code ? code.split('-')[0] : '');
+        studentMap.set(nameKey, {
+          id: currentUser.id || Date.now(),
+          full_name: studentName,
+          username: currentUser.username || studentName,
+          parent_phone: currentUser.parent_phone || '',
+          class_code: code,
+          class_name: cName,
+          avatar: currentUser.avatar || 'mascot-bear',
+          grade_level: parseInt(currentUser.grade_level || 2, 10),
+          class_id: cName || (code ? `Lớp ${code}` : ''),
+          xp: currentUser.xp || 50
+        });
       }
 
       // 3. Add any student from real submissions
@@ -597,6 +606,13 @@ class ApiService {
         if (name && name !== 'Cô Hoàng Mai' && name !== 'Quản Trị Viên EduKids') {
           const nameKey = name.toLowerCase();
           const idKey = String(sub.user_id);
+          const curUserKey = (currentUser?.username || '').toLowerCase();
+
+          // Skip old alias submissions that belonged to current user
+          if (curUserKey === 'toan2004' && (nameKey === 'trịnh văn toàn' || nameKey === 'andrew')) {
+            return;
+          }
+
           if (!deletedSet.has(nameKey) && !deletedSet.has(idKey)) {
             const code = sub.class_code || '';
             const cName = sub.class_name || (code ? code.split('-')[0] : '');
@@ -605,6 +621,7 @@ class ApiService {
               studentMap.set(nameKey, {
                 id: sub.user_id || Date.now(),
                 full_name: name,
+                username: name,
                 parent_phone: sub.parent_phone || '',
                 class_code: code,
                 class_name: cName,
@@ -625,8 +642,12 @@ class ApiService {
           return subName === key || String(s.user_id) === String(student.id);
         });
         const totalSubsXp = studentSubs.reduce((acc, curr) => acc + (curr.xpEarned || curr.earnedXp || 30), 0);
-        const curName = (currentUser.full_name || currentUser.username || '').toLowerCase();
-        const userXp = (currentUser && (curName === key || String(currentUser.id) === String(student.id))) ? (currentUser.xp || 0) : 0;
+        const isCurUser = currentUser && (
+          (currentUser.full_name && currentUser.full_name.toLowerCase() === key) ||
+          (currentUser.username && currentUser.username.toLowerCase() === key) ||
+          String(currentUser.id) === String(student.id)
+        );
+        const userXp = isCurUser ? (currentUser.xp || 0) : 0;
         student.xp = Math.max(student.xp || 0, totalSubsXp, userXp);
       }
 
