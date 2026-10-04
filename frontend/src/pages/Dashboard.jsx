@@ -61,7 +61,7 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
           <p className="hero-desc">
             Hôm nay bé có <strong>{currentStreak} ngày học liên tiếp 🔥</strong> (Khối Lớp {currentGrade}). Hoàn thành thử thách hôm nay để nhận thêm <strong>+50 XP</strong> và mở khóa huy hiệu <strong>Trạng Nguyên</strong> nhé!
           </p>
-          <div style={{ marginTop: '18px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ marginTop: '18px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn-primary" onClick={() => { sound.pop(); onGoToSubjects(); }}>
               <span>🚀 Bắt Đầu Học Lớp {currentGrade} Ngay</span>
             </button>
@@ -69,6 +69,17 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
               <span>{levelDetails.icon}</span>
               <span>Level {levelDetails.level} – {levelDetails.title}</span>
             </div>
+            {user?.class_code && (
+              <div className="chip" style={{
+                background: '#EEF2FF',
+                color: '#3730A3',
+                border: '1.5px solid #C7D2FE',
+                fontSize: '0.95rem',
+                fontWeight: 900
+              }}>
+                <span>🏫 Lớp {user.class_name || user.class_code.split('-')[0]} (Mã: {user.class_code})</span>
+              </div>
+            )}
           </div>
         </div>
         <div className="hero-mascot">{getAvatarEmoji(currentAvatar)}</div>

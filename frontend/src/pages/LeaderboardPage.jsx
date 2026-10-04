@@ -57,7 +57,7 @@ export default function LeaderboardPage() {
                     <div>
                       <div style={{ fontWeight: 800, fontSize: '1.05rem' }}>{item.full_name}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 700 }}>
-                        Học sinh Lớp {item.grade_level} • 🔥 Chuỗi {item.streak_days} ngày
+                        Học sinh Lớp {item.class_name || (item.class_code ? item.class_code.split('-')[0] : item.grade_level)} {item.class_code ? `(${item.class_code})` : ''} • 🔥 Chuỗi {item.streak_days || 1} ngày
                       </div>
                     </div>
                   </div>

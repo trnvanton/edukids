@@ -21,6 +21,14 @@ export default function TeacherDashboard() {
   const [targetClassForStudent, setTargetClassForStudent] = useState('1');
   const [selectedQRClass, setSelectedQRClass] = useState(null);
 
+  // Edit Class Modal State
+  const [editingClass, setEditingClass] = useState(null);
+  const [editClassName, setEditClassName] = useState('');
+  const [editClassGrade, setEditClassGrade] = useState('2');
+
+  // Multi-Class Assignment for Exercises
+  const [selectedAssignedClasses, setSelectedAssignedClasses] = useState([]);
+
   // Exercise Metadata
   const [exerciseTitle, setExerciseTitle] = useState('Phiếu Bài Tập Rèn Luyện Toàn Diện');
   const [exerciseGrade, setExerciseGrade] = useState('4');
@@ -229,6 +237,14 @@ export default function TeacherDashboard() {
     const isRandom = randomMode !== 'all';
     const randomCount = randomMode === 'fixed_10' ? 10 : (randomMode === 'fixed_20' ? 20 : (randomMode === 'fixed_30' ? 30 : 10));
 
+    const assignedLabel = selectedAssignedClasses.length === 0
+      ? `Toàn Khối ${exerciseGrade}`
+      : `Lớp ${selectedAssignedClasses.map(c => c.split('-')[0]).join(', ')}`;
+
+    const assignedClassesList = selectedAssignedClasses.length === 0
+      ? [`ALL_GRADE_${exerciseGrade}`]
+      : selectedAssignedClasses;
+
     const newEx = {
       id: Date.now() % 100000,
       title: exerciseTitle,
@@ -236,7 +252,8 @@ export default function TeacherDashboard() {
       subject_id: parseInt(exerciseSubject, 10),
       reward_xp: parseInt(exerciseXp, 10) || 50,
       questions: draftQuestions,
-      assigned_to: `Lớp ${exerciseGrade}A1`,
+      assigned_to: assignedLabel,
+      assigned_classes: assignedClassesList,
       due_date: 'Chủ nhật tuần này (23:59)',
       is_random_pool: isRandom,
       random_mode: randomMode,
@@ -247,8 +264,9 @@ export default function TeacherDashboard() {
     };
 
     api.saveCustomExercise(newEx);
-    showSuccess('Lưu Thành Công! 🎉', `Đã lưu "${exerciseTitle}" gồm ${draftQuestions.length} câu hỏi vào Ngân hàng đề thi!`);
+    showSuccess('Lưu Thành Công! 🎉', `Đã lưu "${exerciseTitle}" giao cho ${assignedLabel}!`);
     setDraftQuestions([]);
+    setSelectedAssignedClasses([]);
     loadExercisesList();
     setActiveTeacherTab('assigned-list');
   };
@@ -288,6 +306,14 @@ export default function TeacherDashboard() {
     const isRandom = randomMode !== 'all';
     const randomCount = randomMode === 'fixed_10' ? 10 : (randomMode === 'fixed_20' ? 20 : (randomMode === 'fixed_30' ? 30 : 10));
 
+    const assignedLabel = selectedAssignedClasses.length === 0
+      ? `Toàn Khối ${exerciseGrade}`
+      : `Lớp ${selectedAssignedClasses.map(c => c.split('-')[0]).join(', ')}`;
+
+    const assignedClassesList = selectedAssignedClasses.length === 0
+      ? [`ALL_GRADE_${exerciseGrade}`]
+      : selectedAssignedClasses;
+
     const newEx = {
       id: Date.now() % 100000,
       title: exerciseTitle || 'Bài Tập Nhập Từ Excel',
@@ -295,7 +321,8 @@ export default function TeacherDashboard() {
       subject_id: parseInt(exerciseSubject, 10),
       reward_xp: parseInt(exerciseXp, 10) || 50,
       questions: excelQuestions,
-      assigned_to: `Lớp ${exerciseGrade}A1`,
+      assigned_to: assignedLabel,
+      assigned_classes: assignedClassesList,
       due_date: 'Chủ nhật tuần này (23:59)',
       is_random_pool: isRandom,
       random_mode: randomMode,
@@ -306,9 +333,10 @@ export default function TeacherDashboard() {
     };
 
     api.saveCustomExercise(newEx);
-    showSuccess('Nhập Excel Thành Công! 🚀', `Đã lưu toàn bộ ${excelQuestions.length} câu hỏi vào Ngân hàng đề thi Khối ${exerciseGrade}!`);
+    showSuccess('Nhập Excel Thành Công! 🚀', `Đã lưu toàn bộ ${excelQuestions.length} câu hỏi giao cho ${assignedLabel}!`);
     setExcelQuestions([]);
     setExcelFile(null);
+    setSelectedAssignedClasses([]);
     loadExercisesList();
     setActiveTeacherTab('assigned-list');
   };
@@ -553,6 +581,45 @@ export default function TeacherDashboard() {
     setActiveTeacherTab('classes');
   };
 
+  const handleStartEditClass = (cls) => {
+    sound.pop();
+    setEditingClass(cls);
+    setEditClassName(cls.className);
+    setEditClassGrade(String(cls.gradeLevel || 2));
+  };
+
+  const handleSaveEditClass = (e) => {
+    e.preventDefault();
+    sound.pop();
+    if (!editingClass || !editClassName.trim()) return;
+
+    api.updateCustomClass(editingClass.classId || editingClass.id, {
+      className: editClassName.trim(),
+      grade_level: parseInt(editClassGrade, 10)
+    });
+
+    showSuccess('Cập Nhật Lớp Thành Công! ✨', `Đã cập nhật thông tin Lớp ${editClassName.trim()} (Khối ${editClassGrade})!`);
+    setEditingClass(null);
+    loadTeacherData();
+  };
+
+  const handleDeleteClass = async (cls) => {
+    sound.pop();
+    const isConfirmed = await confirm({
+      title: `Xóa Lớp ${cls.className}?`,
+      message: `Cô có chắc chắn muốn xóa Lớp ${cls.className} (Mã Lớp: ${cls.class_code || `${cls.className}-8429`}) không? Toàn bộ dữ liệu của lớp sẽ được xóa khỏi hệ thống.`,
+      icon: '🗑️',
+      confirmText: 'Xóa Lớp Này',
+      cancelText: 'Hủy'
+    });
+
+    if (isConfirmed) {
+      api.deleteCustomClass(cls.classId || cls.id || cls.class_code);
+      showSuccess('Đã Xóa Lớp Học', `Đã xóa thành công Lớp ${cls.className}!`);
+      loadTeacherData();
+    }
+  };
+
   const handleAddStudent = (e) => {
     e.preventDefault();
     sound.pop();
@@ -560,9 +627,13 @@ export default function TeacherDashboard() {
     
     // Find target class
     let grade = 2;
+    let targetCode = '';
     if (targetClassForStudent) {
       const cls = classAnalytics.find(c => String(c.classId) === String(targetClassForStudent) || c.className === targetClassForStudent);
-      if (cls) grade = cls.gradeLevel;
+      if (cls) {
+        grade = cls.gradeLevel;
+        targetCode = cls.class_code;
+      }
     }
 
     const newStudentObj = {
@@ -571,6 +642,7 @@ export default function TeacherDashboard() {
       parent_phone: newStudentPhone.trim(),
       grade_level: grade,
       class_id: targetClassForStudent || `${grade}A1`,
+      class_code: targetCode || `${grade}A1-8429`,
       avatar: 'mascot-bear',
       xp: 0
     };
@@ -585,14 +657,14 @@ export default function TeacherDashboard() {
   const handleDeleteStudent = async (student) => {
     sound.pop();
     const isConfirmed = await confirm({
-      title: 'Xóa Học Sinh?',
+      title: 'Xóa Học Sinh Khỏi Lớp?',
       message: `Cô có chắc muốn xóa học sinh "${student.full_name}" khỏi danh sách lớp không?`,
       icon: '🗑️',
       confirmText: 'Xóa',
       cancelText: 'Hủy'
     });
     if (isConfirmed) {
-      api.deleteCustomStudent(student.id);
+      api.deleteCustomStudent(student.id, student.full_name);
       showSuccess('Đã Xóa Học Sinh', `Đã xóa học sinh "${student.full_name}" khỏi danh sách lớp.`);
       loadTeacherData();
     }
@@ -825,8 +897,54 @@ export default function TeacherDashboard() {
                   </span>
                 </div>
 
-                <div className="chip" style={{ background: '#D1FAE5', color: '#065F46', border: '1.5px solid #A7F3D0', fontSize: '0.95rem' }}>
-                  <span>📊 Điểm TB Lớp: <strong>{cls.stats.classAverageScore ? `${cls.stats.classAverageScore} / 10` : 'Chưa có bài nộp'}</strong></span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <div className="chip" style={{ background: '#D1FAE5', color: '#065F46', border: '1.5px solid #A7F3D0', fontSize: '0.92rem' }}>
+                    <span>📊 Điểm TB: <strong>{cls.stats.classAverageScore ? `${cls.stats.classAverageScore} / 10` : 'Chưa có bài nộp'}</strong></span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleStartEditClass(cls)}
+                    style={{
+                      background: '#EEF2FF',
+                      border: '1.5px solid #C7D2FE',
+                      color: '#4338CA',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="Đổi tên lớp hoặc khối lớp"
+                  >
+                    <span>✏️</span>
+                    <span>Sửa Lớp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteClass(cls)}
+                    style={{
+                      background: '#FEF2F2',
+                      border: '1.5px solid #FECDD3',
+                      color: '#DC2626',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                    title="Xóa lớp học này khỏi hệ thống"
+                  >
+                    <span>🗑️</span>
+                    <span>Xóa Lớp</span>
+                  </button>
                 </div>
               </div>
 
@@ -2072,6 +2190,112 @@ export default function TeacherDashboard() {
               </div>
             </div>
 
+            {/* Target Classes Assignment Multi-Selector */}
+            <div style={{
+              marginTop: '16px',
+              padding: '16px 20px',
+              background: '#F0FDF4',
+              borderRadius: '14px',
+              border: '1.5px solid #BBF7D0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 900, fontSize: '0.95rem' }}>
+                  <span>🏫</span>
+                  <span>Chọn Lớp Nhận Bài Tập (Có thể chọn nhiều lớp cùng lúc):</span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.pop();
+                      setSelectedAssignedClasses(classAnalytics.map(c => c.class_code || `${c.className}-8429`));
+                    }}
+                    style={{ background: '#DCFCE7', border: '1px solid #86EFAC', color: '#15803D', fontSize: '0.78rem', fontWeight: 800, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                  >
+                    ✓ Chọn Tất Cả Lớp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.pop();
+                      setSelectedAssignedClasses([]);
+                    }}
+                    style={{ background: '#FEE2E2', border: '1px solid #FECDD3', color: '#B91C1C', fontSize: '0.78rem', fontWeight: 800, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                  >
+                    ✕ Bỏ Chọn (Tất Cả Khối)
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {/* Option 1: All in grade */}
+                <label style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  background: selectedAssignedClasses.length === 0 ? '#15803D' : '#FFFFFF',
+                  color: selectedAssignedClasses.length === 0 ? '#FFFFFF' : '#334155',
+                  border: '1.5px solid #86EFAC',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  boxShadow: selectedAssignedClasses.length === 0 ? '0 2px 8px rgba(21, 128, 61, 0.25)' : 'none'
+                }}>
+                  <input
+                    type="radio"
+                    name="assign_mode_create"
+                    checked={selectedAssignedClasses.length === 0}
+                    onChange={() => setSelectedAssignedClasses([])}
+                    style={{ display: 'none' }}
+                  />
+                  <span>🌐 Toàn Bộ Khối {exerciseGrade} (Mặc định)</span>
+                </label>
+
+                {/* Specific Classes */}
+                {classAnalytics.map(c => {
+                  const classIdOrCode = c.class_code || `${c.className}-8429`;
+                  const isSelected = selectedAssignedClasses.includes(classIdOrCode);
+                  return (
+                    <label
+                      key={c.classId}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 14px',
+                        borderRadius: '10px',
+                        background: isSelected ? '#15803D' : '#FFFFFF',
+                        color: isSelected ? '#FFFFFF' : '#334155',
+                        border: isSelected ? '1.5px solid #15803D' : '1.5px solid #CBD5E1',
+                        fontWeight: 800,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        boxShadow: isSelected ? '0 2px 8px rgba(21, 128, 61, 0.25)' : 'none'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          sound.pop();
+                          if (e.target.checked) {
+                            setSelectedAssignedClasses(prev => [...prev.filter(x => x !== 'ALL'), classIdOrCode]);
+                          } else {
+                            setSelectedAssignedClasses(prev => prev.filter(x => x !== classIdOrCode));
+                          }
+                        }}
+                        style={{ width: '16px', height: '16px', accentColor: '#15803D' }}
+                      />
+                      <span>Lớp {c.className} (Mã: {classIdOrCode})</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Random Question Pool & Shuffling Settings */}
             <div style={{
               marginTop: '18px',
@@ -2681,6 +2905,113 @@ export default function TeacherDashboard() {
               </div>
             </div>
 
+            {/* Target Classes Assignment Multi-Selector for Excel */}
+            <div style={{
+              marginTop: '16px',
+              padding: '16px 20px',
+              background: '#F0FDF4',
+              borderRadius: '14px',
+              border: '1.5px solid #BBF7D0',
+              marginBottom: '18px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#166534', fontWeight: 900, fontSize: '0.95rem' }}>
+                  <span>🏫</span>
+                  <span>Chọn Lớp Nhận Bài Tập (Có thể chọn nhiều lớp cùng lúc):</span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.pop();
+                      setSelectedAssignedClasses(classAnalytics.map(c => c.class_code || `${c.className}-8429`));
+                    }}
+                    style={{ background: '#DCFCE7', border: '1px solid #86EFAC', color: '#15803D', fontSize: '0.78rem', fontWeight: 800, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                  >
+                    ✓ Chọn Tất Cả Lớp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.pop();
+                      setSelectedAssignedClasses([]);
+                    }}
+                    style={{ background: '#FEE2E2', border: '1px solid #FECDD3', color: '#B91C1C', fontSize: '0.78rem', fontWeight: 800, padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                  >
+                    ✕ Bỏ Chọn (Tất Cả Khối)
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {/* Option 1: All in grade */}
+                <label style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 14px',
+                  borderRadius: '10px',
+                  background: selectedAssignedClasses.length === 0 ? '#15803D' : '#FFFFFF',
+                  color: selectedAssignedClasses.length === 0 ? '#FFFFFF' : '#334155',
+                  border: '1.5px solid #86EFAC',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  boxShadow: selectedAssignedClasses.length === 0 ? '0 2px 8px rgba(21, 128, 61, 0.25)' : 'none'
+                }}>
+                  <input
+                    type="radio"
+                    name="assign_mode_excel"
+                    checked={selectedAssignedClasses.length === 0}
+                    onChange={() => setSelectedAssignedClasses([])}
+                    style={{ display: 'none' }}
+                  />
+                  <span>🌐 Toàn Bộ Khối {exerciseGrade} (Mặc định)</span>
+                </label>
+
+                {/* Specific Classes */}
+                {classAnalytics.map(c => {
+                  const classIdOrCode = c.class_code || `${c.className}-8429`;
+                  const isSelected = selectedAssignedClasses.includes(classIdOrCode);
+                  return (
+                    <label
+                      key={c.classId}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 14px',
+                        borderRadius: '10px',
+                        background: isSelected ? '#15803D' : '#FFFFFF',
+                        color: isSelected ? '#FFFFFF' : '#334155',
+                        border: isSelected ? '1.5px solid #15803D' : '1.5px solid #CBD5E1',
+                        fontWeight: 800,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        boxShadow: isSelected ? '0 2px 8px rgba(21, 128, 61, 0.25)' : 'none'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          sound.pop();
+                          if (e.target.checked) {
+                            setSelectedAssignedClasses(prev => [...prev.filter(x => x !== 'ALL'), classIdOrCode]);
+                          } else {
+                            setSelectedAssignedClasses(prev => prev.filter(x => x !== classIdOrCode));
+                          }
+                        }}
+                        style={{ width: '16px', height: '16px', accentColor: '#15803D' }}
+                      />
+                      <span>Lớp {c.className} (Mã: {classIdOrCode})</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Random Question Pool & Shuffling Settings for Excel */}
             <div style={{
               padding: '16px 20px',
@@ -2965,6 +3296,90 @@ export default function TeacherDashboard() {
           </form>
         </div>
       )}
+      {/* Edit Class Modal */}
+      {editingClass && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '16px'
+        }}>
+          <div className="card" style={{ maxWidth: '440px', width: '100%', padding: '24px', borderRadius: '18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1.5px solid #E2E8F0', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>✏️</span>
+                <span>Chỉnh Sửa Lớp Học</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingClass(null)}
+                style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 900, color: '#64748B' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditClass}>
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '6px', color: '#334155' }}>
+                  Tên Lớp Học: <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editClassName}
+                  onChange={e => setEditClassName(e.target.value)}
+                  placeholder="Ví dụ: 2A1, 4A2..."
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontSize: '0.95rem', fontWeight: 800 }}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 800, marginBottom: '6px', color: '#334155' }}>
+                  Khối lớp:
+                </label>
+                <select
+                  value={editClassGrade}
+                  onChange={e => setEditClassGrade(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontSize: '0.95rem', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  <option value="1">🌱 Lớp 1</option>
+                  <option value="2">🐥 Lớp 2</option>
+                  <option value="3">🐱 Lớp 3</option>
+                  <option value="4">🚀 Lớp 4</option>
+                  <option value="5">👑 Lớp 5</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingClass(null)}
+                  style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC', fontWeight: 800, cursor: 'pointer', color: '#475569' }}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  style={{ padding: '8px 20px', borderRadius: '8px', fontWeight: 900, background: 'linear-gradient(135deg, #059669, #10B981)' }}
+                >
+                  💾 Lưu Thay Đổi
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* QR Code Modal for Teachers */}
       <QRCodeModal
         isOpen={!!selectedQRClass}

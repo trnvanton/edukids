@@ -268,12 +268,26 @@ export default async function handler(req, res) {
       // Delete Student from Class
       if (body.action === 'delete_student' || body.deleteStudentId) {
         const stId = String(body.deleteStudentId || body.id);
-        await conn.execute('DELETE FROM cloud_synced_students WHERE id = ? OR student_name = ?', [stId, stId]);
+        const stName = body.studentName || body.student_name || '';
+        await conn.execute('DELETE FROM cloud_synced_students WHERE id = ? OR student_name = ?', [stId, stName || stId]);
         await conn.end();
 
         return res.status(200).json({
           success: true,
           message: 'Đã xóa học sinh khỏi Cloud MySQL thành công!'
+        });
+      }
+
+      // Delete Class
+      if (body.action === 'delete_class' || body.deleteClassId) {
+        const clsId = String(body.deleteClassId || body.id);
+        const clsCode = body.class_code || clsId;
+        await conn.execute('DELETE FROM cloud_synced_classes WHERE id = ? OR class_code = ?', [clsId, clsCode]);
+        await conn.end();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Đã xóa lớp học khỏi Cloud MySQL thành công!'
         });
       }
 

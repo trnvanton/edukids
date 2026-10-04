@@ -78,6 +78,27 @@ export default function ProfileModal() {
         </p>
 
         <form onSubmit={handleSubmit}>
+          {/* Current Class Info */}
+          {user?.class_code && (
+            <div style={{
+              background: '#F5F3FF',
+              border: '1.5px solid #DDD6FE',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              marginBottom: '14px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#6D28D9', display: 'block' }}>🏫 LỚP HỌC HIỆN TẠI:</span>
+                <strong style={{ fontSize: '0.95rem', color: '#4C1D95' }}>
+                  Lớp {user.class_name || user.class_code.split('-')[0]} (Mã: {user.class_code})
+                </strong>
+              </div>
+            </div>
+          )}
+
           {/* Full Name */}
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontWeight: 800, fontSize: '0.9rem', marginBottom: '6px' }}>

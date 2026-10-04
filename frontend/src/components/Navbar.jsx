@@ -261,11 +261,11 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                   <span style={{
                     color: '#4F46E5',
                     background: '#EEF2FF',
-                    padding: '2px 8px',
+                    padding: '2px 10px',
                     borderRadius: '9999px',
                     fontWeight: 900
                   }}>
-                    🏫 Lớp {user.grade_level || 2}
+                    🏫 {user.class_code ? `Lớp ${user.class_name || user.class_code.split('-')[0]} (${user.class_code})` : `Lớp ${user.grade_level || 2}`}
                   </span>
                   <span style={{ color: '#D97706', fontWeight: 800 }}>
                     ⭐ {user.xp || 0} XP

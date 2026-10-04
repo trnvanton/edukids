@@ -115,10 +115,16 @@ class ApiService {
     try {
       const res = await this.request('/sync');
       if (res && res.success) {
-        if (Array.isArray(res.exercises)) {
-          const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
-          const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
+        const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
+        const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
 
+        const deletedClasses = JSON.parse(localStorage.getItem('edukids_deleted_classes') || '[]');
+        const deletedClassSet = new Set(Array.isArray(deletedClasses) ? deletedClasses.map(String) : []);
+
+        const deletedStudents = JSON.parse(localStorage.getItem('edukids_deleted_students') || '[]');
+        const deletedStudentSet = new Set(Array.isArray(deletedStudents) ? deletedStudents.map(s => String(s).toLowerCase()) : []);
+
+        if (Array.isArray(res.exercises)) {
           res.exercises.forEach(ex => {
             if (ex && ex.id && !deletedSet.has(parseInt(ex.id, 10)) && Array.isArray(ex.questions) && ex.questions.length > 0) {
               const numericId = parseInt(ex.id, 10);
@@ -161,8 +167,18 @@ class ApiService {
           try {
             const localCls = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
             const clsMap = new Map();
-            localCls.forEach(c => clsMap.set(String(c.class_code || c.id), c));
-            res.classes.forEach(c => clsMap.set(String(c.class_code || c.id), c));
+            localCls.forEach(c => {
+              const code = String(c.class_code || c.id);
+              if (!deletedClassSet.has(code) && !deletedClassSet.has(String(c.id))) {
+                clsMap.set(code, c);
+              }
+            });
+            res.classes.forEach(c => {
+              const code = String(c.class_code || c.id);
+              if (!deletedClassSet.has(code) && !deletedClassSet.has(String(c.id))) {
+                clsMap.set(code, c);
+              }
+            });
             localStorage.setItem('edukids_custom_classes', JSON.stringify(Array.from(clsMap.values())));
           } catch (e) {}
         }
@@ -171,8 +187,20 @@ class ApiService {
           try {
             const localSt = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
             const stMap = new Map();
-            localSt.forEach(s => stMap.set(String(s.id || s.full_name), s));
-            res.students.forEach(s => stMap.set(String(s.id || s.full_name), s));
+            localSt.forEach(s => {
+              const name = String(s.full_name || s.student_name || '').toLowerCase();
+              const id = String(s.id);
+              if (!deletedStudentSet.has(name) && !deletedStudentSet.has(id)) {
+                stMap.set(id, s);
+              }
+            });
+            res.students.forEach(s => {
+              const name = String(s.full_name || s.student_name || '').toLowerCase();
+              const id = String(s.id);
+              if (!deletedStudentSet.has(name) && !deletedStudentSet.has(id)) {
+                stMap.set(id, s);
+              }
+            });
             localStorage.setItem('edukids_custom_students', JSON.stringify(Array.from(stMap.values())));
           } catch (e) {}
         }
@@ -187,11 +215,19 @@ class ApiService {
 
   async joinClass({ class_code, student_name, parent_phone, avatar, grade_level }) {
     const code = (class_code || '2A1-8429').toUpperCase().trim();
+    let className = code.split('-')[0] || `Lớp ${grade_level || 2}A1`;
+    try {
+      const customClasses = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
+      const found = customClasses.find(c => c.class_code === code || c.className === className);
+      if (found) className = found.className;
+    } catch (e) {}
+
     const student = {
       id: Date.now(),
       full_name: student_name.trim(),
       student_name: student_name.trim(),
       class_code: code,
+      class_name: className,
       parent_phone: parent_phone ? parent_phone.trim() : '',
       avatar: avatar || 'mascot-bear',
       grade_level: parseInt(grade_level || 2, 10),
@@ -458,6 +494,8 @@ class ApiService {
       const customStudents = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
       const allSubmissions = this.getRealSubmissions();
       const currentUser = JSON.parse(localStorage.getItem('edukids_user') || '{}');
+      const deletedStudents = JSON.parse(localStorage.getItem('edukids_deleted_students') || '[]');
+      const deletedSet = new Set(Array.isArray(deletedStudents) ? deletedStudents.map(s => String(s).toLowerCase()) : []);
 
       const studentMap = new Map();
 
@@ -466,14 +504,20 @@ class ApiService {
         customStudents.forEach(st => {
           if (st && (st.full_name || st.name)) {
             const name = st.full_name || st.name;
-            studentMap.set(name.toLowerCase(), {
-              id: st.id || Date.now(),
-              full_name: name,
-              avatar: st.avatar || 'mascot-bear',
-              grade_level: parseInt(st.grade_level || 2, 10),
-              class_id: st.class_id || `${st.grade_level || 2}A1`,
-              xp: st.xp || 0
-            });
+            const id = String(st.id);
+            if (!deletedSet.has(name.toLowerCase()) && !deletedSet.has(id)) {
+              studentMap.set(name.toLowerCase(), {
+                id: st.id || Date.now(),
+                full_name: name,
+                parent_phone: st.parent_phone || '',
+                class_code: st.class_code || `${st.grade_level || 2}A1-8429`,
+                class_name: st.class_name || `${st.grade_level || 2}A1`,
+                avatar: st.avatar || 'mascot-bear',
+                grade_level: parseInt(st.grade_level || 2, 10),
+                class_id: st.class_id || `${st.grade_level || 2}A1`,
+                xp: st.xp || 0
+              });
+            }
           }
         });
       }
@@ -481,13 +525,17 @@ class ApiService {
       // 2. Add current active student if student role
       if (currentUser && currentUser.role === 'student' && currentUser.full_name) {
         const nameKey = currentUser.full_name.toLowerCase();
-        if (!studentMap.has(nameKey)) {
+        const idKey = String(currentUser.id);
+        if (!deletedSet.has(nameKey) && !deletedSet.has(idKey) && !studentMap.has(nameKey)) {
           studentMap.set(nameKey, {
             id: currentUser.id || Date.now(),
             full_name: currentUser.full_name,
+            parent_phone: currentUser.parent_phone || '',
+            class_code: currentUser.class_code || `${currentUser.grade_level || 2}A1-8429`,
+            class_name: currentUser.class_name || `${currentUser.grade_level || 2}A1`,
             avatar: currentUser.avatar || 'mascot-bear',
             grade_level: parseInt(currentUser.grade_level || 2, 10),
-            class_id: `Lớp ${currentUser.grade_level || 2}A1`,
+            class_id: currentUser.class_name || `Lớp ${currentUser.grade_level || 2}A1`,
             xp: currentUser.xp || 50
           });
         }
@@ -498,16 +546,22 @@ class ApiService {
         const name = sub.student_name || sub.user_name;
         if (name && name !== 'Cô Hoàng Mai' && name !== 'Quản Trị Viên EduKids') {
           const nameKey = name.toLowerCase();
-          const existing = studentMap.get(nameKey);
-          if (!existing) {
-            studentMap.set(nameKey, {
-              id: sub.user_id || Date.now(),
-              full_name: name,
-              avatar: sub.student_avatar || sub.user_avatar || 'mascot-bear',
-              grade_level: parseInt(sub.grade_level || 2, 10),
-              class_id: `Lớp ${sub.grade_level || 2}A1`,
-              xp: sub.xpEarned || 30
-            });
+          const idKey = String(sub.user_id);
+          if (!deletedSet.has(nameKey) && !deletedSet.has(idKey)) {
+            const existing = studentMap.get(nameKey);
+            if (!existing) {
+              studentMap.set(nameKey, {
+                id: sub.user_id || Date.now(),
+                full_name: name,
+                parent_phone: sub.parent_phone || '',
+                class_code: sub.class_code || `${sub.grade_level || 2}A1-8429`,
+                class_name: sub.class_name || `${sub.grade_level || 2}A1`,
+                avatar: sub.student_avatar || sub.user_avatar || 'mascot-bear',
+                grade_level: parseInt(sub.grade_level || 2, 10),
+                class_id: `Lớp ${sub.grade_level || 2}A1`,
+                xp: sub.xpEarned || 30
+              });
+            }
           }
         }
       });
@@ -544,6 +598,55 @@ class ApiService {
     }
   }
 
+  updateCustomClass(classId, updatedData) {
+    try {
+      let stored = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
+      stored = stored.map(c => {
+        if (String(c.id) === String(classId) || c.class_code === classId) {
+          return { ...c, ...updatedData };
+        }
+        return c;
+      });
+      localStorage.setItem('edukids_custom_classes', JSON.stringify(stored));
+
+      const updatedObj = stored.find(c => String(c.id) === String(classId) || c.class_code === classId);
+      if (updatedObj) {
+        this.request('/sync', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'save_class', classObj: updatedObj })
+        }).catch(() => {});
+      }
+      return { success: true, classes: stored, classObj: updatedObj };
+    } catch (e) {
+      return { success: false };
+    }
+  }
+
+  deleteCustomClass(classId) {
+    try {
+      let stored = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
+      const target = stored.find(c => String(c.id) === String(classId) || c.class_code === classId);
+      stored = stored.filter(c => String(c.id) !== String(classId) && c.class_code !== classId);
+      localStorage.setItem('edukids_custom_classes', JSON.stringify(stored));
+
+      // Track deleted class id so sync doesn't restore it
+      let deletedClasses = JSON.parse(localStorage.getItem('edukids_deleted_classes') || '[]');
+      if (classId && !deletedClasses.includes(String(classId))) deletedClasses.push(String(classId));
+      if (target?.class_code && !deletedClasses.includes(target.class_code)) deletedClasses.push(target.class_code);
+      localStorage.setItem('edukids_deleted_classes', JSON.stringify(deletedClasses));
+
+      // Async Cloud sync delete
+      this.request('/sync', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete_class', deleteClassId: classId, class_code: target?.class_code || classId })
+      }).catch(() => {});
+
+      return { success: true, classes: stored };
+    } catch (e) {
+      return { success: false };
+    }
+  }
+
   saveCustomStudent(newStudent) {
     try {
       let stored = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
@@ -568,16 +671,35 @@ class ApiService {
     }
   }
 
-  deleteCustomStudent(studentId) {
+  deleteCustomStudent(studentId, studentName = '') {
     try {
       let stored = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
-      stored = stored.filter(s => String(s.id) !== String(studentId));
+      const target = stored.find(s => String(s.id) === String(studentId) || s.full_name === studentName);
+      const nameToDelete = studentName || target?.full_name || '';
+
+      stored = stored.filter(s => String(s.id) !== String(studentId) && (!nameToDelete || s.full_name?.toLowerCase() !== nameToDelete.toLowerCase()));
       localStorage.setItem('edukids_custom_students', JSON.stringify(stored));
+
+      // Track deleted student so getRealStudents and sync never restore them
+      let deletedList = JSON.parse(localStorage.getItem('edukids_deleted_students') || '[]');
+      if (studentId && !deletedList.includes(String(studentId))) deletedList.push(String(studentId));
+      if (nameToDelete && !deletedList.includes(nameToDelete.toLowerCase())) deletedList.push(nameToDelete.toLowerCase());
+      localStorage.setItem('edukids_deleted_students', JSON.stringify(deletedList));
+
+      // Also filter out any local submissions from this deleted student
+      try {
+        let subs = JSON.parse(localStorage.getItem('edukids_submissions') || '[]');
+        subs = subs.filter(sub => {
+          const subName = sub.student_name || sub.user_name || '';
+          return String(sub.user_id) !== String(studentId) && (!nameToDelete || subName.toLowerCase() !== nameToDelete.toLowerCase());
+        });
+        localStorage.setItem('edukids_submissions', JSON.stringify(subs));
+      } catch (e) {}
 
       // Async Cloud sync delete
       this.request('/sync', {
         method: 'POST',
-        body: JSON.stringify({ action: 'delete_student', deleteStudentId: studentId })
+        body: JSON.stringify({ action: 'delete_student', deleteStudentId: studentId, studentName: nameToDelete })
       }).catch(() => {});
 
       return { success: true, students: stored };
