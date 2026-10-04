@@ -37,6 +37,18 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
   const currentAvatar = user?.avatar || student.avatar;
   const currentStreak = user?.streak_days || student.streak_days || 1;
   const currentGrade = user?.grade_level || student.grade_level || 4;
+  const currentXp = user?.xp !== undefined ? user.xp : (student.xp || 50);
+
+  // Accurate level mapping based on real XP
+  const getLevelDetails = (xp) => {
+    if (xp >= 1000) return { level: 5, title: 'Trạng Nguyên Toàn Năng', icon: '👑' };
+    if (xp >= 600) return { level: 4, title: 'Siêu Học Sinh', icon: '⭐' };
+    if (xp >= 300) return { level: 3, title: 'Học Sinh Giỏi', icon: '🚀' };
+    if (xp >= 100) return { level: 2, title: 'Học Sinh Chăm Chỉ', icon: '🐥' };
+    return { level: 1, title: 'Tân Thủ Chăm Học', icon: '🌱' };
+  };
+
+  const levelDetails = getLevelDetails(currentXp);
 
   return (
     <div className="container" style={{ paddingBottom: '50px' }}>
@@ -54,8 +66,8 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
               <span>🚀 Bắt Đầu Học Lớp {currentGrade} Ngay</span>
             </button>
             <div className="chip chip-level" style={{ fontSize: '1rem' }}>
-              <span>{student.levelInfo?.icon || '👑'}</span>
-              <span>Level {student.levelInfo?.level || 1} – {student.levelInfo?.title || 'Học Sinh Chăm Chỉ'}</span>
+              <span>{levelDetails.icon}</span>
+              <span>Level {levelDetails.level} – {levelDetails.title}</span>
             </div>
           </div>
         </div>
