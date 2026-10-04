@@ -198,10 +198,38 @@ class ApiService {
               const name = String(s.full_name || s.student_name || '').toLowerCase();
               const id = String(s.id);
               if (!deletedStudentSet.has(name) && !deletedStudentSet.has(id)) {
-                stMap.set(id, s);
+                const existing = stMap.get(id);
+                if (existing) {
+                  stMap.set(id, { ...existing, ...s, xp: Math.max(existing.xp || 0, s.xp || 0) });
+                } else {
+                  stMap.set(id, s);
+                }
               }
             });
             localStorage.setItem('edukids_custom_students', JSON.stringify(Array.from(stMap.values())));
+
+            // Cross-device sync: If current logged-in user exists on this device (phone/laptop), update XP & class from cloud
+            const currentUser = JSON.parse(localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user') || '{}');
+            if (currentUser && currentUser.full_name) {
+              const cloudMatch = res.students.find(s => 
+                (s.full_name && s.full_name.toLowerCase() === currentUser.full_name.toLowerCase()) || 
+                (s.student_name && s.student_name.toLowerCase() === currentUser.full_name.toLowerCase()) ||
+                String(s.id) === String(currentUser.id)
+              );
+              if (cloudMatch) {
+                const mergedXp = Math.max(currentUser.xp || 0, cloudMatch.xp || 0);
+                if (mergedXp !== currentUser.xp || (cloudMatch.class_code && cloudMatch.class_code !== currentUser.class_code)) {
+                  const syncedUser = {
+                    ...currentUser,
+                    xp: mergedXp,
+                    class_code: cloudMatch.class_code || currentUser.class_code,
+                    class_name: cloudMatch.class_name || currentUser.class_name
+                  };
+                  localStorage.setItem('edukids_v2_user', JSON.stringify(syncedUser));
+                  localStorage.setItem('edukids_user', JSON.stringify(syncedUser));
+                }
+              }
+            }
           } catch (e) {}
         }
 
@@ -493,7 +521,7 @@ class ApiService {
     try {
       const customStudents = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
       const allSubmissions = this.getRealSubmissions();
-      const currentUser = JSON.parse(localStorage.getItem('edukids_user') || '{}');
+      const currentUser = JSON.parse(localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user') || '{}');
       const deletedStudents = JSON.parse(localStorage.getItem('edukids_deleted_students') || '[]');
       const deletedSet = new Set(Array.isArray(deletedStudents) ? deletedStudents.map(s => String(s).toLowerCase()) : []);
 
@@ -526,18 +554,25 @@ class ApiService {
       if (currentUser && currentUser.role === 'student' && currentUser.full_name) {
         const nameKey = currentUser.full_name.toLowerCase();
         const idKey = String(currentUser.id);
-        if (!deletedSet.has(nameKey) && !deletedSet.has(idKey) && !studentMap.has(nameKey)) {
-          studentMap.set(nameKey, {
-            id: currentUser.id || Date.now(),
-            full_name: currentUser.full_name,
-            parent_phone: currentUser.parent_phone || '',
-            class_code: currentUser.class_code || `${currentUser.grade_level || 2}A1-8429`,
-            class_name: currentUser.class_name || `${currentUser.grade_level || 2}A1`,
-            avatar: currentUser.avatar || 'mascot-bear',
-            grade_level: parseInt(currentUser.grade_level || 2, 10),
-            class_id: currentUser.class_name || `Lớp ${currentUser.grade_level || 2}A1`,
-            xp: currentUser.xp || 50
-          });
+        if (!deletedSet.has(nameKey) && !deletedSet.has(idKey)) {
+          const existing = studentMap.get(nameKey);
+          if (existing) {
+            existing.xp = Math.max(existing.xp || 0, currentUser.xp || 0);
+            if (currentUser.class_code) existing.class_code = currentUser.class_code;
+            if (currentUser.class_name) existing.class_name = currentUser.class_name;
+          } else {
+            studentMap.set(nameKey, {
+              id: currentUser.id || Date.now(),
+              full_name: currentUser.full_name,
+              parent_phone: currentUser.parent_phone || '',
+              class_code: currentUser.class_code || `${currentUser.grade_level || 2}A1-8429`,
+              class_name: currentUser.class_name || `${currentUser.grade_level || 2}A1`,
+              avatar: currentUser.avatar || 'mascot-bear',
+              grade_level: parseInt(currentUser.grade_level || 2, 10),
+              class_id: currentUser.class_name || `Lớp ${currentUser.grade_level || 2}A1`,
+              xp: currentUser.xp || 50
+            });
+          }
         }
       }
 
@@ -565,6 +600,17 @@ class ApiService {
           }
         }
       });
+
+      // 4. Compute true cumulative XP from all submissions for each student
+      for (const [key, student] of studentMap.entries()) {
+        const studentSubs = allSubmissions.filter(s => {
+          const subName = (s.student_name || s.user_name || '').toLowerCase();
+          return subName === key || String(s.user_id) === String(student.id);
+        });
+        const totalSubsXp = studentSubs.reduce((acc, curr) => acc + (curr.xpEarned || curr.earnedXp || 30), 0);
+        const userXp = (currentUser && (currentUser.full_name?.toLowerCase() === key || String(currentUser.id) === String(student.id))) ? (currentUser.xp || 0) : 0;
+        student.xp = Math.max(student.xp || 0, totalSubsXp, userXp);
+      }
 
       return Array.from(studentMap.values());
     } catch (e) {
@@ -1209,15 +1255,18 @@ class ApiService {
 
     // Record Real Submission Record & Sync to Cloud MySQL
     try {
-      const userStored = JSON.parse(localStorage.getItem('edukids_user') || '{}');
+      const userStored = JSON.parse(localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user') || '{}');
       const newSubmission = {
         id: Date.now(),
         exercise_id: parseInt(exerciseId, 10),
         exercise_title: ex?.title || 'Bài tập',
         user_id: userStored.id || 1,
         user_name: userStored.full_name || 'Học sinh',
+        student_name: userStored.full_name || 'Học sinh',
         user_avatar: userStored.avatar || 'mascot-bear',
-        grade_level: userStored.grade_level || 4,
+        student_avatar: userStored.avatar || 'mascot-bear',
+        grade_level: userStored.grade_level || 2,
+        class_code: userStored.class_code || `${userStored.grade_level || 2}A1-8429`,
         score10,
         score: totalScore,
         totalQuestions: totalQ,
@@ -1232,6 +1281,27 @@ class ApiService {
       const currentSubs = JSON.parse(localStorage.getItem('edukids_submissions') || '[]');
       currentSubs.unshift(newSubmission);
       localStorage.setItem('edukids_submissions', JSON.stringify(currentSubs));
+
+      // Update student's cumulative XP and sync to Cloud MySQL
+      if (userStored && userStored.full_name) {
+        const newCumulativeXp = (userStored.xp || 50) + (earnedXp || 30);
+        const updatedUser = { ...userStored, xp: newCumulativeXp };
+        localStorage.setItem('edukids_v2_user', JSON.stringify(updatedUser));
+        localStorage.setItem('edukids_user', JSON.stringify(updatedUser));
+
+        // Update custom students
+        try {
+          let customSt = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
+          customSt = customSt.map(s => (s.full_name === updatedUser.full_name || String(s.id) === String(updatedUser.id) ? { ...s, xp: newCumulativeXp } : s));
+          localStorage.setItem('edukids_custom_students', JSON.stringify(customSt));
+        } catch (e) {}
+
+        // Async Cloud sync updated student and submission to Aiven MySQL
+        this.request('/sync', {
+          method: 'POST',
+          body: JSON.stringify({ action: 'save_student', student: updatedUser })
+        }).catch(() => {});
+      }
 
       // Async Cloud sync submission to Aiven MySQL
       this.request('/sync', {

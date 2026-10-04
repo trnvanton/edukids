@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }) => {
     try {
       if (user) {
         localStorage.setItem('edukids_v2_user', JSON.stringify(user));
+        localStorage.setItem('edukids_user', JSON.stringify(user));
       } else {
         localStorage.removeItem('edukids_v2_user');
         localStorage.removeItem('edukids_user');
@@ -47,6 +48,31 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (e) {}
   }, [user]);
+
+  // Auto-sync session across tabs and from cloud updates
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        const saved = localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setUser(prev => {
+            if (!prev || prev.xp !== parsed.xp || prev.class_code !== parsed.class_code || prev.full_name !== parsed.full_name) {
+              return parsed;
+            }
+            return prev;
+          });
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('storage', handleSync);
+    const interval = setInterval(handleSync, 4000);
+    return () => {
+      window.removeEventListener('storage', handleSync);
+      clearInterval(interval);
+    };
+  }, []);
 
   const login = async (username, password) => {
     const res = await api.login(username, password);
@@ -92,20 +118,51 @@ export const AuthProvider = ({ children }) => {
     if (!user) return;
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
-    localStorage.setItem('edukids_user', JSON.stringify(updatedUser));
-    await api.request('/students/settings', {
-      method: 'PUT',
-      body: JSON.stringify(updates)
-    });
+    try {
+      localStorage.setItem('edukids_v2_user', JSON.stringify(updatedUser));
+      let customSt = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
+      customSt = customSt.map(s => (s.full_name === user.full_name || String(s.id) === String(user.id) ? { ...s, ...updates } : s));
+      localStorage.setItem('edukids_custom_students', JSON.stringify(customSt));
+    } catch (e) {}
+
+    // Async Cloud sync to Aiven MySQL
+    api.request('/sync', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save_student', student: updatedUser })
+    }).catch(() => {});
   };
 
   const addXp = (amount) => {
     if (!user) return;
     const newXp = (user.xp || 0) + amount;
-    setUser(prev => ({
-      ...prev,
+    const updatedUser = {
+      ...user,
       xp: newXp
-    }));
+    };
+    setUser(updatedUser);
+
+    try {
+      localStorage.setItem('edukids_v2_user', JSON.stringify(updatedUser));
+      let customSt = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
+      let found = false;
+      customSt = customSt.map(s => {
+        if (s.full_name === user.full_name || String(s.id) === String(user.id)) {
+          found = true;
+          return { ...s, xp: newXp };
+        }
+        return s;
+      });
+      if (!found && user.full_name) {
+        customSt.push(updatedUser);
+      }
+      localStorage.setItem('edukids_custom_students', JSON.stringify(customSt));
+    } catch (e) {}
+
+    // Async Cloud sync updated student with new XP to Aiven MySQL
+    api.request('/sync', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'save_student', student: updatedUser })
+    }).catch(() => {});
   };
 
   const openLogin = () => {

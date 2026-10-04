@@ -42,15 +42,25 @@ export default function ProfileModal() {
       left: 0,
       width: '100%',
       height: '100%',
-      background: 'rgba(15, 23, 42, 0.6)',
-      backdropFilter: 'blur(6px)',
+      background: 'rgba(15, 23, 42, 0.75)',
+      backdropFilter: 'blur(8px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 999,
+      zIndex: 99999,
       padding: '20px'
     }}>
-      <div className="card" style={{ maxWidth: '480px', width: '100%', position: 'relative', animation: 'scaleUp 0.2s ease-out' }}>
+      <div className="card" style={{
+        maxWidth: '480px',
+        width: '100%',
+        maxHeight: '88vh',
+        overflowY: 'auto',
+        position: 'relative',
+        animation: 'scaleUp 0.2s ease-out',
+        padding: '28px',
+        borderRadius: '20px',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)'
+      }}>
         <button
           onClick={() => setShowProfileModal(false)}
           style={{
