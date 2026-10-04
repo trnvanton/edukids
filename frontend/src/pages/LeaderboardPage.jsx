@@ -22,15 +22,15 @@ export default function LeaderboardPage() {
 
   const isMe = (item) => {
     if (!user) return false;
-    const curName = (user.full_name || user.username || '').trim().toLowerCase();
+    const curName = (user.full_name || '').trim().toLowerCase();
     const curUser = (user.username || '').trim().toLowerCase();
-    const itemName = (item.full_name || item.username || item.student_name || '').trim().toLowerCase();
+    const itemName = (item.full_name || item.student_name || '').trim().toLowerCase();
     const itemUser = (item.username || '').trim().toLowerCase();
     return (
       (item.id && user.id && String(item.id) === String(user.id)) ||
-      itemName === curName ||
-      itemName === curUser ||
-      (curUser && itemUser === curUser) ||
+      (curUser && itemUser && curUser === itemUser) ||
+      (curUser && itemName && curUser === itemName) ||
+      (curName && itemName && curName === itemName) ||
       (user.parent_phone && item.parent_phone && item.parent_phone === user.parent_phone)
     );
   };
@@ -74,6 +74,9 @@ export default function LeaderboardPage() {
       rankColor = '#C2410C';
     }
 
+    const displayName = item.full_name || item.student_name || item.username;
+    const hasDistinctUsername = item.username && displayName && displayName.toLowerCase() !== item.username.toLowerCase();
+
     return (
       <div
         key={item.id || rankNumber}
@@ -98,8 +101,20 @@ export default function LeaderboardPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 900, fontSize: '1.05rem', color: isCurrentUser ? '#15803D' : '#0F172A' }}>
-                {item.full_name || item.username}
+                {displayName}
               </span>
+              {hasDistinctUsername && (
+                <span style={{
+                  fontSize: '0.78rem',
+                  color: isCurrentUser ? '#166534' : '#64748B',
+                  background: isCurrentUser ? 'rgba(34, 197, 94, 0.15)' : '#F1F5F9',
+                  padding: '1px 6px',
+                  borderRadius: '6px',
+                  fontWeight: 700
+                }}>
+                  @{item.username}
+                </span>
+              )}
               {isCurrentUser && (
                 <span style={{
                   background: '#22C55E',

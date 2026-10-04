@@ -200,34 +200,34 @@ class ApiService {
             const stMap = new Map();
             localSt.forEach(s => {
               const name = String(s.full_name || s.student_name || '').toLowerCase();
+              const uName = String(s.username || '').toLowerCase();
               const id = String(s.id);
-              if (!deletedStudentSet.has(name) && !deletedStudentSet.has(id)) {
-                stMap.set(id, s);
+              if (!deletedStudentSet.has(name) && !deletedStudentSet.has(uName) && !deletedStudentSet.has(id)) {
+                stMap.set(uName || id, s);
               }
             });
             res.students.forEach(s => {
               const name = String(s.full_name || s.student_name || '').toLowerCase();
+              const uName = String(s.username || '').toLowerCase();
               const id = String(s.id);
-              if (!deletedStudentSet.has(name) && !deletedStudentSet.has(id)) {
-                const existing = stMap.get(id);
+              if (!deletedStudentSet.has(name) && !deletedStudentSet.has(uName) && !deletedStudentSet.has(id)) {
+                const key = uName || id;
+                const existing = stMap.get(key);
                 if (existing) {
-                  stMap.set(id, { ...s, ...existing, xp: Math.max(existing.xp || 0, s.xp || 0) });
+                  stMap.set(key, {
+                    ...s,
+                    ...existing,
+                    full_name: (existing.full_name && existing.full_name !== existing.username) ? existing.full_name : (s.full_name || existing.full_name),
+                    xp: Math.max(existing.xp || 0, s.xp || 0)
+                  });
                 } else {
-                  stMap.set(id, s);
+                  stMap.set(key, s);
                 }
               }
             });
 
-            // Global purge of ghost aliases if Toan2004 exists
-            const allStList = Array.from(stMap.values());
-            const hasToan = allStList.some(s => (s.full_name || s.student_name || '').toLowerCase() === 'toan2004');
-            const filteredStList = allStList.filter(s => {
-              const n = (s.full_name || s.student_name || '').toLowerCase();
-              if (hasToan && (n === 'andrew' || n === 'trịnh văn toàn')) return false;
-              return true;
-            });
-
-            localStorage.setItem('edukids_custom_students', JSON.stringify(filteredStList));
+            const mergedStList = Array.from(stMap.values());
+            localStorage.setItem('edukids_custom_students', JSON.stringify(mergedStList));
 
             // Cross-device sync: If current logged-in user exists on this device (phone/laptop), update XP & class from cloud
             const currentUser = JSON.parse(localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user') || '{}');
@@ -237,8 +237,8 @@ class ApiService {
               const cloudMatch = res.students.find(s => {
                 const sName = (s.full_name || s.student_name || '').toLowerCase();
                 const sUser = (s.username || '').toLowerCase();
-                return (sName && (sName === curName || sName === curUser)) ||
-                       (sUser && (sUser === curName || sUser === curUser)) ||
+                return (sUser && curUser && sUser === curUser) ||
+                       (sName && (sName === curName || sName === curUser)) ||
                        (currentUser.parent_phone && s.parent_phone === currentUser.parent_phone) ||
                        String(s.id) === String(currentUser.id);
               });
@@ -246,8 +246,10 @@ class ApiService {
                 const mergedXp = Math.max(currentUser.xp || 0, cloudMatch.xp || 0);
                 const syncedClassCode = cloudMatch.class_code || currentUser.class_code || '';
                 const syncedClassName = cloudMatch.class_name || currentUser.class_name || (syncedClassCode ? syncedClassCode.split('-')[0] : '');
+                const syncedFullName = (cloudMatch.full_name && cloudMatch.full_name !== cloudMatch.username) ? cloudMatch.full_name : currentUser.full_name;
                 const syncedUser = {
                   ...currentUser,
+                  full_name: syncedFullName || currentUser.full_name,
                   xp: mergedXp,
                   class_code: syncedClassCode,
                   class_name: syncedClassName
@@ -336,17 +338,20 @@ class ApiService {
       const customStudents = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
       const found = customStudents.find(s => 
         (s.username && s.username.toLowerCase() === cleanLower) ||
+        (s.id && String(s.id).toLowerCase() === cleanLower) ||
         (s.full_name && s.full_name.toLowerCase() === cleanLower) ||
         (s.student_name && s.student_name.toLowerCase() === cleanLower)
       );
       if (found) {
+        const fName = found.full_name || found.student_name || cleanUsername;
         return {
           success: true,
           token: `token-${cleanUsername}`,
           user: {
             ...found,
             username: found.username || cleanUsername,
-            full_name: found.full_name || found.student_name || cleanUsername
+            full_name: fName,
+            student_name: fName
           }
         };
       }
@@ -420,15 +425,40 @@ class ApiService {
       };
     }
 
-    // 4. Dynamic fallback for brand new username
+    // 4. Dynamic fallback for brand new username (check submissions for remembered metadata)
+    let rememberedFullName = cleanLower === 'toan2004' ? 'Trịnh Văn Toàn' : (cleanUsername || 'Học Sinh Mới');
+    let rememberedAvatar = 'mascot-lion';
+    let rememberedGrade = 2;
+    let rememberedClass = '';
+    let rememberedXp = 50;
+
+    try {
+      const subs = JSON.parse(localStorage.getItem('edukids_submissions') || '[]');
+      const matchedSub = subs.find(s => 
+        (s.username && s.username.toLowerCase() === cleanLower) ||
+        (s.user_name && s.user_name.toLowerCase() === cleanLower) ||
+        (s.student_name && s.student_name.toLowerCase() === cleanLower)
+      );
+      if (matchedSub) {
+        rememberedFullName = matchedSub.student_name || matchedSub.user_name || rememberedFullName;
+        rememberedAvatar = matchedSub.student_avatar || matchedSub.user_avatar || rememberedAvatar;
+        rememberedGrade = matchedSub.grade_level || rememberedGrade;
+        rememberedClass = matchedSub.class_code || rememberedClass;
+        rememberedXp = 75;
+      }
+    } catch (e) {}
+
     const newUser = {
       id: Date.now(),
       username: cleanUsername || 'hocsinh',
-      full_name: cleanUsername ? `${cleanUsername}` : 'Học Sinh Mới',
+      full_name: rememberedFullName,
+      student_name: rememberedFullName,
+      class_code: rememberedClass,
+      class_name: rememberedClass ? rememberedClass.split('-')[0] : '',
       role: 'student',
-      grade_level: 2,
-      avatar: 'mascot-lion',
-      xp: 50,
+      grade_level: rememberedGrade,
+      avatar: rememberedAvatar,
+      xp: rememberedXp,
       level: 1,
       streak_days: 1,
       levelInfo: { level: 1, title: 'Tân Thủ Chăm Học', icon: '🌱', progress: 10 }
@@ -597,17 +627,21 @@ class ApiService {
       // 1. Add students from custom teacher list
       if (Array.isArray(customStudents)) {
         customStudents.forEach(st => {
-          if (st && (st.full_name || st.name || st.student_name)) {
-            const name = st.full_name || st.name || st.student_name;
-            const id = String(st.id);
-            if (!deletedSet.has(name.toLowerCase()) && !deletedSet.has(id)) {
+          if (st && (st.full_name || st.name || st.student_name || st.username)) {
+            const fullName = st.full_name || st.student_name || st.name || st.username;
+            const uName = st.username || (fullName !== st.id ? fullName : '');
+            const id = String(st.id || uName || fullName);
+            const key = String(uName || id || fullName).toLowerCase();
+
+            if (!deletedSet.has(fullName.toLowerCase()) && !deletedSet.has(key) && !deletedSet.has(id)) {
               const code = st.class_code || '';
               const cName = st.class_name || (code ? code.split('-')[0] : '');
-              studentMap.set(name.toLowerCase(), {
+              studentMap.set(key, {
                 id: st.id || Date.now(),
-                full_name: name,
-                username: st.username || name,
-                parent_phone: st.parent_phone || '',
+                full_name: fullName,
+                student_name: fullName,
+                username: uName,
+                parent_phone: (st.parent_phone || '').trim(),
                 class_code: code,
                 class_name: cName,
                 avatar: st.avatar || 'mascot-bear',
@@ -620,22 +654,20 @@ class ApiService {
         });
       }
 
-      // 2. Add current active student if student role, purging previous aliases of current user
-      if (currentUser && currentUser.role === 'student' && (currentUser.full_name || currentUser.username)) {
-        const studentName = currentUser.full_name || currentUser.username;
-        const nameKey = studentName.toLowerCase();
-        const curUserKey = (currentUser.username || '').toLowerCase();
+      // 2. Add current active student if student role
+      if (currentUser && currentUser.role === 'student') {
+        const uName = currentUser.username || currentUser.full_name || 'hocsinh';
+        const fullName = currentUser.full_name || currentUser.student_name || uName;
+        const curUserKey = uName.toLowerCase();
         const idKey = String(currentUser.id);
+        const curPhone = (currentUser.parent_phone || '').trim();
 
-        // Delete previous aliases that belong to this same user
-        for (const [key, student] of studentMap.entries()) {
-          const sUserKey = (student.username || '').toLowerCase();
-          const sPhone = student.parent_phone;
+        // Remove any old entry that had the same phone or ID or username
+        for (const [key, student] of Array.from(studentMap.entries())) {
           if (
+            key === curUserKey ||
             String(student.id) === idKey ||
-            (curUserKey && sUserKey === curUserKey) ||
-            (currentUser.parent_phone && sPhone && sPhone === currentUser.parent_phone) ||
-            (curUserKey === 'toan2004' && (key === 'trịnh văn toàn' || key === 'andrew' || key === 'toan2004'))
+            (curPhone && student.parent_phone && student.parent_phone === curPhone)
           ) {
             studentMap.delete(key);
           }
@@ -643,11 +675,12 @@ class ApiService {
 
         const code = currentUser.class_code || '';
         const cName = currentUser.class_name || (code ? code.split('-')[0] : '');
-        studentMap.set(nameKey, {
+        studentMap.set(curUserKey, {
           id: currentUser.id || Date.now(),
-          full_name: studentName,
-          username: currentUser.username || studentName,
-          parent_phone: currentUser.parent_phone || '',
+          full_name: fullName,
+          student_name: fullName,
+          username: uName,
+          parent_phone: curPhone,
           class_code: code,
           class_name: cName,
           avatar: currentUser.avatar || 'mascot-bear',
@@ -659,27 +692,23 @@ class ApiService {
 
       // 3. Add any student from real submissions
       allSubmissions.forEach(sub => {
-        const name = sub.student_name || sub.user_name;
+        const name = sub.student_name || sub.user_name || sub.username;
         if (name && name !== 'Cô Hoàng Mai' && name !== 'Quản Trị Viên EduKids') {
-          const nameKey = name.toLowerCase();
+          const subUser = sub.username || name;
+          const subKey = String(subUser).toLowerCase();
           const idKey = String(sub.user_id);
-          const curUserKey = (currentUser?.username || '').toLowerCase();
 
-          // Skip old alias submissions that belonged to current user
-          if (curUserKey === 'toan2004' && (nameKey === 'trịnh văn toàn' || nameKey === 'andrew')) {
-            return;
-          }
-
-          if (!deletedSet.has(nameKey) && !deletedSet.has(idKey)) {
+          if (!deletedSet.has(name.toLowerCase()) && !deletedSet.has(subKey) && !deletedSet.has(idKey)) {
             const code = sub.class_code || '';
             const cName = sub.class_name || (code ? code.split('-')[0] : '');
-            const existing = studentMap.get(nameKey);
+            const existing = studentMap.get(subKey);
             if (!existing) {
-              studentMap.set(nameKey, {
+              studentMap.set(subKey, {
                 id: sub.user_id || Date.now(),
                 full_name: name,
-                username: name,
-                parent_phone: sub.parent_phone || '',
+                student_name: name,
+                username: sub.username || '',
+                parent_phone: (sub.parent_phone || '').trim(),
                 class_code: code,
                 class_name: cName,
                 avatar: sub.student_avatar || sub.user_avatar || 'mascot-bear',
@@ -687,50 +716,31 @@ class ApiService {
                 class_id: cName || (code ? `Lớp ${code}` : ''),
                 xp: sub.xpEarned || 30
               });
+            } else if (existing.full_name === existing.username && name !== existing.username) {
+              existing.full_name = name;
+              existing.student_name = name;
             }
           }
         }
       });
 
-      // 4. Global Deduplication across all portals:
-      // If 'Toan2004' is in the roster, purge ghost aliases 'Andrew' and 'Trịnh Văn Toàn'
-      const hasToan2004 = Array.from(studentMap.keys()).some(k => k === 'toan2004');
-      if (hasToan2004) {
-        studentMap.delete('trịnh văn toàn');
-        studentMap.delete('andrew');
-      }
-
-      // Deduplicate by parent_phone: keep the student with highest XP
-      const phoneToKeyMap = new Map();
-      for (const [key, student] of Array.from(studentMap.entries())) {
-        const phone = (student.parent_phone || '').trim();
-        if (phone) {
-          if (phoneToKeyMap.has(phone)) {
-            const existingKey = phoneToKeyMap.get(phone);
-            const existingSt = studentMap.get(existingKey);
-            if (existingSt && (existingSt.xp || 0) < (student.xp || 0)) {
-              studentMap.delete(existingKey);
-              phoneToKeyMap.set(phone, key);
-            } else {
-              studentMap.delete(key);
-            }
-          } else {
-            phoneToKeyMap.set(phone, key);
-          }
-        }
-      }
-
-      // 5. Compute true cumulative XP from all submissions for each student
+      // 4. Compute true cumulative XP from all submissions for each student
       for (const [key, student] of studentMap.entries()) {
+        const stFullName = (student.full_name || '').toLowerCase();
+        const stUserName = (student.username || '').toLowerCase();
+        const stId = String(student.id);
+
         const studentSubs = allSubmissions.filter(s => {
-          const subName = (s.student_name || s.user_name || '').toLowerCase();
-          return subName === key || String(s.user_id) === String(student.id);
+          const subName = (s.student_name || s.user_name || s.username || '').toLowerCase();
+          const subId = String(s.user_id);
+          return subId === stId || subName === key || subName === stFullName || subName === stUserName;
         });
+
         const totalSubsXp = studentSubs.reduce((acc, curr) => acc + (curr.xpEarned || curr.earnedXp || 30), 0);
         const isCurUser = currentUser && (
-          (currentUser.full_name && currentUser.full_name.toLowerCase() === key) ||
           (currentUser.username && currentUser.username.toLowerCase() === key) ||
-          String(currentUser.id) === String(student.id)
+          (currentUser.full_name && currentUser.full_name.toLowerCase() === stFullName) ||
+          String(currentUser.id) === stId
         );
         const userXp = isCurUser ? (currentUser.xp || 0) : 0;
         student.xp = Math.max(student.xp || 0, totalSubsXp, userXp);

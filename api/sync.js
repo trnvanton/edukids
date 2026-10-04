@@ -50,6 +50,7 @@ export default async function handler(req, res) {
       await conn.execute(`
         CREATE TABLE IF NOT EXISTS cloud_synced_students (
           id VARCHAR(100) PRIMARY KEY,
+          username VARCHAR(100),
           class_code VARCHAR(50),
           student_name VARCHAR(100),
           parent_phone VARCHAR(30),
@@ -61,6 +62,10 @@ export default async function handler(req, res) {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
       `);
+
+      try {
+        await conn.execute('ALTER TABLE cloud_synced_students ADD COLUMN username VARCHAR(100)');
+      } catch (colErr) {}
     } catch (tableErr) {
       console.warn('Table check:', tableErr);
     }
@@ -102,30 +107,36 @@ export default async function handler(req, res) {
         const [stRows] = await conn.execute('SELECT * FROM cloud_synced_students ORDER BY updated_at DESC, created_at DESC');
         const rawStudents = (stRows || []).map(row => {
           try {
-            return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
+            const data = typeof row.data_json === 'string' ? JSON.parse(row.data_json) : (row.data_json || {});
+            const fullName = data.full_name || data.student_name || row.student_name || '';
+            const uName = row.username || data.username || (fullName ? fullName : '');
+            return {
+              ...data,
+              id: data.id || row.id,
+              username: uName,
+              full_name: fullName,
+              student_name: fullName,
+              parent_phone: row.parent_phone || data.parent_phone || '',
+              student_avatar: row.student_avatar || data.avatar || 'mascot-bear',
+              avatar: row.student_avatar || data.avatar || 'mascot-bear',
+              grade_level: row.grade_level || data.grade_level || 2,
+              class_code: row.class_code || data.class_code || '',
+              class_name: data.class_name || (row.class_code ? row.class_code.split('-')[0] : ''),
+              xp: data.xp !== undefined ? data.xp : (row.xp || 50)
+            };
           } catch (e) {
             return null;
           }
         }).filter(Boolean);
 
-        const phoneMap = new Map();
-        const hasToan2004 = rawStudents.some(s => (s.full_name || s.student_name || '').toLowerCase() === 'toan2004');
-
-        students = rawStudents.filter(st => {
-          const name = (st.full_name || st.student_name || '').toLowerCase();
-          const phone = (st.parent_phone || '').trim();
-
-          if (hasToan2004 && (name === 'andrew' || name === 'trịnh văn toàn')) {
-            return false;
+        const map = new Map();
+        rawStudents.forEach(st => {
+          const key = (st.username || st.id || st.full_name || '').toLowerCase().trim();
+          if (key && !map.has(key)) {
+            map.set(key, st);
           }
-
-          if (phone) {
-            if (phoneMap.has(phone)) return false;
-            phoneMap.set(phone, true);
-          }
-
-          return true;
         });
+        students = Array.from(map.values());
       } catch (e) {}
 
       await conn.end();
@@ -252,30 +263,46 @@ export default async function handler(req, res) {
 
       // Get Student Profile for Login
       if (body.action === 'get_student_profile') {
-        const username = (body.username || '').toLowerCase().trim();
+        const queryUser = (body.username || '').toLowerCase().trim();
         const [stRows] = await conn.execute(
-          'SELECT * FROM cloud_synced_students WHERE LOWER(student_name) = ? OR LOWER(id) = ? ORDER BY updated_at DESC, created_at DESC LIMIT 1',
-          [username, username]
+          'SELECT * FROM cloud_synced_students ORDER BY updated_at DESC, created_at DESC'
         );
         if (stRows && stRows.length > 0) {
-          const row = stRows[0];
-          let data = typeof row.data_json === 'string' ? JSON.parse(row.data_json) : (row.data_json || {});
-          await conn.end();
-          return res.status(200).json({
-            success: true,
-            user: {
+          const row = stRows.find(r => {
+            const rUser = (r.username || '').toLowerCase().trim();
+            const rName = (r.student_name || '').toLowerCase().trim();
+            const rId = String(r.id || '').toLowerCase().trim();
+            if (rUser === queryUser || rName === queryUser || rId === queryUser) return true;
+            try {
+              const d = typeof r.data_json === 'string' ? JSON.parse(r.data_json) : (r.data_json || {});
+              if ((d.username || '').toLowerCase().trim() === queryUser) return true;
+              if ((d.full_name || '').toLowerCase().trim() === queryUser) return true;
+            } catch (e) {}
+            return false;
+          });
+
+          if (row) {
+            let data = typeof row.data_json === 'string' ? JSON.parse(row.data_json) : (row.data_json || {});
+            const fullName = data.full_name || data.student_name || row.student_name || body.username;
+            const finalUser = {
               ...data,
               id: data.id || row.id,
-              username: body.username,
-              full_name: data.full_name || data.student_name || row.student_name,
+              username: row.username || data.username || body.username,
+              full_name: fullName,
+              student_name: fullName,
               class_code: data.class_code || row.class_code || '',
-              class_name: data.class_name || (data.class_code ? data.class_code.split('-')[0] : ''),
+              class_name: data.class_name || (data.class_code ? data.class_code.split('-')[0] : (row.class_code ? row.class_code.split('-')[0] : '')),
               grade_level: data.grade_level || row.grade_level || 2,
               xp: data.xp !== undefined ? data.xp : (row.xp || 50),
               avatar: data.avatar || data.student_avatar || row.student_avatar || 'mascot-bear',
               role: data.role || 'student'
-            }
-          });
+            };
+            await conn.end();
+            return res.status(200).json({
+              success: true,
+              user: finalUser
+            });
+          }
         }
       }
 
@@ -283,18 +310,31 @@ export default async function handler(req, res) {
       if (body.action === 'join_class' || body.action === 'save_student' || body.action === 'update_profile' || body.student) {
         const st = body.student || body;
         const studentId = String(st.id || Date.now());
+        const username = (st.username || body.username || '').trim();
         const classCode = st.class_code ? st.class_code.toUpperCase().trim() : '';
-        const studentName = st.student_name || st.full_name || 'Học Sinh';
+        const studentName = st.full_name || st.student_name || username || 'Học Sinh';
         const parentPhone = st.parent_phone || '';
         const studentAvatar = st.avatar || st.student_avatar || 'mascot-bear';
         const gradeLevel = parseInt(st.grade_level || 2, 10);
-        const xp = parseInt(st.xp || 0, 10);
-        const dataJson = JSON.stringify({ ...st, id: studentId, class_code: classCode, full_name: studentName, parent_phone: parentPhone, avatar: studentAvatar, grade_level: gradeLevel, xp });
+        const xp = parseInt(st.xp !== undefined ? st.xp : 50, 10);
+        const dataJson = JSON.stringify({
+          ...st,
+          id: studentId,
+          username: username || st.username,
+          full_name: studentName,
+          student_name: studentName,
+          class_code: classCode,
+          parent_phone: parentPhone,
+          avatar: studentAvatar,
+          grade_level: gradeLevel,
+          xp
+        });
 
         await conn.execute(`
-          INSERT INTO cloud_synced_students (id, class_code, student_name, parent_phone, student_avatar, grade_level, xp, data_json)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO cloud_synced_students (id, username, class_code, student_name, parent_phone, student_avatar, grade_level, xp, data_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
+            username = VALUES(username),
             class_code = VALUES(class_code),
             student_name = VALUES(student_name),
             parent_phone = VALUES(parent_phone),
@@ -302,7 +342,7 @@ export default async function handler(req, res) {
             grade_level = VALUES(grade_level),
             xp = VALUES(xp),
             data_json = VALUES(data_json)
-        `, [studentId, classCode, studentName, parentPhone, studentAvatar, gradeLevel, xp, dataJson]);
+        `, [studentId, username, classCode, studentName, parentPhone, studentAvatar, gradeLevel, xp, dataJson]);
 
         if (body.oldName && body.oldName !== studentName) {
           try {
@@ -315,7 +355,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           success: true,
           message: `Đã lưu hồ sơ học sinh "${studentName}" trên Cloud MySQL! 🎉`,
-          student: { ...st, id: studentId, class_code: classCode }
+          student: { ...st, id: studentId, username, full_name: studentName, class_code: classCode }
         });
       }
 

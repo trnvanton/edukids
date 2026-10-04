@@ -107,11 +107,15 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (updates) => {
     if (!user) return;
-    const oldName = user.full_name || user.username || '';
+    const oldName = user.full_name || user.student_name || '';
+    const uName = user.username || 'toan2004';
+    const newFullName = updates.full_name || oldName;
     const updatedUser = {
       ...user,
       ...updates,
-      username: user.username || updates.full_name || oldName
+      username: uName,
+      full_name: newFullName,
+      student_name: newFullName
     };
     setUser(updatedUser);
     try {
@@ -121,28 +125,33 @@ export const AuthProvider = ({ children }) => {
       let customSt = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
       let matched = false;
       customSt = customSt.map(s => {
-        if (s.full_name === oldName || s.student_name === oldName || String(s.id) === String(user.id) || (user.username && s.username === user.username)) {
+        if (
+          (s.username && s.username.toLowerCase() === uName.toLowerCase()) ||
+          (oldName && (s.full_name === oldName || s.student_name === oldName)) ||
+          String(s.id) === String(user.id)
+        ) {
           matched = true;
           return {
             ...s,
             ...updates,
-            username: user.username || s.username,
-            full_name: updates.full_name || s.full_name,
-            student_name: updates.full_name || s.student_name
+            id: s.id || user.id,
+            username: uName,
+            full_name: newFullName,
+            student_name: newFullName
           };
         }
         return s;
       });
-      if (!matched && updates.full_name) {
+      if (!matched) {
         customSt.push(updatedUser);
       }
       localStorage.setItem('edukids_custom_students', JSON.stringify(customSt));
     } catch (e) {}
 
-    // Async Cloud sync to Aiven MySQL with oldName
+    // Async Cloud sync to Aiven MySQL with oldName and username
     api.request('/sync', {
       method: 'POST',
-      body: JSON.stringify({ action: 'save_student', student: updatedUser, oldName })
+      body: JSON.stringify({ action: 'save_student', student: updatedUser, oldName, username: uName })
     }).catch(() => {});
   };
 
