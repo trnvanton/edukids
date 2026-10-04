@@ -145,7 +145,7 @@ export async function parseExcelFile(file) {
               { option_label: 'Sai', answer_text: 'Sai 👎' }
             ];
           } else if (type === 'matching') {
-            // Check if options have format "Left || Right"
+            // Check if options have format "Left || Right" or "Left - Right"
             const rawPairs = [
               row['Đáp án A'] || row['A'],
               row['Đáp án B'] || row['B'],
@@ -157,16 +157,49 @@ export async function parseExcelFile(file) {
             const right = [];
             const correctPairs = {};
 
+            // Check if question text has list of left items e.g., "Nối số với hàng trăm: 245; 361; 508; 790"
+            let questionItems = [];
+            if (qText.includes(':')) {
+              const afterColon = qText.split(':')[1] || '';
+              if (afterColon.includes(';') || afterColon.includes(',')) {
+                questionItems = afterColon.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+              }
+            }
+
             rawPairs.forEach((p, pIdx) => {
-              const str = p.toString();
-              const parts = str.includes('||') ? str.split('||') : (str.includes('-') ? str.split('-') : [str, str]);
-              const leftText = (parts[0] || '').trim();
-              const rightText = (parts[1] || '').trim();
+              const str = p.toString().trim();
+              let leftText = '';
+              let rightText = '';
+
+              if (str.includes('||')) {
+                const parts = str.split('||');
+                leftText = (parts[0] || '').trim();
+                rightText = (parts[1] || '').trim();
+              } else if (str.includes('➔') || str.includes('->') || str.includes('=>')) {
+                const parts = str.split(/[➔\->=>]/);
+                leftText = (parts[0] || '').trim();
+                rightText = (parts[parts.length - 1] || '').trim();
+              } else if (str.includes(' - ') || (str.includes('-') && !str.startsWith('-'))) {
+                const parts = str.includes(' - ') ? str.split(' - ') : str.split('-');
+                leftText = (parts[0] || '').trim();
+                rightText = (parts[1] || '').trim();
+              } else if (str.includes(':')) {
+                const parts = str.split(':');
+                leftText = (parts[0] || '').trim();
+                rightText = (parts[1] || '').trim();
+              } else if (questionItems[pIdx]) {
+                leftText = questionItems[pIdx];
+                rightText = str;
+              } else {
+                leftText = `Mục ${pIdx + 1}`;
+                rightText = str;
+              }
+
               const leftId = `${pIdx + 1}`;
               const rightId = String.fromCharCode(65 + pIdx); // 'A', 'B', 'C', 'D'
 
-              left.push({ id: leftId, text: leftText });
-              right.push({ id: rightId, text: rightText });
+              left.push({ id: leftId, text: leftText || `Mục ${leftId}` });
+              right.push({ id: rightId, text: rightText || `Đáp án ${rightId}` });
               correctPairs[leftId] = rightId;
             });
 
@@ -175,7 +208,9 @@ export async function parseExcelFile(file) {
 
             matchingData = {
               left,
+              leftItems: left,
               right: shuffledRight,
+              rightItems: shuffledRight,
               correctPairs
             };
           }

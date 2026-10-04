@@ -624,115 +624,161 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
         )}
 
         {/* ================= TYPE 4: MATCHING PAIRS ================= */}
-        {qType === 'matching' && (
-          <div style={{ margin: '20px 0' }}>
-            <p style={{ fontWeight: 700, color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.95rem' }}>
-              💡 <strong>Hướng dẫn:</strong> Bấm chọn 1 ô ở <strong>Cột A</strong>, sau đó bấm chọn 1 ô tương ứng ở <strong>Cột B</strong> để nối cặp!
-            </p>
+        {qType === 'matching' && (() => {
+          const mData = currentQ.matching_data || {};
+          let leftList = mData.left || mData.leftItems || mData.left_items || [];
+          let rightList = mData.right || mData.rightItems || mData.right_items || [];
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              {/* Left Column (Items) */}
-              <div>
-                <h4 style={{ color: '#4F46E5', fontWeight: 800, marginBottom: '12px' }}>Cột A</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {(currentQ.matching_data?.leftItems || []).map((item, idx) => {
-                    const currentPair = answers[currentQ.id]?.[item.id];
-                    const isSelected = selectedLeft === item.id;
-                    const pairColor = currentPair ? pairColors[idx % pairColors.length] : undefined;
+          // Fallback parsing if matchingData was empty or unparsed
+          if ((!leftList || leftList.length === 0) && Array.isArray(currentQ.options) && currentQ.options.length > 0) {
+            let questionItems = [];
+            if (currentQ.question_text?.includes(':')) {
+              const afterColon = currentQ.question_text.split(':')[1] || '';
+              if (afterColon.includes(';') || afterColon.includes(',')) {
+                questionItems = afterColon.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+              }
+            }
 
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => handleMatchingClickLeft(item.id)}
-                        style={{
-                          padding: '14px 18px',
-                          borderRadius: '12px',
-                          border: isSelected ? '3px solid #4F46E5' : (currentPair ? `2px solid ${pairColor}` : '2px solid #E2E8F0'),
-                          background: isSelected ? '#EEF2FF' : (currentPair ? `${pairColor}15` : '#F8FAFC'),
-                          color: isSelected ? '#4F46E5' : '#1E293B',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}
-                      >
-                        <span>{item.text}</span>
-                        {currentPair && (
-                          <span style={{
-                            background: pairColor,
-                            color: 'white',
-                            borderRadius: '9999px',
-                            padding: '2px 8px',
-                            fontSize: '0.75rem',
-                            fontWeight: 800
-                          }}>
-                            ➔ Nối {currentPair}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
+            leftList = [];
+            rightList = [];
+            currentQ.options.forEach((opt, idx) => {
+              const str = (typeof opt === 'object' ? (opt.answer_text || '') : String(opt)).trim();
+              let lText = '';
+              let rText = '';
+
+              if (str.includes('||')) {
+                const parts = str.split('||');
+                lText = (parts[0] || '').trim();
+                rText = (parts[1] || '').trim();
+              } else if (str.includes(' - ') || str.includes('➔') || str.includes('->')) {
+                const parts = str.split(/[➔\->]|(\s-\s)/);
+                lText = (parts[0] || '').trim();
+                rText = (parts[parts.length - 1] || '').trim();
+              } else if (questionItems[idx]) {
+                lText = questionItems[idx];
+                rText = str;
+              } else {
+                lText = `Mục ${idx + 1}`;
+                rText = str;
+              }
+
+              leftList.push({ id: `${idx + 1}`, text: lText });
+              rightList.push({ id: String.fromCharCode(65 + idx), text: rText });
+            });
+          }
+
+          return (
+            <div style={{ margin: '20px 0' }}>
+              <p style={{ fontWeight: 700, color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.95rem' }}>
+                💡 <strong>Hướng dẫn:</strong> Bấm chọn 1 ô ở <strong>Cột A</strong>, sau đó bấm chọn 1 ô tương ứng ở <strong>Cột B</strong> để nối cặp!
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px' }}>
+                {/* Left Column (Items) */}
+                <div>
+                  <h4 style={{ color: '#4F46E5', fontWeight: 800, marginBottom: '12px' }}>Cột A</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {leftList.map((item, idx) => {
+                      const currentPair = answers[currentQ.id]?.[item.id];
+                      const isSelected = selectedLeft === item.id;
+                      const pairColor = currentPair ? pairColors[idx % pairColors.length] : undefined;
+
+                      return (
+                        <div
+                          key={item.id || idx}
+                          onClick={() => handleMatchingClickLeft(item.id)}
+                          style={{
+                            padding: '14px 18px',
+                            borderRadius: '14px',
+                            border: isSelected ? '3px solid #4F46E5' : (currentPair ? `2.5px solid ${pairColor}` : '2px solid #E2E8F0'),
+                            background: isSelected ? '#EEF2FF' : (currentPair ? `${pairColor}15` : '#F8FAFC'),
+                            color: isSelected ? '#4F46E5' : '#1E293B',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'all 0.15s ease',
+                            boxShadow: isSelected ? '0 4px 12px rgba(79, 70, 229, 0.15)' : 'none'
+                          }}
+                        >
+                          <span><strong>{idx + 1}.</strong> {item.text}</span>
+                          {currentPair && (
+                            <span style={{
+                              background: pairColor,
+                              color: 'white',
+                              borderRadius: '9999px',
+                              padding: '3px 10px',
+                              fontSize: '0.8rem',
+                              fontWeight: 900
+                            }}>
+                              ➔ {currentPair}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              {/* Right Column (Targets) */}
-              <div>
-                <h4 style={{ color: '#059669', fontWeight: 800, marginBottom: '12px' }}>Cột B</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {(currentQ.matching_data?.rightItems || []).map((target) => {
-                    // Check if this right item is linked by any left item
-                    const matchingState = answers[currentQ.id] || {};
-                    const connectedLeft = Object.keys(matchingState).find(k => matchingState[k] === target.id);
+                {/* Right Column (Targets) */}
+                <div>
+                  <h4 style={{ color: '#059669', fontWeight: 800, marginBottom: '12px' }}>Cột B</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {rightList.map((target, idx) => {
+                      const matchingState = answers[currentQ.id] || {};
+                      const connectedLeft = Object.keys(matchingState).find(k => matchingState[k] === target.id);
 
-                    return (
-                      <div
-                        key={target.id}
-                        onClick={() => handleMatchingClickRight(currentQ.id, target.id)}
-                        style={{
-                          padding: '14px 18px',
-                          borderRadius: '12px',
-                          border: selectedLeft ? '2px dashed #059669' : (connectedLeft ? '2px solid #059669' : '2px solid #E2E8F0'),
-                          background: connectedLeft ? '#ECFDF5' : (selectedLeft ? '#F0FDF4' : '#F8FAFC'),
-                          color: '#1E293B',
-                          fontWeight: 800,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}
-                      >
-                        <span><strong>{target.id}.</strong> {target.text}</span>
-                        {connectedLeft && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveMatchingPair(currentQ.id, connectedLeft);
-                            }}
-                            title="Hủy nối cặp này"
-                            style={{
-                              background: '#FEE2E2',
-                              color: '#DC2626',
-                              border: 'none',
-                              borderRadius: '6px',
-                              padding: '2px 6px',
-                              fontSize: '0.75rem',
-                              fontWeight: 800,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            ✖ Hủy
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+                      return (
+                        <div
+                          key={target.id || idx}
+                          onClick={() => handleMatchingClickRight(currentQ.id, target.id)}
+                          style={{
+                            padding: '14px 18px',
+                            borderRadius: '14px',
+                            border: selectedLeft ? '2.5px dashed #059669' : (connectedLeft ? '2.5px solid #059669' : '2px solid #E2E8F0'),
+                            background: connectedLeft ? '#ECFDF5' : (selectedLeft ? '#F0FDF4' : '#F8FAFC'),
+                            color: '#1E293B',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <span><strong>{target.id}.</strong> {target.text}</span>
+                          {connectedLeft && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveMatchingPair(currentQ.id, connectedLeft);
+                              }}
+                              title="Hủy nối cặp này"
+                              style={{
+                                background: '#FEE2E2',
+                                color: '#DC2626',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '3px 8px',
+                                fontSize: '0.78rem',
+                                fontWeight: 800,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              ✖ Hủy
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Pedagogical Hint Toggle */}
         <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
