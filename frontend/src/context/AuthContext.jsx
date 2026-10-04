@@ -29,6 +29,7 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [isMuted, setIsMuted] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -54,6 +55,27 @@ export const AuthProvider = ({ children }) => {
     return { success: false, message: res.message };
   };
 
+  const register = async (payload) => {
+    const res = await api.register(payload);
+    if (res.success && res.user) {
+      api.setToken(res.token);
+      setUser(res.user);
+      return { success: true };
+    }
+    return { success: false, message: res.message };
+  };
+
+  const updateProfile = async (updates) => {
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    localStorage.setItem('edukids_user', JSON.stringify(updatedUser));
+    // Push update to backend API
+    await api.request('/students/settings', {
+      method: 'PUT',
+      body: JSON.stringify(updates)
+    });
+  };
+
   const addXp = (amount) => {
     if (!user) return;
     const newXp = (user.xp || 0) + amount;
@@ -68,10 +90,14 @@ export const AuthProvider = ({ children }) => {
       user,
       setUser,
       login,
+      register,
       switchRole,
+      updateProfile,
       addXp,
       isMuted,
       setIsMuted,
+      showProfileModal,
+      setShowProfileModal,
       getAvatarEmoji: (key) => mascotMap[key] || '🐻'
     }}>
       {children}

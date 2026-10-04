@@ -3,11 +3,16 @@ import { useAuth } from '../context/AuthContext';
 import { sound } from '../services/audio';
 
 export default function Navbar({ activeTab, setActiveTab }) {
-  const { user, switchRole, getAvatarEmoji, isMuted, setIsMuted } = useAuth();
+  const { user, switchRole, getAvatarEmoji, isMuted, setIsMuted, setShowProfileModal } = useAuth();
 
   const handleSound = () => {
     const muted = sound.toggleMute();
     setIsMuted(muted);
+  };
+
+  const getGradeName = (num) => {
+    const map = { 1: 'Lớp 1 🌱', 2: 'Lớp 2 🐥', 3: 'Lớp 3 🐱', 4: 'Lớp 4 🚀', 5: 'Lớp 5 👑' };
+    return map[num] || `Lớp ${num}`;
   };
 
   return (
@@ -70,10 +75,30 @@ export default function Navbar({ activeTab, setActiveTab }) {
         <div className="nav-stats">
           {user.role === 'student' && (
             <>
+              {/* Grade Badge */}
+              <div
+                className="chip"
+                onClick={() => { sound.pop(); setShowProfileModal(true); }}
+                style={{
+                  background: '#EEF2FF',
+                  color: 'var(--primary)',
+                  border: '1.5px solid #C7D2FE',
+                  cursor: 'pointer'
+                }}
+                title="Bấm để đổi khối lớp nếu bé vừa lên lớp mới"
+              >
+                <span>🏫</span>
+                <span>{getGradeName(user.grade_level || 1)}</span>
+                <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>✏️</span>
+              </div>
+
+              {/* XP */}
               <div className="chip chip-xp" title="Điểm kinh nghiệm XP">
                 <span>⭐</span>
                 <span>{user.xp || 0} XP</span>
               </div>
+
+              {/* Streak */}
               <div className="chip chip-streak" title="Chuỗi ngày học liên tục">
                 <span>🔥</span>
                 <span>{user.streak_days || 1} ngày</span>
@@ -91,8 +116,12 @@ export default function Navbar({ activeTab, setActiveTab }) {
             {isMuted ? '🔇' : '🔊'}
           </button>
 
-          {/* Quick Role Switcher Dropdown / Badge */}
-          <div className="user-badge" title="Đổi tài khoản Demo (Học sinh / Giáo viên / Admin)">
+          {/* User Profile Badge -> Opens Profile Modal */}
+          <div
+            className="user-badge"
+            onClick={() => { sound.pop(); setShowProfileModal(true); }}
+            title="Bấm để xem hồ sơ và đổi khối lớp"
+          >
             <span style={{ fontSize: '1.4rem' }}>{getAvatarEmoji(user.avatar)}</span>
             <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
               <span style={{ fontWeight: 800, fontSize: '0.85rem' }}>{user.full_name}</span>

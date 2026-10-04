@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
+import ProfileModal from './components/ProfileModal';
 import Dashboard from './pages/Dashboard';
 import SubjectsPage from './pages/SubjectsPage';
 import QuizPage from './pages/QuizPage';
@@ -41,6 +42,7 @@ export default function App() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <ProfileModal />
 
       <main style={{ flex: 1 }}>
         {/* Student Views */}
@@ -97,7 +99,7 @@ export default function App() {
         fontWeight: 600
       }}>
         <div className="container">
-          🏫 EduKids – Nền Tảng Học Tập & Gamification Tiểu Học (Lớp 1 - 5) • React + Vite + Node.js + MySQL ❤️
+          🏫 EduKids – Nền Tảng Học Tập & Gamification Tiểu Học (Lớp 1 - 5) • React + Vite + Node.js + MySQL Aiven ❤️
         </div>
       </footer>
     </div>
