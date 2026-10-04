@@ -1,0 +1,111 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
+import { sound } from '../services/audio';
+import WeaknessAnalysisCard from '../components/WeaknessAnalysisCard';
+import BadgeList from '../components/BadgeList';
+
+export default function Dashboard({ onStartExercise, onGoToSubjects }) {
+  const { user, getAvatarEmoji } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [user]);
+
+  const loadDashboard = async () => {
+    setLoading(true);
+    const res = await api.getStudentDashboard();
+    if (res.success && res.dashboard) {
+      setData(res.dashboard);
+    }
+    setLoading(false);
+  };
+
+  if (loading || !data) {
+    return (
+      <div className="container" style={{ padding: '40px 0', textAlign: 'center' }}>
+        <h2>⏳ Đang tải thế giới học tập của bé...</h2>
+      </div>
+    );
+  }
+
+  const { student, weaknessBreakdown, recommendations, badges } = data;
+
+  return (
+    <div className="container" style={{ paddingBottom: '50px' }}>
+      {/* Hero Welcome Banner */}
+      <div className="hero-banner">
+        <div>
+          <h2 className="hero-title">
+            Chào Mừng {student.full_name}! {getAvatarEmoji(student.avatar)}
+          </h2>
+          <p className="hero-desc">
+            Hôm nay bé có <strong>{student.streak_days} ngày học liên tiếp 🔥</strong>. Hoàn thành thử thách hôm nay để nhận thêm <strong>+50 XP</strong> và mở khóa huy hiệu <strong>Trạng Nguyên</strong> nhé!
+          </p>
+          <div style={{ marginTop: '18px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button className="btn-primary" onClick={() => { sound.pop(); onGoToSubjects(); }}>
+              <span>🚀 Bắt Đầu Học Ngay</span>
+            </button>
+            <div className="chip chip-level" style={{ fontSize: '1rem' }}>
+              <span>{student.levelInfo?.icon || '👑'}</span>
+              <span>Level {student.levelInfo?.level || 1} – {student.levelInfo?.title || 'Mầm Non'}</span>
+            </div>
+          </div>
+        </div>
+        <div className="hero-mascot">🦁</div>
+      </div>
+
+      {/* Grid 2 Columns: Adaptive Recommendations & Weakness Analytics */}
+      <div className="grid-2">
+        {/* Left Column: Adaptive Recommendations */}
+        <div className="card">
+          <div className="card-title">
+            <span>🎯</span>
+            <span>Gợi Ý Bài Tập Thích Ứng Dành Riêng Cho Bé</span>
+          </div>
+
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+            Dựa trên kết quả làm bài gần đây, EduKids đề xuất các nội dung rèn luyện phù hợp nhất:
+          </p>
+
+          {recommendations.map((rec, idx) => (
+            <div key={idx} className="recommend-card">
+              <div className="recommend-title">{rec.recommendationTitle}</div>
+              <div className="recommend-advice">{rec.advice}</div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {rec.exercises && rec.exercises.length > 0 ? (
+                  rec.exercises.map(ex => (
+                    <button
+                      key={ex.id}
+                      className="btn-recommend"
+                      onClick={() => { sound.pop(); onStartExercise(ex.id); }}
+                    >
+                      ▶️ Làm Bài: {ex.title} (+{ex.reward_xp} XP)
+                    </button>
+                  ))
+                ) : (
+                  <button
+                    className="btn-recommend"
+                    onClick={() => { sound.pop(); onStartExercise(101); }}
+                  >
+                    ▶️ Thử Thách Phân Số (+50 XP)
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Right Column: Weakness Analytics & Mastery Bar */}
+        <WeaknessAnalysisCard weaknessList={weaknessBreakdown} />
+      </div>
+
+      {/* Badges Collection */}
+      <div style={{ marginTop: '24px' }}>
+        <BadgeList badges={badges} />
+      </div>
+    </div>
+  );
+}
