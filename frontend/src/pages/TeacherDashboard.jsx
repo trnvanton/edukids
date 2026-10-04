@@ -1116,9 +1116,20 @@ export default function TeacherDashboard() {
                     {cls.stats.studentSummary.map(st => (
                       <tr key={st.id}>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '1.4rem' }}>{st.avatar === 'mascot-bear' ? '🐻' : (st.avatar === 'mascot-lion' ? '🦁' : '🐰')}</span>
-                            <strong>{st.full_name}</strong>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '1.6rem' }}>
+                              {st.avatar === 'mascot-bear' ? '🐻' : (st.avatar === 'mascot-lion' ? '🦁' : (st.avatar === 'mascot-rabbit' ? '🐰' : (st.avatar === 'mascot-fox' ? '🦊' : '🐼')))}
+                            </span>
+                            <div>
+                              <strong style={{ display: 'block', fontSize: '0.95rem', color: '#0F172A' }}>
+                                {st.full_name || st.username || 'Học Sinh'}
+                              </strong>
+                              {st.username && (
+                                <span style={{ fontSize: '0.75rem', color: '#6366F1', fontWeight: 700 }}>
+                                  @{st.username}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td>

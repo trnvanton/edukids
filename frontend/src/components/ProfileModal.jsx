@@ -111,15 +111,38 @@ export default function ProfileModal() {
             </div>
           </div>
 
+          {/* Username (Fixed Account ID) */}
+          <div style={{
+            background: '#F8FAFC',
+            border: '1.5px solid #E2E8F0',
+            borderRadius: '10px',
+            padding: '10px 14px',
+            marginBottom: '14px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#64748B', display: 'block' }}>
+                🔑 TÀI KHOẢN ĐĂNG NHẬP (USERNAME):
+              </span>
+              <strong style={{ fontSize: '0.95rem', color: '#1E293B' }}>
+                @{user?.username || user?.full_name || 'hocsinh'}
+              </strong>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 700 }}>Cố định</span>
+          </div>
+
           {/* Full Name */}
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontWeight: 800, fontSize: '0.9rem', marginBottom: '6px' }}>
-              Tên gọi của bé:
+              👤 Họ và Tên của bé (Hiển thị trong lớp & Bảng vàng):
             </label>
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              placeholder="Ví dụ: Trịnh Văn Toàn"
               style={{
                 width: '100%',
                 padding: '12px 14px',
