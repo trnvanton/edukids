@@ -108,7 +108,11 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (updates) => {
     if (!user) return;
     const oldName = user.full_name || user.username || '';
-    const updatedUser = { ...user, ...updates };
+    const updatedUser = {
+      ...user,
+      ...updates,
+      username: user.username || updates.full_name || oldName
+    };
     setUser(updatedUser);
     try {
       localStorage.setItem('edukids_v2_user', JSON.stringify(updatedUser));
@@ -117,9 +121,15 @@ export const AuthProvider = ({ children }) => {
       let customSt = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
       let matched = false;
       customSt = customSt.map(s => {
-        if (s.full_name === oldName || s.student_name === oldName || String(s.id) === String(user.id)) {
+        if (s.full_name === oldName || s.student_name === oldName || String(s.id) === String(user.id) || (user.username && s.username === user.username)) {
           matched = true;
-          return { ...s, ...updates, full_name: updates.full_name || s.full_name, student_name: updates.full_name || s.student_name };
+          return {
+            ...s,
+            ...updates,
+            username: user.username || s.username,
+            full_name: updates.full_name || s.full_name,
+            student_name: updates.full_name || s.student_name
+          };
         }
         return s;
       });

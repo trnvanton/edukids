@@ -302,14 +302,47 @@ class ApiService {
 
   // Auth
   async login(username, password) {
-    const res = await this.request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password })
-    });
-    if (res.success && res.user) return res;
+    const cleanUsername = (username || '').trim();
+    const cleanLower = cleanUsername.toLowerCase();
 
-    // Fallback demo logins
-    if (username === 'student_lop2') {
+    // 1. Try Cloud MySQL lookup first
+    try {
+      const syncRes = await this.request('/sync', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'get_student_profile', username: cleanUsername })
+      });
+      if (syncRes && syncRes.success && syncRes.user) {
+        return {
+          success: true,
+          token: `token-${cleanUsername}`,
+          user: syncRes.user
+        };
+      }
+    } catch (e) {}
+
+    // 2. Check local saved custom students
+    try {
+      const customStudents = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
+      const found = customStudents.find(s => 
+        (s.username && s.username.toLowerCase() === cleanLower) ||
+        (s.full_name && s.full_name.toLowerCase() === cleanLower) ||
+        (s.student_name && s.student_name.toLowerCase() === cleanLower)
+      );
+      if (found) {
+        return {
+          success: true,
+          token: `token-${cleanUsername}`,
+          user: {
+            ...found,
+            username: found.username || cleanUsername,
+            full_name: found.full_name || found.student_name || cleanUsername
+          }
+        };
+      }
+    } catch (e) {}
+
+    // 3. Fallback demo logins
+    if (cleanLower === 'student_lop2') {
       return {
         success: true,
         token: 'demo-token-lop2',
@@ -327,7 +360,7 @@ class ApiService {
         }
       };
     }
-    if (username === 'teacher1') {
+    if (cleanLower === 'teacher1') {
       return {
         success: true,
         token: 'demo-token-teacher',
@@ -342,7 +375,7 @@ class ApiService {
         }
       };
     }
-    if (username === 'admin') {
+    if (cleanLower === 'admin') {
       return {
         success: true,
         token: 'demo-token-admin',
@@ -357,7 +390,7 @@ class ApiService {
         }
       };
     }
-    if (username === 'student1') {
+    if (cleanLower === 'student1') {
       return {
         success: true,
         token: 'demo-token-student1',
@@ -376,22 +409,26 @@ class ApiService {
       };
     }
 
-    // Dynamic fallback for custom username
+    // 4. Dynamic fallback for brand new username
+    const newUser = {
+      id: Date.now(),
+      username: cleanUsername || 'hocsinh',
+      full_name: cleanUsername ? `${cleanUsername}` : 'Học Sinh Mới',
+      role: 'student',
+      grade_level: 2,
+      avatar: 'mascot-lion',
+      xp: 50,
+      level: 1,
+      streak_days: 1,
+      levelInfo: { level: 1, title: 'Tân Thủ Chăm Học', icon: '🌱', progress: 10 }
+    };
+
+    this.saveCustomStudent(newUser);
+
     return {
       success: true,
-      token: 'demo-token-custom',
-      user: {
-        id: Date.now(),
-        username: username || 'hocsinh',
-        full_name: username ? `${username}` : 'Học Sinh Mới',
-        role: 'student',
-        grade_level: 2,
-        avatar: 'mascot-lion',
-        xp: 50,
-        level: 1,
-        streak_days: 1,
-        levelInfo: { level: 1, title: 'Tân Thủ Chăm Học', icon: '🌱', progress: 10 }
-      }
+      token: `demo-token-${cleanUsername}`,
+      user: newUser
     };
   }
 

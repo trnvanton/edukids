@@ -250,6 +250,35 @@ export default async function handler(req, res) {
         });
       }
 
+      // Get Student Profile for Login
+      if (body.action === 'get_student_profile') {
+        const username = (body.username || '').toLowerCase().trim();
+        const [stRows] = await conn.execute(
+          'SELECT * FROM cloud_synced_students WHERE LOWER(student_name) = ? OR LOWER(id) = ? ORDER BY updated_at DESC, created_at DESC LIMIT 1',
+          [username, username]
+        );
+        if (stRows && stRows.length > 0) {
+          const row = stRows[0];
+          let data = typeof row.data_json === 'string' ? JSON.parse(row.data_json) : (row.data_json || {});
+          await conn.end();
+          return res.status(200).json({
+            success: true,
+            user: {
+              ...data,
+              id: data.id || row.id,
+              username: body.username,
+              full_name: data.full_name || data.student_name || row.student_name,
+              class_code: data.class_code || row.class_code || '',
+              class_name: data.class_name || (data.class_code ? data.class_code.split('-')[0] : ''),
+              grade_level: data.grade_level || row.grade_level || 2,
+              xp: data.xp !== undefined ? data.xp : (row.xp || 50),
+              avatar: data.avatar || data.student_avatar || row.student_avatar || 'mascot-bear',
+              role: data.role || 'student'
+            }
+          });
+        }
+      }
+
       // Join Class / Save Real Student (with Parent Phone & Class Code)
       if (body.action === 'join_class' || body.action === 'save_student' || body.action === 'update_profile' || body.student) {
         const st = body.student || body;
