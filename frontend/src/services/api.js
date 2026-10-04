@@ -218,6 +218,60 @@ const curriculumDatabase = {
             { option_label: 'C', answer_text: 'Đọc sách' },
             { option_label: 'D', answer_text: 'Bút mực' }
           ]
+        },
+        {
+          id: 242,
+          index: 2,
+          question_text: 'Từ nào dưới đây là từ chỉ sự vật xung quanh em?',
+          points: 10,
+          hint: 'Từ chỉ sự vật là từ chỉ người, đồ vật, con vật, cây cối.',
+          topic_tag: 'tu-su-vat-2',
+          options: [
+            { option_label: 'A', answer_text: 'Cây bàng 🌳' },
+            { option_label: 'B', answer_text: 'Chăm chỉ' },
+            { option_label: 'C', answer_text: 'Nhanh nhẹn' },
+            { option_label: 'D', answer_text: 'Chạy nhanh' }
+          ]
+        }
+      ]
+    },
+
+    // Grade 2 - Tieng Viet (1025)
+    1025: {
+      id: 1025,
+      title: 'Dấu Chấm, Dấu Chấm Hỏi & Dấu Chấm Than (Tiếng Việt 2)',
+      difficulty: 'practice',
+      time_limit_minutes: 15,
+      reward_xp: 40,
+      subject_name: 'Tiếng Việt',
+      questions: [
+        {
+          id: 251,
+          index: 1,
+          question_text: 'Cuối câu hỏi "Hôm nay bạn có đi học không" cần điền dấu câu nào?',
+          points: 10,
+          hint: 'Đây là câu dùng để hỏi người khác, cuối câu cần dùng dấu chấm hỏi (?).',
+          topic_tag: 'dau-cau-2',
+          options: [
+            { option_label: 'A', answer_text: 'Dấu chấm hỏi (?)' },
+            { option_label: 'B', answer_text: 'Dấu chấm (.)' },
+            { option_label: 'C', answer_text: 'Dấu phẩy (,)' },
+            { option_label: 'D', answer_text: 'Dấu chấm than (!)' }
+          ]
+        },
+        {
+          id: 252,
+          index: 2,
+          question_text: 'Câu nào dưới đây là câu bộc lộ cảm xúc, cần đặt dấu chấm than (!) ở cuối câu?',
+          points: 10,
+          hint: 'Câu cảm thường có từ: Ôi, chao ôi, đẹp quá, thích quá...',
+          topic_tag: 'dau-cau-2',
+          options: [
+            { option_label: 'A', answer_text: 'Bông hoa hồng này đẹp quá!' },
+            { option_label: 'B', answer_text: 'Em là học sinh lớp 2.' },
+            { option_label: 'C', answer_text: 'Bé mấy tuổi rồi?' },
+            { option_label: 'D', answer_text: 'Mẹ đang nấu cơm trong bếp.' }
+          ]
         }
       ]
     },
@@ -811,13 +865,31 @@ class ApiService {
       };
     });
 
+    const totalQ = ex?.questions?.length || 1;
+    const maxScore = totalQ * 10;
+    const score10 = Math.round((totalScore / maxScore) * 10);
+    const scorePercentage = Math.round((totalScore / maxScore) * 100);
+
     return {
       success: true,
       result: {
         score: totalScore,
-        totalPoints: (ex?.questions?.length || 1) * 10,
-        percentage: Math.round((totalScore / ((ex?.questions?.length || 1) * 10)) * 100),
+        score10,
+        totalPoints: maxScore,
+        totalQuestions: totalQ,
+        correctCount: Math.round(totalScore / 10),
+        wrongCount: totalQ - Math.round(totalScore / 10),
+        scorePercentage,
+        percentage: scorePercentage,
+        xpEarned: earnedXp || 30,
         earnedXp: earnedXp || 30,
+        maxCombo: 1,
+        timeTakenSeconds: timeTakenSeconds || 30,
+        overallMessage: {
+          title: scorePercentage >= 80 ? '🎉 Xuất Sắc! Bé Đạt Điểm Rất Cao!' : (scorePercentage >= 50 ? '👏 Khá Lắm! Bé Cố Gắng Lên Nhé!' : '💪 Đừng Nản Lòng, Hãy Thử Lại Nhé!'),
+          sub: scorePercentage >= 80 ? 'Bé đã nắm rất vững bài học này. Hãy tiếp tục thử sức với các bài tiếp theo!' : 'Hãy xem lại các câu chưa chính xác và lời giải chi tiết của cô giáo bên dưới nhé!'
+        },
+        questionBreakdown: detailedFeedback,
         feedback: detailedFeedback,
         badgeUnlocked: null
       }

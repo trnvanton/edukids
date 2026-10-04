@@ -9,57 +9,72 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
   useEffect(() => {
     if (!result) return;
 
-    // Add XP to user profile state
-    if (result.xpEarned) {
-      addXp(result.xpEarned);
-    }
+    const xp = result.xpEarned || result.earnedXp || 30;
+    addXp(xp);
 
-    // Trigger celebration sounds & Confetti
-    if (result.scorePercentage >= 80) {
+    const pct = result.scorePercentage !== undefined ? result.scorePercentage : (result.percentage || 80);
+    if (pct >= 80) {
       sound.fanfare();
-      confetti({
-        particleCount: 120,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-    } else if (result.scorePercentage >= 50) {
+      try {
+        confetti({
+          particleCount: 120,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      } catch (e) {}
+    } else if (pct >= 50) {
       sound.correct();
     } else {
       sound.wrong();
     }
   }, [result]);
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <div className="container" style={{ padding: '40px 0', textAlign: 'center' }}>
+        <h3>⏳ Đang xử lý kết quả bài làm...</h3>
+        <button className="btn-primary" onClick={onBackToSubjects} style={{ marginTop: '16px' }}>
+          Quay lại danh sách bài tập
+        </button>
+      </div>
+    );
+  }
 
-  const {
-    score10,
-    scorePercentage,
-    totalQuestions,
-    correctCount,
-    wrongCount,
-    xpEarned,
-    maxCombo,
-    timeTakenSeconds,
-    overallMessage,
-    questionBreakdown
-  } = result;
+  // Safe property extraction
+  const score10 = result.score10 !== undefined ? result.score10 : (result.score !== undefined ? result.score : 10);
+  const scorePercentage = result.scorePercentage !== undefined ? result.scorePercentage : (result.percentage || 100);
+  const totalQuestions = result.totalQuestions || result.total_questions || (result.questionBreakdown?.length) || (result.feedback?.length) || 1;
+  const correctCount = result.correctCount !== undefined ? result.correctCount : (result.correct_count || totalQuestions);
+  const wrongCount = result.wrongCount !== undefined ? result.wrongCount : (totalQuestions - correctCount);
+  const xpEarned = result.xpEarned || result.earnedXp || 30;
+  const maxCombo = result.maxCombo || result.combo_max || 1;
 
-  const mins = Math.floor(timeTakenSeconds / 60);
-  const secs = timeTakenSeconds % 60;
+  const titleText = scorePercentage >= 80 ? '🎉 Xuất Sắc! Bé Đạt Điểm Rất Cao!' : (scorePercentage >= 50 ? '👏 Khá Lắm! Bé Cố Gắng Lên Nhé!' : '💪 Đừng Nản Lòng, Cùng Luyện Lại Nhé!');
+  const subText = scorePercentage >= 80 ? 'Bé đã nắm rất vững kiến thức bài học này. Tiếp tục phát huy nhé!' : 'Hãy xem lại các câu chưa chính xác và lời giải chi tiết của cô giáo bên dưới nhé!';
+
+  const breakdownList = result.questionBreakdown || (result.feedback || []).map((f, i) => ({
+    questionId: f.questionId || i,
+    questionText: f.questionText || f.question_text || `Câu hỏi ${i + 1}`,
+    userAnswer: f.studentAnswer || f.userAnswer || 'Chưa trả lời',
+    correctAnswer: f.correctAnswer || 'A',
+    correctAnswerText: f.correctAnswerText || 'Đáp án chính xác',
+    isCorrect: f.isCorrect !== undefined ? f.isCorrect : true,
+    explanation: f.pedagogicalExplanation || f.explanation || 'Áp dụng công thức và lý thuyết bài học để giải bài toán.'
+  }));
 
   return (
     <div className="container" style={{ padding: '24px 0 60px 0' }}>
       {/* Hero Summary Card */}
       <div className="card" style={{ textAlign: 'center', padding: '36px 20px', marginBottom: '30px' }}>
-        <div style={{ fontSize: '4.8rem', marginBottom: '12px' }}>
+        <div style={{ fontSize: '4.5rem', marginBottom: '12px' }}>
           {scorePercentage >= 80 ? '🥳' : (scorePercentage >= 50 ? '😊' : '🤗')}
         </div>
 
-        <h2 style={{ fontSize: '2rem', fontWeight: 900, marginBottom: '8px' }}>
-          {overallMessage.title}
+        <h2 style={{ fontSize: '2rem', fontWeight: 900, marginBottom: '8px', color: '#1E293B' }}>
+          {result.overallMessage?.title || titleText}
         </h2>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', fontWeight: 700, maxWidth: '600px', margin: '0 auto 24px auto' }}>
-          {overallMessage.sub}
+        <p style={{ fontSize: '1.05rem', color: 'var(--text-muted)', fontWeight: 600, maxWidth: '600px', margin: '0 auto 24px auto' }}>
+          {result.overallMessage?.sub || subText}
         </p>
 
         {/* Score Grid */}
@@ -75,19 +90,19 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
             <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase' }}>Điểm Số</div>
           </div>
 
-          <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: 'var(--radius-md)', border: '2px solid var(--border-color)' }}>
-            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--primary)' }}>{correctCount}/{totalQuestions}</div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Câu Đúng</div>
+          <div style={{ background: '#ECFDF5', padding: '16px', borderRadius: 'var(--radius-md)', border: '2px solid #A7F3D0' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#065F46' }}>{correctCount}/{totalQuestions}</div>
+            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#047857', textTransform: 'uppercase' }}>Câu Đúng</div>
           </div>
 
-          <div style={{ background: '#FEF3C7', padding: '16px', borderRadius: 'var(--radius-md)', border: '2px solid #FDE68A' }}>
-            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#B45309' }}>+{xpEarned} ⭐</div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase' }}>XP Nhận Được</div>
+          <div style={{ background: '#EEF2FF', padding: '16px', borderRadius: 'var(--radius-md)', border: '2px solid #C7D2FE' }}>
+            <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#4F46E5' }}>+{xpEarned} ⭐</div>
+            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#3730A3', textTransform: 'uppercase' }}>XP Thưởng</div>
           </div>
 
           <div style={{ background: '#FFE4E6', padding: '16px', borderRadius: 'var(--radius-md)', border: '2px solid #FECDD3' }}>
             <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#E11D48' }}>🔥 {maxCombo}</div>
-            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#9F1239', textTransform: 'uppercase' }}>Combo Đỉnh Nhất</div>
+            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#9F1239', textTransform: 'uppercase' }}>Combo</div>
           </div>
         </div>
 
@@ -100,7 +115,7 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
             <span>🏆 Xem Bảng Vàng</span>
           </button>
           <button className="btn-secondary" onClick={() => { sound.pop(); onBackToSubjects(); }}>
-            <span>📚 Chọn Bài Khác</span>
+            <span>📚 Chọn Bài Học Khác</span>
           </button>
         </div>
       </div>
@@ -112,14 +127,15 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
           <span>Xem Lại Bài Làm & Lời Giải Thích Chi Tiết Từng Bước:</span>
         </h3>
 
-        {questionBreakdown.map((q, idx) => (
+        {breakdownList.map((q, idx) => (
           <div
-            key={q.questionId}
+            key={q.questionId || idx}
             className="card"
             style={{
               marginBottom: '18px',
               borderColor: q.isCorrect ? '#A7F3D0' : '#FECDD3',
-              background: q.isCorrect ? '#FCFDFD' : '#FFFDFD'
+              background: q.isCorrect ? '#FCFDFD' : '#FFFDFD',
+              padding: '24px'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -134,7 +150,7 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
                   color: q.isCorrect ? '#065F46' : '#991B1B'
                 }}
               >
-                {q.isCorrect ? '✅ Bé trả lời chính xác (+5 XP)' : '❌ Chưa chính xác'}
+                {q.isCorrect ? '✅ Trả lời chính xác (+5 XP)' : '❌ Chưa chính xác'}
               </span>
             </div>
 
