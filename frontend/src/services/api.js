@@ -802,10 +802,53 @@ class ApiService {
     };
   }
 
-  // Teacher Dashboard
+  // Real Submissions Storage & Analysis
+  getRealSubmissions() {
+    try {
+      const stored = JSON.parse(localStorage.getItem('edukids_submissions'));
+      if (Array.isArray(stored)) return stored;
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Teacher Dashboard - Calculated with 100% REAL student submissions
   async getTeacherDashboard() {
     const res = await this.request('/teachers/dashboard');
     if (res.success && res.classAnalytics) return res;
+
+    const allSubmissions = this.getRealSubmissions();
+    const students = [
+      { id: 1, full_name: 'Nguyễn Minh Anh', avatar: 'mascot-bear', grade_level: 4, xp: 1250 },
+      { id: 2, full_name: 'Trần Bình', avatar: 'mascot-lion', grade_level: 4, xp: 850 },
+      { id: 3, full_name: 'Lê Minh', avatar: 'mascot-rabbit', grade_level: 4, xp: 420 }
+    ];
+
+    const studentSummary = students.map(st => {
+      const userSubs = allSubmissions.filter(s => s.user_id === st.id || s.user_name === st.full_name);
+      let avg = null;
+      if (userSubs.length > 0) {
+        const total = userSubs.reduce((acc, c) => acc + (c.score10 !== undefined ? c.score10 : 0), 0);
+        avg = (total / userSubs.length).toFixed(1);
+      }
+      return {
+        ...st,
+        submissionsCount: userSubs.length,
+        averageScore: avg,
+        isStruggling: avg !== null && parseFloat(avg) < 7.0
+      };
+    });
+
+    const studentsWithScore = studentSummary.filter(s => s.averageScore !== null);
+    let classAvg = null;
+    if (studentsWithScore.length > 0) {
+      const sum = studentsWithScore.reduce((acc, c) => acc + parseFloat(c.averageScore), 0);
+      classAvg = (sum / studentsWithScore.length).toFixed(1);
+    }
+
+    const struggling = studentSummary.filter(s => s.isStruggling);
+
     return {
       success: true,
       teacher: { id: 10, full_name: 'Cô Hoàng Mai', role: 'teacher', avatar: 'mascot-panda' },
@@ -816,15 +859,11 @@ class ApiService {
           gradeLevel: 4,
           schoolYear: '2025-2026',
           stats: {
-            totalStudents: 3,
-            totalSubmissionsCount: 3,
-            classAverageScore: 8.0,
-            strugglingStudents: [{ id: 3, full_name: 'Lê Minh', averageScore: 6.5 }],
-            studentSummary: [
-              { id: 2, full_name: 'Trần Bình', avatar: 'mascot-lion', grade_level: 4, xp: 850, submissionsCount: 3, averageScore: 9.0, isStruggling: false },
-              { id: 1, full_name: 'Nguyễn Minh Anh', avatar: 'mascot-bear', grade_level: 4, xp: 1250, submissionsCount: 3, averageScore: 8.5, isStruggling: false },
-              { id: 3, full_name: 'Lê Minh', avatar: 'mascot-rabbit', grade_level: 4, xp: 420, submissionsCount: 2, averageScore: 6.5, isStruggling: true }
-            ]
+            totalStudents: students.length,
+            totalSubmissionsCount: allSubmissions.length,
+            classAverageScore: classAvg,
+            strugglingStudents: struggling,
+            studentSummary
           }
         }
       ]
@@ -875,7 +914,9 @@ class ApiService {
       grade_level: grade,
       subject_id: subjectId,
       reward_xp: exercise.reward_xp || 50,
-      questions: exercise.questions || []
+      questions: exercise.questions || [],
+      assigned_to: exercise.assigned_to || 'Lớp 4A1',
+      due_date: exercise.due_date || 'Chủ nhật tuần này (23:59)'
     };
 
     curriculumDatabase.exercises[id] = fullExercise;
@@ -914,25 +955,60 @@ class ApiService {
 
   getTeacherExercises() {
     const list = [];
+    const allSubmissions = this.getRealSubmissions();
+
+    // Map exercise metadata
+    const metaMap = {};
+    for (const [gradeStr, subjects] of Object.entries(curriculumDatabase.lessonsByGradeAndSubject)) {
+      const g = parseInt(gradeStr, 10);
+      for (const [subjStr, lessons] of Object.entries(subjects)) {
+        const s = parseInt(subjStr, 10);
+        lessons.forEach(l => {
+          if (l.exercise_id) {
+            metaMap[l.exercise_id] = {
+              grade_level: g,
+              subject_id: s,
+              assigned_to: `Lớp ${g}A1`
+            };
+          }
+        });
+      }
+    }
+
     for (const [id, ex] of Object.entries(curriculumDatabase.exercises)) {
       if (!ex) continue;
       const numericId = parseInt(id, 10);
-      const subjectObj = curriculumDatabase.subjects.find(s => s.id === ex.subject_id) || { name: 'Toán Học', icon: '📐' };
+      const meta = metaMap[numericId] || {};
+      const gradeLevel = ex.grade_level || meta.grade_level || (numericId >= 1050 ? 5 : (numericId >= 1040 || numericId <= 110 ? 4 : (numericId >= 1030 ? 3 : (numericId >= 1020 ? 2 : 1))));
+      const subjectId = ex.subject_id || meta.subject_id || 1;
+      const subjectObj = curriculumDatabase.subjects.find(s => s.id === subjectId) || { name: 'Toán Học', icon: '📐' };
+
+      // Filter 100% REAL submissions for this exercise
+      const exSubs = allSubmissions.filter(s => s.exercise_id === numericId);
+      const subCount = exSubs.length;
+
+      let avgScore = null;
+      if (subCount > 0) {
+        const totalScore = exSubs.reduce((acc, curr) => acc + (curr.score10 !== undefined ? curr.score10 : 10), 0);
+        avgScore = (totalScore / subCount).toFixed(1);
+      }
+
       list.push({
         id: numericId,
         title: ex.title,
-        grade_level: ex.grade_level || 4,
-        subject_id: ex.subject_id || 1,
+        grade_level: gradeLevel,
+        subject_id: subjectId,
         subject_name: subjectObj.name,
         subject_icon: subjectObj.icon,
         reward_xp: ex.reward_xp || 50,
         questionsCount: ex.questions?.length || 0,
         questions: ex.questions || [],
-        assigned_to: ex.assigned_to || 'Lớp 4A1',
+        assigned_to: ex.assigned_to || meta.assigned_to || `Lớp ${gradeLevel}A1`,
         due_date: ex.due_date || 'Chủ nhật tuần này (23:59)',
-        submissions_count: ex.submissions_count !== undefined ? ex.submissions_count : 3,
+        submissions_count: subCount,
         total_students: 3,
-        average_score: ex.average_score || 8.5
+        average_score: avgScore,
+        submissionsList: exSubs
       });
     }
     return { success: true, exercises: list };
@@ -1072,6 +1148,35 @@ class ApiService {
     const maxScore = totalQ * 10;
     const score10 = Math.round((totalScore / maxScore) * 10);
     const scorePercentage = Math.round((totalScore / maxScore) * 100);
+
+    // Record Real Submission Record
+    try {
+      const userStored = JSON.parse(localStorage.getItem('edukids_user') || '{}');
+      const newSubmission = {
+        id: Date.now(),
+        exercise_id: parseInt(exerciseId, 10),
+        exercise_title: ex?.title || 'Bài tập',
+        user_id: userStored.id || 1,
+        user_name: userStored.full_name || 'Học sinh',
+        user_avatar: userStored.avatar || 'mascot-bear',
+        grade_level: userStored.grade_level || 4,
+        score10,
+        score: totalScore,
+        totalQuestions: totalQ,
+        correctCount: detailedFeedback.filter(f => f.isCorrect).length,
+        wrongCount: detailedFeedback.filter(f => !f.isCorrect).length,
+        percentage: scorePercentage,
+        xpEarned: earnedXp || 30,
+        timeTakenSeconds: timeTakenSeconds || 30,
+        submittedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' Hôm nay'
+      };
+
+      const currentSubs = JSON.parse(localStorage.getItem('edukids_submissions') || '[]');
+      currentSubs.unshift(newSubmission);
+      localStorage.setItem('edukids_submissions', JSON.stringify(currentSubs));
+    } catch (e) {
+      console.warn('Cannot record submission:', e);
+    }
 
     return {
       success: true,

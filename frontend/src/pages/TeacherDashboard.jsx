@@ -520,7 +520,7 @@ export default function TeacherDashboard() {
                 </div>
 
                 <div className="chip" style={{ background: '#D1FAE5', color: '#065F46', border: '1.5px solid #A7F3D0', fontSize: '0.95rem' }}>
-                  <span>📊 Điểm TB Lớp: <strong>{cls.stats.classAverageScore} / 10</strong></span>
+                  <span>📊 Điểm TB Lớp: <strong>{cls.stats.classAverageScore ? `${cls.stats.classAverageScore} / 10` : 'Chưa có bài nộp'}</strong></span>
                 </div>
               </div>
 
@@ -566,16 +566,22 @@ export default function TeacherDashboard() {
                       </td>
                       <td>Lớp {st.grade_level}</td>
                       <td><span style={{ color: '#B45309', fontWeight: 900 }}>⭐ {st.xp} XP</span></td>
-                      <td>{st.submissionsCount} bài</td>
+                      <td>{st.submissionsCount > 0 ? `${st.submissionsCount} bài` : '0 bài'}</td>
                       <td>
-                        <span className={`score-tag ${st.averageScore >= 8.5 ? 'high' : (st.averageScore >= 7.0 ? 'mid' : 'low')}`}>
-                          {st.averageScore} / 10
-                        </span>
+                        {st.averageScore !== null ? (
+                          <span className={`score-tag ${parseFloat(st.averageScore) >= 8.5 ? 'high' : (parseFloat(st.averageScore) >= 7.0 ? 'mid' : 'low')}`}>
+                            {st.averageScore} / 10
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94A3B8', fontWeight: 700 }}>Chưa có</span>
+                        )}
                       </td>
                       <td>
-                        {st.averageScore >= 8.5 ? (
+                        {st.averageScore === null ? (
+                          <span style={{ color: '#94A3B8', fontWeight: 700 }}>⏳ Chưa làm bài tập nào</span>
+                        ) : parseFloat(st.averageScore) >= 8.5 ? (
                           <span style={{ color: '#059669', fontWeight: 800 }}>🌟 Nắm rất vững kiến thức</span>
-                        ) : st.averageScore >= 7.0 ? (
+                        ) : parseFloat(st.averageScore) >= 7.0 ? (
                           <span style={{ color: '#D97706', fontWeight: 800 }}>👍 Đạt chuẩn kiến thức kỹ năng</span>
                         ) : (
                           <span style={{ color: '#DC2626', fontWeight: 800 }}>⚡ Cần ôn thêm chuyên đề</span>
@@ -649,26 +655,43 @@ export default function TeacherDashboard() {
                         <span style={{ fontWeight: 700, color: '#334155' }}>{ex.assigned_to || 'Lớp 4A1'}</span>
                       </td>
                       <td>
-                        <span style={{
-                          padding: '3px 8px',
-                          borderRadius: '9999px',
-                          fontSize: '0.75rem',
-                          fontWeight: 800,
-                          background: '#D1FAE5',
-                          color: '#065F46'
-                        }}>
-                          {ex.submissions_count || 3}/{ex.total_students || 3} đã nộp
-                        </span>
+                        {ex.submissions_count === 0 ? (
+                          <span style={{
+                            padding: '3px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            background: '#F1F5F9',
+                            color: '#64748B'
+                          }}>
+                            0/{ex.total_students || 3} đã nộp
+                          </span>
+                        ) : (
+                          <span style={{
+                            padding: '3px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            background: '#D1FAE5',
+                            color: '#065F46'
+                          }}>
+                            {ex.submissions_count}/{ex.total_students || 3} đã nộp
+                          </span>
+                        )}
                       </td>
                       <td>
-                        <span style={{ fontWeight: 900, color: '#B45309' }}>{ex.average_score || 8.5}/10</span>
+                        {ex.average_score !== null ? (
+                          <span style={{ fontWeight: 900, color: '#B45309' }}>{ex.average_score}/10</span>
+                        ) : (
+                          <span style={{ color: '#94A3B8', fontWeight: 700 }}>Chưa có</span>
+                        )}
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', gap: '6px' }}>
                           <button
                             type="button"
                             onClick={() => { sound.pop(); setSelectedViewExercise(ex); }}
-                            title="Xem chi tiết câu hỏi"
+                            title="Xem chi tiết câu hỏi & danh sách học sinh nộp bài"
                             style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#4F46E5', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
                           >
                             👁️ Xem
@@ -714,14 +737,14 @@ export default function TeacherDashboard() {
               zIndex: 99999,
               padding: '20px'
             }}>
-              <div className="card" style={{ maxWidth: '680px', width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: '28px', position: 'relative' }}>
+              <div className="card" style={{ maxWidth: '720px', width: '100%', maxHeight: '85vh', overflowY: 'auto', padding: '28px', position: 'relative' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px' }}>
                   <div>
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1E293B', margin: 0 }}>
                       👁️ Chi Tiết Đề Bài: {selectedViewExercise.title}
                     </h3>
                     <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 700 }}>
-                      Khối {selectedViewExercise.grade_level} • Gồm {selectedViewExercise.questions?.length || 0} câu hỏi • +{selectedViewExercise.reward_xp || 50} XP
+                      Khối {selectedViewExercise.grade_level} • Gồm {selectedViewExercise.questions?.length || 0} câu hỏi • +{selectedViewExercise.reward_xp || 50} XP • {selectedViewExercise.submissions_count || 0} lượt nộp bài
                     </span>
                   </div>
 
@@ -732,6 +755,37 @@ export default function TeacherDashboard() {
                   >
                     ✕
                   </button>
+                </div>
+
+                {/* Submissions by Real Students */}
+                <div style={{ marginBottom: '20px', background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: '14px', padding: '16px' }}>
+                  <h4 style={{ fontWeight: 900, color: '#166534', fontSize: '0.98rem', marginBottom: '8px' }}>
+                    📊 Danh Sách Học Sinh Đã Nộp Bài ({selectedViewExercise.submissionsList?.length || 0} em):
+                  </h4>
+
+                  {selectedViewExercise.submissionsList && selectedViewExercise.submissionsList.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {selectedViewExercise.submissionsList.map((sub, sIdx) => (
+                        <div key={sub.id || sIdx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid #DCFCE7' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '1.2rem' }}>{sub.user_avatar === 'mascot-bear' ? '🐻' : (sub.user_avatar === 'mascot-lion' ? '🦁' : '🐰')}</span>
+                            <div>
+                              <strong style={{ color: '#1E293B' }}>{sub.user_name}</strong>
+                              <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Nộp lúc: {sub.submittedAt} • Làm trong {sub.timeTakenSeconds}s</div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontWeight: 900, color: '#059669', fontSize: '1.1rem' }}>{sub.score10}/10</div>
+                            <div style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 700 }}>Đúng {sub.correctCount}/{sub.totalQuestions} câu</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ color: '#64748B', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                      Chưa có học sinh nào nộp bài tập này.
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
