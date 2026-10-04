@@ -210,24 +210,29 @@ class ApiService {
 
             // Cross-device sync: If current logged-in user exists on this device (phone/laptop), update XP & class from cloud
             const currentUser = JSON.parse(localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user') || '{}');
-            if (currentUser && currentUser.full_name) {
-              const cloudMatch = res.students.find(s => 
-                (s.full_name && s.full_name.toLowerCase() === currentUser.full_name.toLowerCase()) || 
-                (s.student_name && s.student_name.toLowerCase() === currentUser.full_name.toLowerCase()) ||
-                String(s.id) === String(currentUser.id)
-              );
+            if (currentUser && (currentUser.full_name || currentUser.username)) {
+              const curName = (currentUser.full_name || currentUser.username || '').toLowerCase();
+              const curUser = (currentUser.username || '').toLowerCase();
+              const cloudMatch = res.students.find(s => {
+                const sName = (s.full_name || s.student_name || '').toLowerCase();
+                const sUser = (s.username || '').toLowerCase();
+                return (sName && (sName === curName || sName === curUser)) ||
+                       (sUser && (sUser === curName || sUser === curUser)) ||
+                       (currentUser.parent_phone && s.parent_phone === currentUser.parent_phone) ||
+                       String(s.id) === String(currentUser.id);
+              });
               if (cloudMatch) {
                 const mergedXp = Math.max(currentUser.xp || 0, cloudMatch.xp || 0);
-                if (mergedXp !== currentUser.xp || (cloudMatch.class_code && cloudMatch.class_code !== currentUser.class_code)) {
-                  const syncedUser = {
-                    ...currentUser,
-                    xp: mergedXp,
-                    class_code: cloudMatch.class_code || currentUser.class_code,
-                    class_name: cloudMatch.class_name || currentUser.class_name
-                  };
-                  localStorage.setItem('edukids_v2_user', JSON.stringify(syncedUser));
-                  localStorage.setItem('edukids_user', JSON.stringify(syncedUser));
-                }
+                const syncedClassCode = cloudMatch.class_code || currentUser.class_code || '';
+                const syncedClassName = cloudMatch.class_name || currentUser.class_name || (syncedClassCode ? syncedClassCode.split('-')[0] : '');
+                const syncedUser = {
+                  ...currentUser,
+                  xp: mergedXp,
+                  class_code: syncedClassCode,
+                  class_name: syncedClassName
+                };
+                localStorage.setItem('edukids_v2_user', JSON.stringify(syncedUser));
+                localStorage.setItem('edukids_user', JSON.stringify(syncedUser));
               }
             }
           } catch (e) {}
@@ -242,24 +247,28 @@ class ApiService {
   }
 
   async joinClass({ class_code, student_name, parent_phone, avatar, grade_level }) {
-    const code = (class_code || '2A1-8429').toUpperCase().trim();
-    let className = code.split('-')[0] || `Lớp ${grade_level || 2}A1`;
+    const code = (class_code || '').toUpperCase().trim();
+    let className = code ? (code.split('-')[0] || `Lớp ${grade_level || 2}A1`) : '';
     try {
       const customClasses = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
       const found = customClasses.find(c => c.class_code === code || c.className === className);
       if (found) className = found.className;
     } catch (e) {}
 
+    const currentUser = JSON.parse(localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user') || '{}');
+    const existingXp = Math.max(currentUser.xp || 0, 50);
+
     const student = {
-      id: Date.now(),
+      ...currentUser,
+      id: currentUser.id || Date.now(),
       full_name: student_name.trim(),
       student_name: student_name.trim(),
       class_code: code,
       class_name: className,
-      parent_phone: parent_phone ? parent_phone.trim() : '',
-      avatar: avatar || 'mascot-bear',
-      grade_level: parseInt(grade_level || 2, 10),
-      xp: 50,
+      parent_phone: parent_phone ? parent_phone.trim() : (currentUser.parent_phone || ''),
+      avatar: avatar || currentUser.avatar || 'mascot-bear',
+      grade_level: parseInt(grade_level || currentUser.grade_level || 2, 10),
+      xp: existingXp,
       role: 'student'
     };
 
@@ -534,15 +543,17 @@ class ApiService {
             const name = st.full_name || st.name;
             const id = String(st.id);
             if (!deletedSet.has(name.toLowerCase()) && !deletedSet.has(id)) {
+              const code = st.class_code || '';
+              const cName = st.class_name || (code ? code.split('-')[0] : '');
               studentMap.set(name.toLowerCase(), {
                 id: st.id || Date.now(),
                 full_name: name,
                 parent_phone: st.parent_phone || '',
-                class_code: st.class_code || `${st.grade_level || 2}A1-8429`,
-                class_name: st.class_name || `${st.grade_level || 2}A1`,
+                class_code: code,
+                class_name: cName,
                 avatar: st.avatar || 'mascot-bear',
                 grade_level: parseInt(st.grade_level || 2, 10),
-                class_id: st.class_id || `${st.grade_level || 2}A1`,
+                class_id: cName || (code ? `Lớp ${code}` : ''),
                 xp: st.xp || 0
               });
             }
@@ -551,25 +562,28 @@ class ApiService {
       }
 
       // 2. Add current active student if student role
-      if (currentUser && currentUser.role === 'student' && currentUser.full_name) {
-        const nameKey = currentUser.full_name.toLowerCase();
+      if (currentUser && currentUser.role === 'student' && (currentUser.full_name || currentUser.username)) {
+        const studentName = currentUser.full_name || currentUser.username;
+        const nameKey = studentName.toLowerCase();
         const idKey = String(currentUser.id);
         if (!deletedSet.has(nameKey) && !deletedSet.has(idKey)) {
+          const code = currentUser.class_code || '';
+          const cName = currentUser.class_name || (code ? code.split('-')[0] : '');
           const existing = studentMap.get(nameKey);
           if (existing) {
             existing.xp = Math.max(existing.xp || 0, currentUser.xp || 0);
-            if (currentUser.class_code) existing.class_code = currentUser.class_code;
-            if (currentUser.class_name) existing.class_name = currentUser.class_name;
+            if (code) existing.class_code = code;
+            if (cName) existing.class_name = cName;
           } else {
             studentMap.set(nameKey, {
               id: currentUser.id || Date.now(),
-              full_name: currentUser.full_name,
+              full_name: studentName,
               parent_phone: currentUser.parent_phone || '',
-              class_code: currentUser.class_code || `${currentUser.grade_level || 2}A1-8429`,
-              class_name: currentUser.class_name || `${currentUser.grade_level || 2}A1`,
+              class_code: code,
+              class_name: cName,
               avatar: currentUser.avatar || 'mascot-bear',
               grade_level: parseInt(currentUser.grade_level || 2, 10),
-              class_id: currentUser.class_name || `Lớp ${currentUser.grade_level || 2}A1`,
+              class_id: cName || (code ? `Lớp ${code}` : ''),
               xp: currentUser.xp || 50
             });
           }
@@ -583,17 +597,19 @@ class ApiService {
           const nameKey = name.toLowerCase();
           const idKey = String(sub.user_id);
           if (!deletedSet.has(nameKey) && !deletedSet.has(idKey)) {
+            const code = sub.class_code || '';
+            const cName = sub.class_name || (code ? code.split('-')[0] : '');
             const existing = studentMap.get(nameKey);
             if (!existing) {
               studentMap.set(nameKey, {
                 id: sub.user_id || Date.now(),
                 full_name: name,
                 parent_phone: sub.parent_phone || '',
-                class_code: sub.class_code || `${sub.grade_level || 2}A1-8429`,
-                class_name: sub.class_name || `${sub.grade_level || 2}A1`,
+                class_code: code,
+                class_name: cName,
                 avatar: sub.student_avatar || sub.user_avatar || 'mascot-bear',
                 grade_level: parseInt(sub.grade_level || 2, 10),
-                class_id: `Lớp ${sub.grade_level || 2}A1`,
+                class_id: cName || (code ? `Lớp ${code}` : ''),
                 xp: sub.xpEarned || 30
               });
             }
@@ -608,7 +624,8 @@ class ApiService {
           return subName === key || String(s.user_id) === String(student.id);
         });
         const totalSubsXp = studentSubs.reduce((acc, curr) => acc + (curr.xpEarned || curr.earnedXp || 30), 0);
-        const userXp = (currentUser && (currentUser.full_name?.toLowerCase() === key || String(currentUser.id) === String(student.id))) ? (currentUser.xp || 0) : 0;
+        const curName = (currentUser.full_name || currentUser.username || '').toLowerCase();
+        const userXp = (currentUser && (curName === key || String(currentUser.id) === String(student.id))) ? (currentUser.xp || 0) : 0;
         student.xp = Math.max(student.xp || 0, totalSubsXp, userXp);
       }
 
@@ -699,7 +716,7 @@ class ApiService {
       const studentObj = {
         ...newStudent,
         id: newStudent.id || Date.now(),
-        class_code: (newStudent.class_code || '2A1-8429').toUpperCase()
+        class_code: newStudent.class_code ? newStudent.class_code.toUpperCase() : ''
       };
       stored = stored.filter(s => s.id !== studentObj.id && s.full_name !== studentObj.full_name);
       stored.push(studentObj);
@@ -1266,7 +1283,8 @@ class ApiService {
         user_avatar: userStored.avatar || 'mascot-bear',
         student_avatar: userStored.avatar || 'mascot-bear',
         grade_level: userStored.grade_level || 2,
-        class_code: userStored.class_code || `${userStored.grade_level || 2}A1-8429`,
+        class_code: userStored.class_code || '',
+        class_name: userStored.class_name || (userStored.class_code ? userStored.class_code.split('-')[0] : ''),
         score10,
         score: totalScore,
         totalQuestions: totalQ,

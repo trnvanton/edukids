@@ -243,7 +243,7 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
               {user.role === 'student' && (
                 <div
                   onClick={() => { sound.pop(); setShowProfileModal(true); }}
-                  title={`Lớp: ${user.class_name || user.class_code || `Khối ${user.grade_level}`} • Bấm để đổi hồ sơ`}
+                  title={user.class_code ? `Lớp: ${user.class_name ? `Lớp ${user.class_name}` : ''} (${user.class_code}) • Bấm để xem hồ sơ` : `Bé chưa vào lớp nào (Khối ${user.grade_level || 2}) • Bấm để xem hồ sơ`}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -260,13 +260,13 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                   }}
                 >
                   <span style={{
-                    color: '#4F46E5',
-                    background: '#EEF2FF',
+                    color: user.class_code ? '#4F46E5' : '#D97706',
+                    background: user.class_code ? '#EEF2FF' : '#FEF3C7',
                     padding: '2px 8px',
                     borderRadius: '9999px',
                     fontWeight: 900
                   }}>
-                    🏫 Lớp {user.class_name || (user.class_code ? user.class_code.split('-')[0] : (user.grade_level || 2))}
+                    {user.class_code ? `🏫 Lớp ${user.class_name || user.class_code.split('-')[0]}` : `🏫 Khối ${user.grade_level || 2}`}
                   </span>
                   <span style={{ color: '#D97706', fontWeight: 800 }}>
                     ⭐ {user.xp || 0}
@@ -305,11 +305,11 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                 <button
                   type="button"
                   onClick={() => { sound.pop(); if (onOpenJoinClass) onOpenJoinClass(); }}
-                  title="Nhập mã lớp học của Thầy/Cô để vào lớp"
+                  title={user.class_code ? `Bé đang ở Lớp ${user.class_name || user.class_code} (${user.class_code}). Bấm để đổi Mã Lớp khác` : "Nhập mã lớp học của Thầy/Cô để vào lớp"}
                   style={{
-                    background: '#EEF2FF',
-                    border: '1.5px solid #C7D2FE',
-                    color: '#4338CA',
+                    background: user.class_code ? '#F0FDF4' : '#EEF2FF',
+                    border: user.class_code ? '1.5px solid #BBF7D0' : '1.5px solid #C7D2FE',
+                    color: user.class_code ? '#15803D' : '#4338CA',
                     fontWeight: 800,
                     fontSize: '0.78rem',
                     cursor: 'pointer',
@@ -323,8 +323,8 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                     flexShrink: 0
                   }}
                 >
-                  <span>🔑</span>
-                  <span>Vào Lớp</span>
+                  <span>{user.class_code ? '🔄' : '🔑'}</span>
+                  <span>{user.class_code ? 'Đổi Lớp' : 'Vào Lớp'}</span>
                 </button>
               )}
 

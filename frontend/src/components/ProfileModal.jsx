@@ -89,25 +89,27 @@ export default function ProfileModal() {
 
         <form onSubmit={handleSubmit}>
           {/* Current Class Info */}
-          {user?.class_code && (
-            <div style={{
-              background: '#F5F3FF',
-              border: '1.5px solid #DDD6FE',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              marginBottom: '14px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div>
-                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#6D28D9', display: 'block' }}>🏫 LỚP HỌC HIỆN TẠI:</span>
-                <strong style={{ fontSize: '0.95rem', color: '#4C1D95' }}>
-                  Lớp {user.class_name || user.class_code.split('-')[0]} (Mã: {user.class_code})
-                </strong>
-              </div>
+          <div style={{
+            background: user?.class_code ? '#F5F3FF' : '#FEF3C7',
+            border: user?.class_code ? '1.5px solid #DDD6FE' : '1.5px solid #FDE68A',
+            borderRadius: '10px',
+            padding: '10px 14px',
+            marginBottom: '14px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div>
+              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: user?.class_code ? '#6D28D9' : '#B45309', display: 'block' }}>
+                🏫 LỚP HỌC HIỆN TẠI:
+              </span>
+              <strong style={{ fontSize: '0.95rem', color: user?.class_code ? '#4C1D95' : '#92400E' }}>
+                {user?.class_code 
+                  ? `Lớp ${user.class_name || user.class_code.split('-')[0]} (Mã: ${user.class_code})`
+                  : `Bé chưa vào lớp nào (Đang tự luyện Khối ${user?.grade_level || 2})`}
+              </strong>
             </div>
-          )}
+          </div>
 
           {/* Full Name */}
           <div style={{ marginBottom: '14px' }}>
