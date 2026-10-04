@@ -9,7 +9,6 @@ export default function Navbar({ activeTab, setActiveTab }) {
     logout,
     openLogin,
     openRegister,
-    switchRole,
     getAvatarEmoji,
     isMuted,
     setIsMuted,
@@ -22,11 +21,6 @@ export default function Navbar({ activeTab, setActiveTab }) {
     setIsMuted(muted);
   };
 
-  const getGradeName = (num) => {
-    const map = { 1: 'Lớp 1 🌱', 2: 'Lớp 2 🐥', 3: 'Lớp 3 🐱', 4: 'Lớp 4 🚀', 5: 'Lớp 5 👑' };
-    return map[num] || `Lớp ${num}`;
-  };
-
   const handleLogout = () => {
     sound.pop();
     logout();
@@ -34,46 +28,144 @@ export default function Navbar({ activeTab, setActiveTab }) {
   };
 
   return (
-    <header className="main-navbar">
-      <div className="container nav-content">
-        {/* Logo */}
-        <div className="nav-logo" onClick={() => setActiveTab('dashboard')}>
-          <div className="nav-logo-icon">🎒</div>
-          <div className="nav-logo-text">
-            <h1>EduKids</h1>
-            <p>Học Tập & Luyện Tập Thông Minh</p>
+    <header style={{
+      background: '#FFFFFF',
+      borderBottom: '1px solid #E2E8F0',
+      position: 'sticky',
+      top: 0,
+      zIndex: 100,
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+    }}>
+      <div className="container" style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        height: '68px',
+        padding: '0 20px'
+      }}>
+        {/* Left: Brand Logo */}
+        <div
+          onClick={() => { sound.pop(); setActiveTab('dashboard'); }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            cursor: 'pointer',
+            userSelect: 'none'
+          }}
+        >
+          <div style={{
+            fontSize: '1.6rem',
+            background: 'linear-gradient(135deg, #EEF2FF, #E0E7FF)',
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid #C7D2FE'
+          }}>
+            🎒
+          </div>
+          <div>
+            <span style={{
+              fontSize: '1.3rem',
+              fontWeight: 900,
+              color: '#4F46E5',
+              letterSpacing: '-0.3px',
+              display: 'block',
+              lineHeight: 1.1
+            }}>
+              EduKids
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 700 }}>
+              Tiểu Học Thông Minh
+            </span>
           </div>
         </div>
 
-        {/* Navigation Tabs based on Role */}
-        <div className="nav-links">
+        {/* Center: Clean Navigation Links */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {user && user.role === 'student' && (
             <>
               <button
-                className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={() => { sound.pop(); setActiveTab('dashboard'); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.92rem',
+                  cursor: 'pointer',
+                  background: activeTab === 'dashboard' ? '#EEF2FF' : 'transparent',
+                  color: activeTab === 'dashboard' ? '#4F46E5' : '#64748B',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
               >
-                🏠 Trang Chủ
+                <span>🏠</span>
+                <span>Trang Chủ</span>
               </button>
+
               <button
-                className={`nav-btn ${activeTab === 'subjects' ? 'active' : ''}`}
                 onClick={() => { sound.pop(); setActiveTab('subjects'); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.92rem',
+                  cursor: 'pointer',
+                  background: activeTab === 'subjects' ? '#EEF2FF' : 'transparent',
+                  color: activeTab === 'subjects' ? '#4F46E5' : '#64748B',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
               >
-                📚 Môn Học & Bài Tập
+                <span>📚</span>
+                <span>Môn Học & Bài Tập</span>
               </button>
+
               <button
-                className={`nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
                 onClick={() => { sound.pop(); setActiveTab('leaderboard'); }}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.92rem',
+                  cursor: 'pointer',
+                  background: activeTab === 'leaderboard' ? '#EEF2FF' : 'transparent',
+                  color: activeTab === 'leaderboard' ? '#4F46E5' : '#64748B',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
               >
-                🏆 Bảng Vàng
+                <span>🏆</span>
+                <span>Bảng Vàng</span>
               </button>
             </>
           )}
 
           {user && user.role === 'teacher' && (
             <button
-              className="nav-btn active"
               onClick={() => { sound.pop(); setActiveTab('teacher'); }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '10px',
+                border: 'none',
+                fontWeight: 800,
+                fontSize: '0.92rem',
+                cursor: 'pointer',
+                background: '#FEF3C7',
+                color: '#B45309'
+              }}
             >
               👩‍🏫 Quản Lý Lớp Học & Bài Tập
             </button>
@@ -81,107 +173,133 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
           {user && user.role === 'admin' && (
             <button
-              className="nav-btn active"
               onClick={() => { sound.pop(); setActiveTab('admin'); }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '10px',
+                border: 'none',
+                fontWeight: 800,
+                fontSize: '0.92rem',
+                cursor: 'pointer',
+                background: '#ECFDF5',
+                color: '#065F46'
+              }}
             >
               👨‍💼 Quản Trị Hệ Thống
             </button>
           )}
-        </div>
+        </nav>
 
-        {/* Gamification Stats & Profile / Login Buttons */}
-        <div className="nav-stats">
+        {/* Right: Consolidated Student Badge & Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {user ? (
             <>
+              {/* Consolidated Student Status Pill */}
               {user.role === 'student' && (
-                <>
-                  {/* Grade Badge */}
-                  <div
-                    className="chip"
-                    onClick={() => { sound.pop(); setShowProfileModal(true); }}
-                    style={{
-                      background: '#EEF2FF',
-                      color: 'var(--primary)',
-                      border: '1.5px solid #C7D2FE',
-                      cursor: 'pointer'
-                    }}
-                    title="Bấm để đổi khối lớp nếu bé vừa lên lớp mới"
-                  >
-                    <span>🏫</span>
-                    <span>{getGradeName(user.grade_level || 1)}</span>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>✏️</span>
-                  </div>
-
-                  {/* XP */}
-                  <div className="chip chip-xp" title="Điểm kinh nghiệm XP">
-                    <span>⭐</span>
-                    <span>{user.xp || 0} XP</span>
-                  </div>
-
-                  {/* Streak */}
-                  <div className="chip chip-streak" title="Chuỗi ngày học liên tục">
-                    <span>🔥</span>
-                    <span>{user.streak_days || 1} ngày</span>
-                  </div>
-                </>
+                <div
+                  onClick={() => { sound.pop(); setShowProfileModal(true); }}
+                  title="Bấm để đổi khối lớp hoặc avatar"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    padding: '5px 12px',
+                    borderRadius: '9999px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: 800,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <span style={{ color: '#4F46E5', background: '#EEF2FF', padding: '2px 8px', borderRadius: '9999px' }}>
+                    🏫 Lớp {user.grade_level || 2}
+                  </span>
+                  <span style={{ color: '#D97706' }}>
+                    ⭐ {user.xp || 0} XP
+                  </span>
+                  <span style={{ color: '#EF4444' }}>
+                    🔥 {user.streak_days || 1}d
+                  </span>
+                </div>
               )}
 
-              {/* Sound Toggle */}
+              {/* Sound Toggle Button */}
               <button
                 onClick={handleSound}
-                className="nav-btn"
-                style={{ padding: '8px 12px' }}
                 title="Bật/Tắt âm thanh"
+                style={{
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '50%',
+                  width: '36px',
+                  height: '36px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1rem',
+                  cursor: 'pointer'
+                }}
               >
                 {isMuted ? '🔇' : '🔊'}
               </button>
 
-              {/* User Profile Badge -> Opens Profile Modal */}
+              {/* User Avatar & Name */}
               <div
-                className="user-badge"
                 onClick={() => { sound.pop(); setShowProfileModal(true); }}
-                title="Bấm để xem hồ sơ và đổi khối lớp"
-                style={{ cursor: 'pointer' }}
+                title="Hồ sơ của bé"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  borderRadius: '8px'
+                }}
               >
                 <span style={{ fontSize: '1.4rem' }}>{getAvatarEmoji(user.avatar)}</span>
-                <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                  <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#1E293B' }}>{user.full_name}</span>
-                </div>
+                <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1E293B' }}>
+                  {user.full_name}
+                </span>
               </div>
 
-              {/* Logout Button */}
+              {/* Minimal Logout Button */}
               <button
                 onClick={handleLogout}
-                className="btn-secondary"
+                title="Đăng xuất"
                 style={{
-                  padding: '7px 14px',
-                  borderRadius: 'var(--radius-full)',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#EF4444',
+                  fontWeight: 700,
                   fontSize: '0.85rem',
-                  fontWeight: 800,
-                  color: '#DC2626',
-                  background: '#FEE2E2',
-                  border: '1.5px solid #FECDD3',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  padding: '6px 10px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
                 }}
-                title="Đăng xuất tài khoản"
               >
-                <span>🚪 Đăng Xuất</span>
+                <span>🚪</span>
+                <span>Đăng xuất</span>
               </button>
             </>
           ) : (
-            /* Logged Out State */
-            <div style={{ display: 'flex', gap: '10px' }}>
+            /* Logged Out CTAs */
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button
-                className="btn-secondary"
                 onClick={() => { sound.pop(); openLogin(); }}
-                style={{ padding: '8px 16px', fontSize: '0.9rem' }}
+                className="btn-secondary"
+                style={{ padding: '7px 16px', fontSize: '0.88rem' }}
               >
                 <span>🔑 Đăng Nhập</span>
               </button>
               <button
-                className="btn-primary"
                 onClick={() => { sound.pop(); openRegister(); }}
-                style={{ padding: '8px 18px', fontSize: '0.9rem' }}
+                className="btn-primary"
+                style={{ padding: '7px 18px', fontSize: '0.88rem' }}
               >
                 <span>⭐ Đăng Ký Mới</span>
               </button>
