@@ -749,7 +749,15 @@ export default function AdminDashboard() {
                       onChange={e => {
                         const val = e.target.value;
                         const isR = val !== 'all';
-                        const cnt = val === 'fixed_10' ? 10 : (val === 'fixed_20' ? 20 : (val === 'fixed_30' ? 30 : 10));
+                        let cnt = editExercise.questions?.length || 10;
+                        if (val === 'fixed_5') cnt = 5;
+                        else if (val === 'fixed_10') cnt = 10;
+                        else if (val === 'fixed_15') cnt = 15;
+                        else if (val === 'fixed_20') cnt = 20;
+                        else if (val === 'fixed_30') cnt = 30;
+                        else if (val === 'fixed_50') cnt = 50;
+                        else if (val === 'student_choice') cnt = 10;
+
                         setEditExercise({
                           ...editExercise,
                           random_mode: val,
@@ -760,9 +768,12 @@ export default function AdminDashboard() {
                       style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #C4B5FD', fontWeight: 800, color: '#4C1D95' }}
                     >
                       <option value="all">📋 Làm toàn bộ câu hỏi trong đề</option>
+                      <option value="fixed_5">🎲 Ngân hàng đề: Lấy ngẫu nhiên 5 câu mỗi lượt làm</option>
                       <option value="fixed_10">🎲 Ngân hàng đề: Lấy ngẫu nhiên 10 câu mỗi lượt làm</option>
+                      <option value="fixed_15">🎲 Ngân hàng đề: Lấy ngẫu nhiên 15 câu mỗi lượt làm</option>
                       <option value="fixed_20">🎲 Ngân hàng đề: Lấy ngẫu nhiên 20 câu mỗi lượt làm</option>
                       <option value="fixed_30">🎲 Ngân hàng đề: Lấy ngẫu nhiên 30 câu mỗi lượt làm</option>
+                      <option value="fixed_50">🎲 Ngân hàng đề: Lấy ngẫu nhiên 50 câu mỗi lượt làm</option>
                       <option value="student_choice">🎯 Học sinh tự chọn số lượng (10 / 20 / 30 / Tất cả)</option>
                     </select>
                   </div>

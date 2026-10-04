@@ -65,6 +65,23 @@ export default function TeacherDashboard() {
   const [selectedViewExercise, setSelectedViewExercise] = useState(null);
   const [editingExercise, setEditingExercise] = useState(null);
 
+  // Edit Modal Specific States
+  const [editSearchTerm, setEditSearchTerm] = useState('');
+  const [isAddQOpenInEdit, setIsAddQOpenInEdit] = useState(false);
+  const [editNewQType, setEditNewQType] = useState('multiple_choice');
+  const [editNewQText, setEditNewQText] = useState('');
+  const [editNewOptA, setEditNewOptA] = useState('');
+  const [editNewOptB, setEditNewOptB] = useState('');
+  const [editNewOptC, setEditNewOptC] = useState('');
+  const [editNewOptD, setEditNewOptD] = useState('');
+  const [editNewCorrect, setEditNewCorrect] = useState('A');
+  const [editNewFillAns, setEditNewFillAns] = useState('');
+  const [editNewTFAns, setEditNewTFAns] = useState('Đúng');
+  const [editNewImgUrl, setEditNewImgUrl] = useState('');
+  const [editNewExplanation, setEditNewExplanation] = useState('');
+  const [editNewHint, setEditNewHint] = useState('');
+  const [editCustomRandomCount, setEditCustomRandomCount] = useState(10);
+
   // Random Pool Mode States
   const [randomMode, setRandomMode] = useState('all'); // 'all' | 'fixed_10' | 'fixed_20' | 'fixed_30' | 'student_choice'
   const [shuffleQuestions, setShuffleQuestions] = useState(true);
@@ -296,7 +313,176 @@ export default function TeacherDashboard() {
   // Edit / Delete / View Exercise Actions
   const handleStartEdit = (ex) => {
     sound.pop();
-    setEditingExercise(JSON.parse(JSON.stringify(ex)));
+    const cloned = JSON.parse(JSON.stringify(ex));
+    if (cloned.questions && Array.isArray(cloned.questions)) {
+      cloned.questions = cloned.questions.map((q, idx) => {
+        const type = q.question_type || 'multiple_choice';
+        let opts = q.options;
+        if ((type === 'multiple_choice' || !type) && (!opts || opts.length === 0)) {
+          opts = [
+            { option_label: 'A', answer_text: '' },
+            { option_label: 'B', answer_text: '' },
+            { option_label: 'C', answer_text: '' },
+            { option_label: 'D', answer_text: '' }
+          ];
+        }
+        return {
+          ...q,
+          id: q.id !== undefined ? q.id : (Date.now() + idx),
+          question_type: type,
+          options: opts
+        };
+      });
+    }
+    // Set default random fields if missing
+    if (cloned.is_random_pool === undefined) {
+      cloned.is_random_pool = (cloned.random_mode && cloned.random_mode !== 'all');
+    }
+    if (!cloned.random_mode) {
+      cloned.random_mode = cloned.is_random_pool ? 'fixed_10' : 'all';
+    }
+    if (cloned.shuffle_questions === undefined) cloned.shuffle_questions = true;
+    if (cloned.shuffle_options === undefined) cloned.shuffle_options = true;
+
+    setEditingExercise(cloned);
+    setEditSearchTerm('');
+    setIsAddQOpenInEdit(false);
+    setEditCustomRandomCount(cloned.random_count || 10);
+  };
+
+  const handleAddQuestionInEditModal = (e) => {
+    if (e) e.preventDefault();
+    sound.pop();
+
+    if (!editNewQText.trim()) {
+      showError('Thiếu nội dung', 'Vui lòng nhập nội dung câu hỏi muốn thêm!');
+      return;
+    }
+
+    let qData = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      question_type: editNewQType,
+      question_text: editNewQText.trim(),
+      image_url: editNewImgUrl.trim(),
+      hint: editNewHint.trim(),
+      explanation: editNewExplanation.trim(),
+      points: 10
+    };
+
+    if (editNewQType === 'multiple_choice') {
+      qData.options = [
+        { option_label: 'A', answer_text: editNewOptA.trim() },
+        { option_label: 'B', answer_text: editNewOptB.trim() },
+        { option_label: 'C', answer_text: editNewOptC.trim() },
+        { option_label: 'D', answer_text: editNewOptD.trim() }
+      ];
+      qData.correct_answer = editNewCorrect;
+    } else if (editNewQType === 'fill_blank') {
+      if (!editNewFillAns.trim()) {
+        showError('Thiếu đáp án', 'Vui lòng nhập đáp án đúng để hệ thống chấm điểm!');
+        return;
+      }
+      qData.correct_answer = editNewFillAns.trim();
+    } else if (editNewQType === 'true_false') {
+      qData.options = [
+        { option_label: 'Đúng', answer_text: 'Đúng 👍' },
+        { option_label: 'Sai', answer_text: 'Sai 👎' }
+      ];
+      qData.correct_answer = editNewTFAns;
+    }
+
+    setEditingExercise(prev => {
+      const updatedQuestions = [...(prev.questions || []), qData];
+      const isRandom = prev.random_mode !== 'all';
+      return {
+        ...prev,
+        questions: updatedQuestions,
+        total_pool_count: updatedQuestions.length,
+        random_count: isRandom ? (prev.random_count || 10) : updatedQuestions.length
+      };
+    });
+
+    showSuccess('Đã Thêm Câu Hỏi Mới! 🎉', 'Câu hỏi đã được thêm thành công vào bài tập!');
+    setEditNewQText('');
+    setEditNewOptA('');
+    setEditNewOptB('');
+    setEditNewOptC('');
+    setEditNewOptD('');
+    setEditNewFillAns('');
+    setEditNewImgUrl('');
+    setEditNewExplanation('');
+    setEditNewHint('');
+    setIsAddQOpenInEdit(false);
+  };
+
+  const handleDuplicateQuestionInEdit = (idx) => {
+    sound.pop();
+    const currentQ = editingExercise.questions[idx];
+    const clonedQ = JSON.parse(JSON.stringify(currentQ));
+    clonedQ.id = Date.now() + Math.floor(Math.random() * 1000);
+    clonedQ.question_text = `${clonedQ.question_text} (Bản sao)`;
+
+    const updated = [...editingExercise.questions];
+    updated.splice(idx + 1, 0, clonedQ);
+    setEditingExercise({
+      ...editingExercise,
+      questions: updated,
+      total_pool_count: updated.length
+    });
+    showSuccess('Đã Nhân Bản Câu Hỏi', `Đã tạo bản sao cho Câu #${idx + 1}!`);
+  };
+
+  const handleMoveQuestionInEdit = (idx, direction) => {
+    sound.pop();
+    const newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= editingExercise.questions.length) return;
+    const updated = [...editingExercise.questions];
+    const temp = updated[idx];
+    updated[idx] = updated[newIdx];
+    updated[newIdx] = temp;
+    setEditingExercise({ ...editingExercise, questions: updated });
+  };
+
+  const handleDeleteQuestionInEdit = async (idx) => {
+    sound.pop();
+    const isConfirmed = await confirm({
+      title: 'Xóa Câu Hỏi?',
+      message: `Cô có chắc chắn muốn xóa Câu hỏi #${idx + 1} khỏi bài tập này?`,
+      icon: '🗑️',
+      confirmText: 'Xóa câu này',
+      cancelText: 'Giữ lại'
+    });
+    if (isConfirmed) {
+      const updated = editingExercise.questions.filter((_, i) => i !== idx);
+      setEditingExercise({
+        ...editingExercise,
+        questions: updated,
+        total_pool_count: updated.length
+      });
+      showSuccess('Đã Xóa Câu Hỏi', `Đã xóa câu hỏi #${idx + 1} khỏi đề.`);
+    }
+  };
+
+  const handleRandomModeChangeInEdit = (val) => {
+    sound.pop();
+    const isR = val !== 'all';
+    let count = editingExercise.questions?.length || 0;
+    if (val === 'fixed_5') count = 5;
+    else if (val === 'fixed_10') count = 10;
+    else if (val === 'fixed_15') count = 15;
+    else if (val === 'fixed_20') count = 20;
+    else if (val === 'fixed_30') count = 30;
+    else if (val === 'fixed_50') count = 50;
+    else if (val === 'custom') count = editCustomRandomCount || 10;
+    else if (val === 'student_choice') count = 10;
+
+    setEditingExercise({
+      ...editingExercise,
+      random_mode: val,
+      is_random_pool: isR,
+      random_count: isR ? count : (editingExercise.questions?.length || 0),
+      total_pool_count: editingExercise.questions?.length || 0
+    });
   };
 
   const handleSaveEditedExercise = (e) => {
@@ -304,8 +490,19 @@ export default function TeacherDashboard() {
     sound.pop();
     if (!editingExercise) return;
 
-    api.updateExercise(editingExercise.id, editingExercise);
-    showSuccess('Cập Nhật Thành Công! ✨', `Đã lưu các thay đổi cho bài tập "${editingExercise.title}"!`);
+    if (!editingExercise.questions || editingExercise.questions.length === 0) {
+      showError('Chưa có câu hỏi', 'Bài tập cần có ít nhất 1 câu hỏi!');
+      return;
+    }
+
+    const payload = {
+      ...editingExercise,
+      total_pool_count: editingExercise.questions.length,
+      random_count: editingExercise.is_random_pool ? (editingExercise.random_count || 10) : editingExercise.questions.length
+    };
+
+    api.updateExercise(payload.id, payload);
+    showSuccess('Cập Nhật Thành Công! ✨', `Đã lưu các thay đổi cho bài tập "${payload.title}" (${payload.questions.length} câu)!`);
     setEditingExercise(null);
     loadExercisesList();
   };
@@ -942,33 +1139,46 @@ export default function TeacherDashboard() {
               left: 0,
               width: '100%',
               height: '100%',
-              background: 'rgba(15, 23, 42, 0.65)',
+              background: 'rgba(15, 23, 42, 0.7)',
               backdropFilter: 'blur(8px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               zIndex: 99999,
-              padding: '20px'
+              padding: '16px'
             }}>
-              <div className="card" style={{ maxWidth: '720px', width: '100%', maxHeight: '88vh', overflowY: 'auto', padding: '28px', position: 'relative' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px' }}>
-                  <h3 style={{ fontSize: '1.3rem', fontWeight: 900, color: '#1E293B', margin: 0 }}>
-                    ✏️ Chỉnh Sửa Bài Tập: {editingExercise.title}
-                  </h3>
+              <div className="card" style={{ maxWidth: '880px', width: '100%', maxHeight: '92vh', overflowY: 'auto', padding: '24px', position: 'relative', borderRadius: '18px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)' }}>
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1.5px solid #E2E8F0', paddingBottom: '14px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#1E293B', margin: 0 }}>
+                        ✏️ Chỉnh Sửa Bài Tập: {editingExercise.title}
+                      </h3>
+                      <span style={{ background: '#EEF2FF', color: '#4F46E5', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800 }}>
+                        Khối {editingExercise.grade_level}
+                      </span>
+                      <span style={{ background: editingExercise.is_random_pool ? '#F3E8FF' : '#DCFCE7', color: editingExercise.is_random_pool ? '#7E22CE' : '#15803D', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800 }}>
+                        {editingExercise.is_random_pool ? `🎲 Random ${editingExercise.random_count || 10}/${editingExercise.questions?.length || 0} câu` : `📋 Toàn bộ ${editingExercise.questions?.length || 0} câu`}
+                      </span>
+                    </div>
+                  </div>
 
                   <button
                     type="button"
                     onClick={() => setEditingExercise(null)}
-                    style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: '32px', height: '32px', fontWeight: 900, cursor: 'pointer' }}
+                    style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: '34px', height: '34px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', color: '#64748B' }}
+                    title="Đóng modal"
                   >
                     ✕
                   </button>
                 </div>
 
                 <form onSubmit={handleSaveEditedExercise}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '18px' }}>
+                  {/* General Info */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                     <div>
-                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px' }}>Tên bài tập:</label>
+                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px', color: '#475569' }}>Tên bài tập:</label>
                       <input
                         type="text"
                         value={editingExercise.title}
@@ -979,7 +1189,7 @@ export default function TeacherDashboard() {
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px' }}>Khối lớp:</label>
+                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px', color: '#475569' }}>Khối lớp:</label>
                       <select
                         value={editingExercise.grade_level}
                         onChange={e => setEditingExercise({ ...editingExercise, grade_level: parseInt(e.target.value, 10) })}
@@ -994,117 +1204,602 @@ export default function TeacherDashboard() {
                     </div>
 
                     <div>
-                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '4px' }}>Lớp nhận bài:</label>
+                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px', color: '#475569' }}>Lớp nhận bài:</label>
                       <input
                         type="text"
-                        value={editingExercise.assigned_to || 'Lớp 4A1'}
+                        value={editingExercise.assigned_to || `Lớp ${editingExercise.grade_level}A1`}
                         onChange={e => setEditingExercise({ ...editingExercise, assigned_to: e.target.value })}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontWeight: 700 }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontWeight: 800, fontSize: '0.82rem', marginBottom: '4px', color: '#475569' }}>Thưởng XP:</label>
+                      <input
+                        type="number"
+                        min="10"
+                        max="500"
+                        value={editingExercise.reward_xp || 50}
+                        onChange={e => setEditingExercise({ ...editingExercise, reward_xp: parseInt(e.target.value, 10) || 50 })}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontWeight: 700 }}
                       />
                     </div>
                   </div>
 
-                  {/* List of Questions for Quick Edit */}
-                  <h4 style={{ fontWeight: 900, color: '#334155', marginBottom: '12px' }}>
-                    Danh Sách Câu Hỏi ({editingExercise.questions?.length || 0} câu):
-                  </h4>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
-                    {(editingExercise.questions || []).map((q, idx) => (
-                      <div key={q.id || idx} style={{ background: '#F8FAFC', border: '1.5px solid #CBD5E1', borderRadius: '12px', padding: '14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 900, color: '#4F46E5' }}>Câu hỏi #{idx + 1}</span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const updatedQ = editingExercise.questions.filter((_, i) => i !== idx);
-                              setEditingExercise({ ...editingExercise, questions: updatedQ });
-                            }}
-                            style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', padding: '4px 8px', borderRadius: '6px', fontWeight: 800, fontSize: '0.75rem', cursor: 'pointer' }}
-                          >
-                            ✕ Xóa câu này
-                          </button>
-                        </div>
-
-                        <div style={{ marginBottom: '8px' }}>
-                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px' }}>Nội dung câu hỏi:</label>
-                          <input
-                            type="text"
-                            value={q.question_text}
-                            onChange={e => {
-                              const updatedQ = [...editingExercise.questions];
-                              updatedQ[idx].question_text = e.target.value;
-                              setEditingExercise({ ...editingExercise, questions: updatedQ });
-                            }}
-                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontWeight: 700 }}
-                            required
-                          />
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px' }}>Đáp án đúng:</label>
-                            <input
-                              type="text"
-                              value={q.correct_answer}
-                              onChange={e => {
-                                const updatedQ = [...editingExercise.questions];
-                                updatedQ[idx].correct_answer = e.target.value;
-                                setEditingExercise({ ...editingExercise, questions: updatedQ });
-                              }}
-                              style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #10B981', background: '#ECFDF5', fontWeight: 800, color: '#065F46' }}
-                              required
-                            />
-                          </div>
-
-                          <div>
-                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px' }}>Link ảnh minh họa (nếu có):</label>
-                            <input
-                              type="text"
-                              value={q.image_url || ''}
-                              onChange={e => {
-                                const updatedQ = [...editingExercise.questions];
-                                updatedQ[idx].image_url = e.target.value;
-                                setEditingExercise({ ...editingExercise, questions: updatedQ });
-                              }}
-                              placeholder="URL ảnh..."
-                              style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.8rem' }}
-                            />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px' }}>Lời giải thích chi tiết:</label>
-                          <input
-                            type="text"
-                            value={q.explanation || ''}
-                            onChange={e => {
-                              const updatedQ = [...editingExercise.questions];
-                              updatedQ[idx].explanation = e.target.value;
-                              setEditingExercise({ ...editingExercise, questions: updatedQ });
-                            }}
-                            style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
-                          />
-                        </div>
+                  {/* Random Mode & Exam Config Box */}
+                  <div style={{
+                    background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)',
+                    border: '1.5px solid #DDD6FE',
+                    borderRadius: '12px',
+                    padding: '14px 18px',
+                    marginBottom: '18px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>🎲</span>
+                        <strong style={{ color: '#5B21B6', fontSize: '0.95rem' }}>Cấu Hình Chế Độ Phát Đề & Trộn Ngẫu Nhiên:</strong>
                       </div>
-                    ))}
+                      <span style={{ fontSize: '0.8rem', color: '#6D28D9', fontWeight: 700, background: '#DDD6FE', padding: '2px 8px', borderRadius: '6px' }}>
+                        Hiện có {editingExercise.questions?.length || 0} câu trong ngân hàng
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', alignItems: 'center' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#4C1D95', marginBottom: '4px' }}>
+                          Chế độ làm bài cho học sinh:
+                        </label>
+                        <select
+                          value={editingExercise.random_mode || (editingExercise.is_random_pool ? 'fixed_10' : 'all')}
+                          onChange={e => handleRandomModeChangeInEdit(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1.5px solid #A78BFA',
+                            fontWeight: 800,
+                            color: '#3B0764',
+                            background: 'white',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <option value="all">📋 Làm toàn bộ câu hỏi (Làm hết {editingExercise.questions?.length || 0} câu)</option>
+                          <option value="fixed_5">🎲 Ngân hàng đề: Bốc ngẫu nhiên 5 câu mỗi lượt</option>
+                          <option value="fixed_10">🎲 Ngân hàng đề: Bốc ngẫu nhiên 10 câu mỗi lượt</option>
+                          <option value="fixed_15">🎲 Ngân hàng đề: Bốc ngẫu nhiên 15 câu mỗi lượt</option>
+                          <option value="fixed_20">🎲 Ngân hàng đề: Bốc ngẫu nhiên 20 câu mỗi lượt</option>
+                          <option value="fixed_30">🎲 Ngân hàng đề: Bốc ngẫu nhiên 30 câu mỗi lượt</option>
+                          <option value="fixed_50">🎲 Ngân hàng đề: Bốc ngẫu nhiên 50 câu mỗi lượt</option>
+                          <option value="student_choice">🎯 Học sinh tự chọn số câu khi bắt đầu (10 / 20 / 30 / Toàn bộ)</option>
+                          <option value="custom">🔢 Tùy chỉnh số lượng câu bốc ngẫu nhiên...</option>
+                        </select>
+                      </div>
+
+                      {editingExercise.random_mode === 'custom' && (
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#4C1D95', marginBottom: '4px' }}>
+                            Số câu bốc ngẫu nhiên mỗi lượt:
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={editingExercise.questions?.length || 100}
+                            value={editingExercise.random_count || editCustomRandomCount}
+                            onChange={e => {
+                              const val = parseInt(e.target.value, 10) || 10;
+                              setEditCustomRandomCount(val);
+                              setEditingExercise({ ...editingExercise, random_count: val });
+                            }}
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #A78BFA', fontWeight: 800 }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '20px', marginTop: '12px', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 800, color: '#4C1D95', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={editingExercise.shuffle_questions !== false}
+                          onChange={e => setEditingExercise({ ...editingExercise, shuffle_questions: e.target.checked })}
+                          style={{ width: '16px', height: '16px', accentColor: '#7C3AED' }}
+                        />
+                        <span>🔀 Đảo ngẫu nhiên thứ tự câu hỏi</span>
+                      </label>
+
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 800, color: '#4C1D95', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={editingExercise.shuffle_options !== false}
+                          onChange={e => setEditingExercise({ ...editingExercise, shuffle_options: e.target.checked })}
+                          style={{ width: '16px', height: '16px', accentColor: '#7C3AED' }}
+                        />
+                        <span>🔀 Đảo ngẫu nhiên vị trí đáp án A/B/C/D</span>
+                      </label>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                    <button
-                      type="button"
-                      onClick={() => setEditingExercise(null)}
-                      style={{ padding: '10px 20px', borderRadius: '10px', border: '1.5px solid #CBD5E1', background: '#F8FAFC', fontWeight: 800, cursor: 'pointer' }}
-                    >
-                      Hủy Bỏ
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn-primary"
-                      style={{ background: 'linear-gradient(135deg, #10B981, #059669)', padding: '10px 24px' }}
-                    >
-                      <span>💾 Lưu Toàn Bộ Thay Đổi 🚀</span>
-                    </button>
+                  {/* Section 2: Add New Question directly inside Edit Modal */}
+                  <div style={{
+                    background: isAddQOpenInEdit ? '#F0FDF4' : '#F8FAFC',
+                    border: isAddQOpenInEdit ? '2px solid #86EFAC' : '1.5px dashed #CBD5E1',
+                    borderRadius: '12px',
+                    padding: '14px 18px',
+                    marginBottom: '20px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setIsAddQOpenInEdit(!isAddQOpenInEdit)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '1.2rem' }}>➕</span>
+                        <strong style={{ color: isAddQOpenInEdit ? '#15803D' : '#334155', fontSize: '0.95rem' }}>
+                          Thêm Câu Hỏi Mới Vào Bài Tập Này
+                        </strong>
+                      </div>
+                      <button
+                        type="button"
+                        style={{
+                          background: isAddQOpenInEdit ? '#DCFCE7' : '#E2E8F0',
+                          color: isAddQOpenInEdit ? '#166534' : '#475569',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '4px 12px',
+                          fontSize: '0.8rem',
+                          fontWeight: 800,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {isAddQOpenInEdit ? '▲ Thu gọn' : '▼ Mở form soạn câu'}
+                      </button>
+                    </div>
+
+                    {isAddQOpenInEdit && (
+                      <div style={{ marginTop: '14px', borderTop: '1px solid #BBF7D0', paddingTop: '14px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '4px' }}>Dạng câu hỏi:</label>
+                            <select
+                              value={editNewQType}
+                              onChange={e => setEditNewQType(e.target.value)}
+                              style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1.5px solid #86EFAC', fontWeight: 700 }}
+                            >
+                              <option value="multiple_choice">🎯 Trắc Nghiệm 4 Lựa Chọn</option>
+                              <option value="fill_blank">✏️ Điền Ô / Điền Số</option>
+                              <option value="true_false">✅ Đúng / Sai</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '4px' }}>Link ảnh minh họa (nếu có):</label>
+                            <input
+                              type="text"
+                              value={editNewImgUrl}
+                              onChange={e => setEditNewImgUrl(e.target.value)}
+                              placeholder="https://..."
+                              style={{ width: '100%', padding: '7px 10px', borderRadius: '7px', border: '1.5px solid #CBD5E1', fontSize: '0.8rem' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: '12px' }}>
+                          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '4px' }}>Nội dung câu hỏi mới:</label>
+                          <textarea
+                            rows="2"
+                            value={editNewQText}
+                            onChange={e => setEditNewQText(e.target.value)}
+                            placeholder="Nhập nội dung câu hỏi mới..."
+                            style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #86EFAC', fontWeight: 700 }}
+                          />
+                        </div>
+
+                        {/* Options for Multiple Choice */}
+                        {editNewQType === 'multiple_choice' && (
+                          <div style={{ background: '#FFFFFF', padding: '12px', borderRadius: '8px', border: '1px solid #BBF7D0', marginBottom: '12px' }}>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '8px' }}>
+                              Các phương án trả lời (chọn nút radio ở đáp án đúng):
+                            </label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+                              {['A', 'B', 'C', 'D'].map(label => {
+                                const val = label === 'A' ? editNewOptA : (label === 'B' ? editNewOptB : (label === 'C' ? editNewOptC : editNewOptD));
+                                const setVal = label === 'A' ? setEditNewOptA : (label === 'B' ? setEditNewOptB : (label === 'C' ? setEditNewOptC : setEditNewOptD));
+                                const isCorrect = editNewCorrect === label;
+
+                                return (
+                                  <div key={label} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    background: isCorrect ? '#DCFCE7' : '#F8FAFC',
+                                    border: isCorrect ? '2px solid #16A34A' : '1px solid #CBD5E1',
+                                    borderRadius: '8px',
+                                    padding: '6px 8px'
+                                  }}>
+                                    <input
+                                      type="radio"
+                                      name="new_correct_opt"
+                                      checked={isCorrect}
+                                      onChange={() => setEditNewCorrect(label)}
+                                      style={{ accentColor: '#16A34A', width: '16px', height: '16px', cursor: 'pointer' }}
+                                      title={`Đặt ${label} làm đáp án đúng`}
+                                    />
+                                    <strong style={{ color: isCorrect ? '#15803D' : '#475569', minWidth: '18px' }}>{label}:</strong>
+                                    <input
+                                      type="text"
+                                      value={val}
+                                      onChange={e => setVal(e.target.value)}
+                                      placeholder={`Đáp án ${label}...`}
+                                      style={{ flex: 1, border: 'none', background: 'transparent', fontWeight: 700, outline: 'none', fontSize: '0.85rem' }}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Fill in the blank option */}
+                        {editNewQType === 'fill_blank' && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '4px' }}>Đáp án đúng chính xác:</label>
+                            <input
+                              type="text"
+                              value={editNewFillAns}
+                              onChange={e => setEditNewFillAns(e.target.value)}
+                              placeholder="Ví dụ: 45 hoặc hình tròn..."
+                              style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #10B981', background: '#ECFDF5', fontWeight: 800, color: '#065F46' }}
+                            />
+                          </div>
+                        )}
+
+                        {/* True / False option */}
+                        {editNewQType === 'true_false' && (
+                          <div style={{ marginBottom: '12px' }}>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '4px' }}>Đáp án đúng:</label>
+                            <div style={{ display: 'flex', gap: '12px' }}>
+                              {['Đúng', 'Sai'].map(tf => (
+                                <button
+                                  key={tf}
+                                  type="button"
+                                  onClick={() => setEditNewTFAns(tf)}
+                                  style={{
+                                    padding: '8px 20px',
+                                    borderRadius: '8px',
+                                    fontWeight: 800,
+                                    border: editNewTFAns === tf ? '2px solid #16A34A' : '1px solid #CBD5E1',
+                                    background: editNewTFAns === tf ? '#DCFCE7' : 'white',
+                                    color: editNewTFAns === tf ? '#15803D' : '#475569',
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  {tf === 'Đúng' ? '👍 Đúng' : '👎 Sai'}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginBottom: '12px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '2px' }}>Lời giải thích:</label>
+                            <input
+                              type="text"
+                              value={editNewExplanation}
+                              onChange={e => setEditNewExplanation(e.target.value)}
+                              placeholder="Giải thích vì sao chọn đáp án này..."
+                              style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
+                            />
+                          </div>
+
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, color: '#166534', marginBottom: '2px' }}>Gợi ý (Hint):</label>
+                            <input
+                              type="text"
+                              value={editNewHint}
+                              onChange={e => setEditNewHint(e.target.value)}
+                              placeholder="Gợi ý ngắn khi học sinh cần giúp đỡ..."
+                              style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.82rem' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            onClick={handleAddQuestionInEditModal}
+                            style={{
+                              background: 'linear-gradient(135deg, #10B981, #059669)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              padding: '8px 18px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              fontSize: '0.88rem'
+                            }}
+                          >
+                            ➕ Thêm Câu Này Vào Đề Thi
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section 3: List of Questions with Search & Full Options Editor */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h4 style={{ fontWeight: 900, color: '#334155', margin: 0, fontSize: '1.05rem' }}>
+                      📋 Danh Sách Câu Hỏi ({editingExercise.questions?.length || 0} câu trong ngân hàng):
+                    </h4>
+
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={editSearchTerm}
+                        onChange={e => setEditSearchTerm(e.target.value)}
+                        placeholder="🔍 Tìm nhanh câu hỏi..."
+                        style={{ padding: '6px 12px', borderRadius: '8px', border: '1.5px solid #CBD5E1', fontSize: '0.82rem', width: '180px', fontWeight: 600 }}
+                      />
+                      {editSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setEditSearchTerm('')}
+                          style={{ background: '#E2E8F0', border: 'none', borderRadius: '6px', padding: '6px 10px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
+                        >
+                          Xóa tìm
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
+                    {(editingExercise.questions || [])
+                      .map((q, idx) => ({ q, originalIdx: idx }))
+                      .filter(({ q }) => {
+                        if (!editSearchTerm.trim()) return true;
+                        const term = editSearchTerm.toLowerCase();
+                        return (q.question_text && q.question_text.toLowerCase().includes(term)) ||
+                               (q.correct_answer && String(q.correct_answer).toLowerCase().includes(term));
+                      })
+                      .map(({ q, originalIdx }) => {
+                        const isMC = q.question_type === 'multiple_choice' || !q.question_type;
+                        const hasOptions = q.options && q.options.length > 0;
+
+                        return (
+                          <div
+                            key={q.id || originalIdx}
+                            style={{
+                              background: '#F8FAFC',
+                              border: '1.5px solid #CBD5E1',
+                              borderRadius: '12px',
+                              padding: '14px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+                            }}
+                          >
+                            {/* Question Card Header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '6px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontWeight: 900, color: '#4F46E5', fontSize: '0.95rem' }}>
+                                  Câu #{originalIdx + 1}
+                                </span>
+                                <span style={{
+                                  background: isMC ? '#EEF2FF' : (q.question_type === 'fill_blank' ? '#FEF3C7' : '#DCFCE7'),
+                                  color: isMC ? '#4338CA' : (q.question_type === 'fill_blank' ? '#B45309' : '#15803D'),
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 800
+                                }}>
+                                  {getQuestionTypeLabel(q.question_type)}
+                                </span>
+                              </div>
+
+                              {/* Question Actions */}
+                              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <button
+                                  type="button"
+                                  disabled={originalIdx === 0}
+                                  onClick={() => handleMoveQuestionInEdit(originalIdx, -1)}
+                                  style={{ background: '#E2E8F0', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800, cursor: originalIdx === 0 ? 'not-allowed' : 'pointer', opacity: originalIdx === 0 ? 0.4 : 1 }}
+                                  title="Di chuyển lên"
+                                >
+                                  ⬆️
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={originalIdx === (editingExercise.questions.length - 1)}
+                                  onClick={() => handleMoveQuestionInEdit(originalIdx, 1)}
+                                  style={{ background: '#E2E8F0', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800, cursor: originalIdx === (editingExercise.questions.length - 1) ? 'not-allowed' : 'pointer', opacity: originalIdx === (editingExercise.questions.length - 1) ? 0.4 : 1 }}
+                                  title="Di chuyển xuống"
+                                >
+                                  ⬇️
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDuplicateQuestionInEdit(originalIdx)}
+                                  style={{ background: '#E0F2FE', color: '#0369A1', border: 'none', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}
+                                  title="Nhân bản câu này"
+                                >
+                                  📄 Bản sao
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteQuestionInEdit(originalIdx)}
+                                  style={{ background: '#FEE2E2', color: '#EF4444', border: 'none', padding: '4px 8px', borderRadius: '6px', fontWeight: 800, fontSize: '0.75rem', cursor: 'pointer' }}
+                                  title="Xóa câu hỏi này"
+                                >
+                                  ✕ Xóa
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Question Text */}
+                            <div style={{ marginBottom: '10px' }}>
+                              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px', color: '#475569' }}>
+                                Nội dung câu hỏi:
+                              </label>
+                              <input
+                                type="text"
+                                value={q.question_text}
+                                onChange={e => {
+                                  const updatedQ = [...editingExercise.questions];
+                                  updatedQ[originalIdx].question_text = e.target.value;
+                                  setEditingExercise({ ...editingExercise, questions: updatedQ });
+                                }}
+                                style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1.5px solid #CBD5E1', fontWeight: 700 }}
+                                required
+                              />
+                            </div>
+
+                            {/* Multiple Choice Options Editor */}
+                            {isMC && hasOptions && (
+                              <div style={{ background: '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid #E2E8F0', marginBottom: '10px' }}>
+                                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#475569', marginBottom: '6px' }}>
+                                  Lựa chọn A, B, C, D (nhấn vào chữ cái để chọn làm Đáp án Đúng):
+                                </label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                                  {q.options.map(opt => {
+                                    const isCorrect = q.correct_answer === opt.option_label;
+                                    return (
+                                      <div
+                                        key={opt.option_label}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '6px',
+                                          background: isCorrect ? '#DCFCE7' : '#F8FAFC',
+                                          border: isCorrect ? '2px solid #16A34A' : '1px solid #CBD5E1',
+                                          borderRadius: '6px',
+                                          padding: '4px 8px'
+                                        }}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const updatedQ = [...editingExercise.questions];
+                                            updatedQ[originalIdx].correct_answer = opt.option_label;
+                                            setEditingExercise({ ...editingExercise, questions: updatedQ });
+                                          }}
+                                          style={{
+                                            background: isCorrect ? '#16A34A' : '#E2E8F0',
+                                            color: isCorrect ? 'white' : '#475569',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            padding: '2px 6px',
+                                            fontWeight: 900,
+                                            fontSize: '0.75rem',
+                                            cursor: 'pointer'
+                                          }}
+                                          title={`Đặt ${opt.option_label} làm đáp án đúng`}
+                                        >
+                                          {opt.option_label} {isCorrect ? '✓' : ''}
+                                        </button>
+                                        <input
+                                          type="text"
+                                          value={opt.answer_text}
+                                          onChange={e => {
+                                            const updatedQ = [...editingExercise.questions];
+                                            const targetOpt = updatedQ[originalIdx].options.find(o => o.option_label === opt.option_label);
+                                            if (targetOpt) targetOpt.answer_text = e.target.value;
+                                            setEditingExercise({ ...editingExercise, questions: updatedQ });
+                                          }}
+                                          placeholder={`Lựa chọn ${opt.option_label}...`}
+                                          style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: '0.85rem', fontWeight: 600 }}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Fill in blank or custom correct answer */}
+                            {(!isMC || !hasOptions) && (
+                              <div style={{ marginBottom: '8px' }}>
+                                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 800, marginBottom: '2px', color: '#065F46' }}>
+                                  Đáp án đúng:
+                                </label>
+                                <input
+                                  type="text"
+                                  value={q.correct_answer}
+                                  onChange={e => {
+                                    const updatedQ = [...editingExercise.questions];
+                                    updatedQ[originalIdx].correct_answer = e.target.value;
+                                    setEditingExercise({ ...editingExercise, questions: updatedQ });
+                                  }}
+                                  style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #10B981', background: '#ECFDF5', fontWeight: 800, color: '#065F46' }}
+                                  required
+                                />
+                              </div>
+                            )}
+
+                            {/* Image, Explanation, Hint */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, marginBottom: '2px', color: '#64748B' }}>
+                                  Link ảnh minh họa:
+                                </label>
+                                <input
+                                  type="text"
+                                  value={q.image_url || ''}
+                                  onChange={e => {
+                                    const updatedQ = [...editingExercise.questions];
+                                    updatedQ[originalIdx].image_url = e.target.value;
+                                    setEditingExercise({ ...editingExercise, questions: updatedQ });
+                                  }}
+                                  placeholder="URL ảnh..."
+                                  style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.8rem' }}
+                                />
+                              </div>
+
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, marginBottom: '2px', color: '#64748B' }}>
+                                  Lời giải thích chi tiết:
+                                </label>
+                                <input
+                                  type="text"
+                                  value={q.explanation || ''}
+                                  onChange={e => {
+                                    const updatedQ = [...editingExercise.questions];
+                                    updatedQ[originalIdx].explanation = e.target.value;
+                                    setEditingExercise({ ...editingExercise, questions: updatedQ });
+                                  }}
+                                  placeholder="Giải thích vì sao..."
+                                  style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '0.8rem' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    borderTop: '1.5px solid #E2E8F0',
+                    paddingTop: '16px',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}>
+                    <div style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 700 }}>
+                      Tổng: <strong style={{ color: '#1E293B' }}>{editingExercise.questions?.length || 0} câu</strong> | Chế độ: <strong style={{ color: '#7C3AED' }}>{editingExercise.is_random_pool ? `Random ${editingExercise.random_count || 10} câu` : 'Làm toàn bộ'}</strong>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setEditingExercise(null)}
+                        style={{ padding: '10px 18px', borderRadius: '10px', border: '1.5px solid #CBD5E1', background: '#F8FAFC', fontWeight: 800, cursor: 'pointer', color: '#475569' }}
+                      >
+                        Hủy Bỏ
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        style={{ background: 'linear-gradient(135deg, #10B981, #059669)', padding: '10px 24px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)' }}
+                      >
+                        <span>💾 Lưu Toàn Bộ Thay Đổi ({editingExercise.questions?.length || 0} câu) 🚀</span>
+                      </button>
+                    </div>
                   </div>
                 </form>
               </div>
