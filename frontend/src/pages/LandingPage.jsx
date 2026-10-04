@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { sound } from '../services/audio';
 
-export default function LandingPage() {
+export default function LandingPage({ onOpenJoinClass }) {
   const { openLogin, openRegister, login } = useAuth();
 
   const gradeList = [
@@ -26,7 +26,7 @@ export default function LandingPage() {
         overflow: 'hidden',
         boxShadow: '0 20px 40px -15px rgba(79, 70, 229, 0.3)'
       }}>
-        <div style={{ maxWidth: '800px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
+        <div style={{ maxWidth: '850px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -59,44 +59,50 @@ export default function LandingPage() {
             margin: '0 auto 30px auto',
             lineHeight: 1.6
           }}>
-            Hệ thống bài giảng & trắc nghiệm thông minh từ <strong>Lớp 1 đến Lớp 5</strong>. Giải thích chi tiết từng câu, tích lũy XP thăng cấp, bảng vàng vinh danh và đổi bạn linh vật ngộ nghĩnh!
+            Hệ thống bài giảng & trắc nghiệm thông minh từ <strong>Lớp 1 đến Lớp 5</strong>. Thầy/Cô giao bài bằng Mã Lớp, Phụ huynh & Học sinh làm bài tức thì không cần đăng ký phức tạp!
           </p>
 
           <div style={{
             display: 'flex',
-            gap: '16px',
+            gap: '14px',
             justifyContent: 'center',
+            alignItems: 'center',
             flexWrap: 'wrap'
           }}>
             <button
-              onClick={() => { sound.pop(); openRegister(); }}
+              onClick={() => { sound.pop(); if (onOpenJoinClass) onOpenJoinClass(); }}
               className="btn-primary"
               style={{
                 background: '#FDE047',
                 color: '#1E1B4B',
-                fontSize: '1.1rem',
+                fontSize: '1.15rem',
                 padding: '16px 32px',
                 fontWeight: 900,
-                boxShadow: '0 10px 25px rgba(253, 224, 71, 0.4)'
+                borderRadius: '16px',
+                boxShadow: '0 10px 25px rgba(253, 224, 71, 0.45)',
+                border: 'none',
+                cursor: 'pointer'
               }}
             >
-              <span>⭐ Đăng Ký Tài Khoản & Chọn Lớp Ngay</span>
+              <span>🔑 Nhập Mã Lớp Của Thầy/Cô (Vào Học Ngay)</span>
             </button>
 
             <button
               onClick={() => { sound.pop(); openLogin(); }}
               className="btn-secondary"
               style={{
-                background: 'rgba(255, 255, 255, 0.15)',
+                background: 'rgba(255, 255, 255, 0.18)',
                 color: 'white',
-                border: '2px solid rgba(255, 255, 255, 0.4)',
-                fontSize: '1.1rem',
+                border: '2px solid rgba(255, 255, 255, 0.5)',
+                fontSize: '1.05rem',
                 padding: '16px 28px',
                 fontWeight: 800,
-                backdropFilter: 'blur(6px)'
+                borderRadius: '16px',
+                backdropFilter: 'blur(6px)',
+                cursor: 'pointer'
               }}
             >
-              <span>🔑 Đăng Nhập Tài Khoản</span>
+              <span>👩‍🏫 Đăng Nhập Giáo Viên / Quản Trị</span>
             </button>
           </div>
         </div>

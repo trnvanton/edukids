@@ -4,6 +4,7 @@ import { sound } from '../services/audio';
 import { useToast } from '../context/ToastContext';
 import { useDialog } from '../context/DialogContext';
 import { downloadExcelTemplate, parseExcelFile } from '../services/excelService';
+import QRCodeModal from '../components/QRCodeModal';
 
 export default function TeacherDashboard() {
   const { showSuccess, showError, showInfo } = useToast();
@@ -16,7 +17,9 @@ export default function TeacherDashboard() {
   const [newClassName, setNewClassName] = useState('5A2');
   const [newClassGrade, setNewClassGrade] = useState('5');
   const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentPhone, setNewStudentPhone] = useState('');
   const [targetClassForStudent, setTargetClassForStudent] = useState('1');
+  const [selectedQRClass, setSelectedQRClass] = useState(null);
 
   // Exercise Metadata
   const [exerciseTitle, setExerciseTitle] = useState('Phiếu Bài Tập Rèn Luyện Toàn Diện');
@@ -565,6 +568,7 @@ export default function TeacherDashboard() {
     const newStudentObj = {
       id: Date.now(),
       full_name: newStudentName.trim(),
+      parent_phone: newStudentPhone.trim(),
       grade_level: grade,
       class_id: targetClassForStudent || `${grade}A1`,
       avatar: 'mascot-bear',
@@ -573,6 +577,7 @@ export default function TeacherDashboard() {
     api.saveCustomStudent(newStudentObj);
     showSuccess('Thêm Học Sinh Thành Công! 🎉', `Đã thêm học sinh "${newStudentName}" vào danh sách!`);
     setNewStudentName('');
+    setNewStudentPhone('');
     loadTeacherData();
     setActiveTeacherTab('classes');
   };
@@ -844,28 +849,143 @@ export default function TeacherDashboard() {
                 </div>
               )}
 
+              {/* Class Code & Zalo QR Share Bar */}
+              <div style={{
+                background: 'linear-gradient(135deg, #F5F3FF, #EDE9FE)',
+                border: '1.5px solid #DDD6FE',
+                borderRadius: '14px',
+                padding: '12px 18px',
+                marginBottom: '16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '1.3rem' }}>🔑</span>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#6D28D9', display: 'block', textTransform: 'uppercase' }}>
+                      Mã Lớp Học (Gửi cho Phụ Huynh):
+                    </span>
+                    <strong style={{ fontSize: '1.25rem', color: '#4C1D95', letterSpacing: '1px' }}>
+                      {cls.class_code || `${cls.className}-8429`}
+                    </strong>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.pop();
+                      navigator.clipboard.writeText(cls.class_code || `${cls.className}-8429`);
+                      showSuccess('Đã Sao Chép Mã Lớp! 🔑', `Mã lớp [${cls.class_code || `${cls.className}-8429`}] đã được lưu vào bộ nhớ tạm.`);
+                    }}
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1.5px solid #C4B5FD',
+                      color: '#6D28D9',
+                      borderRadius: '8px',
+                      padding: '7px 12px',
+                      fontWeight: 800,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span>📋</span>
+                    <span>Copy Mã</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.pop();
+                      const joinUrl = `${window.location.origin}/?join_class=${encodeURIComponent(cls.class_code || `${cls.className}-8429`)}`;
+                      navigator.clipboard.writeText(joinUrl);
+                      showSuccess('Đã Sao Chép Link! 🔗', 'Đã sao chép link tham gia lớp gửi vào nhóm Zalo Phụ huynh!');
+                    }}
+                    style={{
+                      background: '#0068FF',
+                      border: 'none',
+                      color: 'white',
+                      borderRadius: '8px',
+                      padding: '7px 14px',
+                      fontWeight: 800,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      boxShadow: '0 2px 8px rgba(0, 104, 255, 0.25)'
+                    }}
+                  >
+                    <span>💬</span>
+                    <span>Gửi Link Zalo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.pop();
+                      setSelectedQRClass(cls);
+                    }}
+                    style={{
+                      background: '#7C3AED',
+                      border: 'none',
+                      color: 'white',
+                      borderRadius: '8px',
+                      padding: '7px 14px',
+                      fontWeight: 800,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)'
+                    }}
+                  >
+                    <span>📱</span>
+                    <span>Xem Mã QR & Thẻ Lớp</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Student Table with Scores or Empty State */}
               {(!cls.stats.studentSummary || cls.stats.studentSummary.length === 0) ? (
                 <div style={{ textAlign: 'center', padding: '36px 20px', background: '#F8FAFC', borderRadius: '12px', border: '1.5px dashed #CBD5E1' }}>
                   <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '8px' }}>🎓</span>
                   <h4 style={{ fontWeight: 800, color: '#334155', marginBottom: '6px' }}>Chưa có học sinh trong danh sách Lớp {cls.className}</h4>
-                  <p style={{ color: '#64748B', fontSize: '0.9rem', maxWidth: '480px', margin: '0 auto 16px auto', lineHeight: 1.5 }}>
-                    Học sinh sẽ tự động hiển thị tại đây khi đăng nhập và nộp bài tập thực tế. Thầy/Cô cũng có thể thêm trước danh sách học sinh vào lớp!
+                  <p style={{ color: '#64748B', fontSize: '0.9rem', maxWidth: '520px', margin: '0 auto 16px auto', lineHeight: 1.5 }}>
+                    Cô hãy gửi <strong>Mã Lớp: {cls.class_code || `${cls.className}-8429`}</strong> hoặc <strong>Link Zalo</strong> ở trên cho Phụ huynh. Khi học sinh tham gia và nộp bài, điểm số thật sẽ hiển thị tự động tại đây!
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => { sound.pop(); setActiveTeacherTab('create-class'); }}
-                    className="btn-primary"
-                    style={{ padding: '8px 18px', fontSize: '0.88rem' }}
-                  >
-                    <span>➕ Thêm Học Sinh Vào Lớp Ngay</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => { sound.pop(); setSelectedQRClass(cls); }}
+                      className="btn-primary"
+                      style={{ padding: '8px 18px', fontSize: '0.88rem', background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}
+                    >
+                      <span>📱 Mở Mã QR & Link Gửi Phụ Huynh</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { sound.pop(); setActiveTeacherTab('create-class'); }}
+                      style={{ padding: '8px 18px', borderRadius: '10px', border: '1.5px solid #CBD5E1', background: 'white', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer' }}
+                    >
+                      <span>➕ Thêm Học Sinh Thủ Công</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <table className="data-table">
                   <thead>
                     <tr>
                       <th>Học Sinh</th>
+                      <th>SĐT Phụ Huynh / Mã</th>
                       <th>Khối Lớp</th>
                       <th>XP Tích Lũy</th>
                       <th>Bài Đã Làm</th>
@@ -882,6 +1002,11 @@ export default function TeacherDashboard() {
                             <span style={{ fontSize: '1.4rem' }}>{st.avatar === 'mascot-bear' ? '🐻' : (st.avatar === 'mascot-lion' ? '🦁' : '🐰')}</span>
                             <strong>{st.full_name}</strong>
                           </div>
+                        </td>
+                        <td>
+                          <span style={{ color: '#475569', fontWeight: 700, fontSize: '0.85rem' }}>
+                            {st.parent_phone ? `📱 ${st.parent_phone}` : (st.class_code ? `🔑 ${st.class_code}` : 'Chưa có SĐT')}
+                          </span>
                         </td>
                         <td>Lớp {st.grade_level}</td>
                         <td><span style={{ color: '#B45309', fontWeight: 900 }}>⭐ {st.xp} XP</span></td>
@@ -2840,6 +2965,12 @@ export default function TeacherDashboard() {
           </form>
         </div>
       )}
+      {/* QR Code Modal for Teachers */}
+      <QRCodeModal
+        isOpen={!!selectedQRClass}
+        onClose={() => setSelectedQRClass(null)}
+        classObj={selectedQRClass}
+      />
     </div>
   );
 }

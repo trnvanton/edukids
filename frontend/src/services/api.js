@@ -157,13 +157,23 @@ class ApiService {
           } catch (e) {}
         }
 
-        if (Array.isArray(res.submissions)) {
+        if (Array.isArray(res.classes)) {
           try {
-            const localSubs = JSON.parse(localStorage.getItem('edukids_submissions') || '[]');
-            const subMap = new Map();
-            localSubs.forEach(s => subMap.set(String(s.id), s));
-            res.submissions.forEach(s => subMap.set(String(s.id), s));
-            localStorage.setItem('edukids_submissions', JSON.stringify(Array.from(subMap.values())));
+            const localCls = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
+            const clsMap = new Map();
+            localCls.forEach(c => clsMap.set(String(c.class_code || c.id), c));
+            res.classes.forEach(c => clsMap.set(String(c.class_code || c.id), c));
+            localStorage.setItem('edukids_custom_classes', JSON.stringify(Array.from(clsMap.values())));
+          } catch (e) {}
+        }
+
+        if (Array.isArray(res.students)) {
+          try {
+            const localSt = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
+            const stMap = new Map();
+            localSt.forEach(s => stMap.set(String(s.id || s.full_name), s));
+            res.students.forEach(s => stMap.set(String(s.id || s.full_name), s));
+            localStorage.setItem('edukids_custom_students', JSON.stringify(Array.from(stMap.values())));
           } catch (e) {}
         }
 
@@ -173,6 +183,38 @@ class ApiService {
       console.warn('Cloud sync error:', e);
     }
     return { success: false };
+  }
+
+  async joinClass({ class_code, student_name, parent_phone, avatar, grade_level }) {
+    const code = (class_code || '2A1-8429').toUpperCase().trim();
+    const student = {
+      id: Date.now(),
+      full_name: student_name.trim(),
+      student_name: student_name.trim(),
+      class_code: code,
+      parent_phone: parent_phone ? parent_phone.trim() : '',
+      avatar: avatar || 'mascot-bear',
+      grade_level: parseInt(grade_level || 2, 10),
+      xp: 50,
+      role: 'student'
+    };
+
+    // Save to local custom students
+    this.saveCustomStudent(student);
+
+    // Save as active session
+    try {
+      localStorage.setItem('edukids_v2_user', JSON.stringify(student));
+      localStorage.setItem('edukids_user', JSON.stringify(student));
+    } catch (e) {}
+
+    // Async Cloud MySQL sync
+    this.request('/sync', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'join_class', student })
+    }).catch(() => {});
+
+    return { success: true, student };
   }
 
   // Auth
@@ -479,9 +521,24 @@ class ApiService {
   saveCustomClass(newClass) {
     try {
       let stored = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
-      stored.push(newClass);
+      const code = newClass.class_code || `${(newClass.className || '2A1').toUpperCase().replace(/\s+/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const classObj = {
+        ...newClass,
+        id: newClass.id || Date.now(),
+        class_code: code,
+        teacher_name: newClass.teacher_name || 'Cô Hoàng Mai'
+      };
+      stored = stored.filter(c => c.id !== classObj.id);
+      stored.push(classObj);
       localStorage.setItem('edukids_custom_classes', JSON.stringify(stored));
-      return { success: true, classes: stored };
+
+      // Async Cloud sync
+      this.request('/sync', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'save_class', classObj })
+      }).catch(() => {});
+
+      return { success: true, classes: stored, classObj };
     } catch (e) {
       return { success: false };
     }
@@ -490,9 +547,22 @@ class ApiService {
   saveCustomStudent(newStudent) {
     try {
       let stored = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
-      stored.push(newStudent);
+      const studentObj = {
+        ...newStudent,
+        id: newStudent.id || Date.now(),
+        class_code: (newStudent.class_code || '2A1-8429').toUpperCase()
+      };
+      stored = stored.filter(s => s.id !== studentObj.id && s.full_name !== studentObj.full_name);
+      stored.push(studentObj);
       localStorage.setItem('edukids_custom_students', JSON.stringify(stored));
-      return { success: true, students: stored };
+
+      // Async Cloud sync
+      this.request('/sync', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'save_student', student: studentObj })
+      }).catch(() => {});
+
+      return { success: true, students: stored, student: studentObj };
     } catch (e) {
       return { success: false };
     }
@@ -501,8 +571,15 @@ class ApiService {
   deleteCustomStudent(studentId) {
     try {
       let stored = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
-      stored = stored.filter(s => s.id !== studentId);
+      stored = stored.filter(s => String(s.id) !== String(studentId));
       localStorage.setItem('edukids_custom_students', JSON.stringify(stored));
+
+      // Async Cloud sync delete
+      this.request('/sync', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete_student', deleteStudentId: studentId })
+      }).catch(() => {});
+
       return { success: true, students: stored };
     } catch (e) {
       return { success: false };

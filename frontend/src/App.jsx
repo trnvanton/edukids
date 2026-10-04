@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import ProfileModal from './components/ProfileModal';
 import AuthModal from './components/AuthModal';
+import JoinClassModal from './components/JoinClassModal';
 import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import SubjectsPage from './pages/SubjectsPage';
@@ -21,6 +22,10 @@ export default function App() {
   const [selectedExerciseId, setSelectedExerciseId] = useState(101);
   const [quizResult, setQuizResult] = useState(null);
 
+  // Join Class Modal State
+  const [showJoinClassModal, setShowJoinClassModal] = useState(false);
+  const [joinClassCode, setJoinClassCode] = useState('');
+
   // Background Cloud Sync on app boot & periodic auto-sync
   React.useEffect(() => {
     api.initCloudSync();
@@ -28,6 +33,16 @@ export default function App() {
       api.initCloudSync();
     }, 30000); // 30s auto-refresh
     return () => clearInterval(interval);
+  }, []);
+
+  // Check URL query parameters for direct class join links (?join_class=2A1-8429 or ?class_code=...)
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('join_class') || urlParams.get('class_code');
+    if (code) {
+      setJoinClassCode(code.toUpperCase());
+      setShowJoinClassModal(true);
+    }
   }, []);
 
   // Switch active tab automatically if role changes
@@ -57,16 +72,30 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleOpenJoinClass = (code = '') => {
+    if (code) setJoinClassCode(code);
+    setShowJoinClassModal(true);
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenJoinClass={() => handleOpenJoinClass()}
+      />
       <ProfileModal />
       <AuthModal />
+      <JoinClassModal
+        isOpen={showJoinClassModal}
+        onClose={() => setShowJoinClassModal(false)}
+        initialClassCode={joinClassCode}
+      />
 
       <main style={{ flex: 1 }}>
         {/* Unauthenticated View: Landing Page */}
         {!user && (
-          <LandingPage />
+          <LandingPage onOpenJoinClass={() => handleOpenJoinClass()} />
         )}
 
         {/* Authenticated Student Views */}

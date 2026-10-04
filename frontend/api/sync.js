@@ -32,7 +32,40 @@ export default async function handler(req, res) {
       connectTimeout: 10000
     });
 
-    // 1. GET
+    // Auto-create cloud tables for classes and students if not exist
+    try {
+      await conn.execute(`
+        CREATE TABLE IF NOT EXISTS cloud_synced_classes (
+          id VARCHAR(50) PRIMARY KEY,
+          class_code VARCHAR(50) UNIQUE,
+          class_name VARCHAR(100),
+          grade_level INT,
+          teacher_name VARCHAR(100),
+          data_json LONGTEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+
+      await conn.execute(`
+        CREATE TABLE IF NOT EXISTS cloud_synced_students (
+          id VARCHAR(100) PRIMARY KEY,
+          class_code VARCHAR(50),
+          student_name VARCHAR(100),
+          parent_phone VARCHAR(30),
+          student_avatar VARCHAR(50),
+          grade_level INT,
+          xp INT DEFAULT 0,
+          data_json LONGTEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+    } catch (tableErr) {
+      console.warn('Table check:', tableErr);
+    }
+
+    // 1. GET: Fetch exercises, submissions, classes, students
     if (req.method === 'GET') {
       const [exRows] = await conn.execute('SELECT * FROM cloud_synced_exercises ORDER BY updated_at DESC');
       const exercises = (exRows || []).map(row => {
@@ -52,6 +85,30 @@ export default async function handler(req, res) {
         }
       }).filter(Boolean);
 
+      let classes = [];
+      try {
+        const [clsRows] = await conn.execute('SELECT * FROM cloud_synced_classes ORDER BY created_at ASC');
+        classes = (clsRows || []).map(row => {
+          try {
+            return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
+          } catch (e) {
+            return null;
+          }
+        }).filter(Boolean);
+      } catch (e) {}
+
+      let students = [];
+      try {
+        const [stRows] = await conn.execute('SELECT * FROM cloud_synced_students ORDER BY created_at DESC');
+        students = (stRows || []).map(row => {
+          try {
+            return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
+          } catch (e) {
+            return null;
+          }
+        }).filter(Boolean);
+      } catch (e) {}
+
       await conn.end();
 
       return res.status(200).json({
@@ -59,6 +116,8 @@ export default async function handler(req, res) {
         cloud: 'Aiven MySQL Serverless',
         exercises,
         submissions,
+        classes,
+        students,
         timestamp: new Date().toISOString()
       });
     }
@@ -139,6 +198,82 @@ export default async function handler(req, res) {
           success: true,
           message: 'Đã lưu kết quả bài làm học sinh lên Cloud MySQL thành công!',
           submission
+        });
+      }
+
+      // Save Class with Class Code
+      if (body.action === 'save_class' || body.classObj) {
+        const cls = body.classObj || body;
+        const classId = String(cls.id || Date.now());
+        const classCode = cls.class_code || `${cls.className || '2A1'}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const className = cls.className || '2A1';
+        const gradeLevel = parseInt(cls.grade_level || 2, 10);
+        const teacherName = cls.teacher_name || 'Cô Hoàng Mai';
+        const dataJson = JSON.stringify({ ...cls, id: classId, class_code: classCode, className, grade_level: gradeLevel, teacher_name: teacherName });
+
+        await conn.execute(`
+          INSERT INTO cloud_synced_classes (id, class_code, class_name, grade_level, teacher_name, data_json)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            class_code = VALUES(class_code),
+            class_name = VALUES(class_name),
+            grade_level = VALUES(grade_level),
+            teacher_name = VALUES(teacher_name),
+            data_json = VALUES(data_json)
+        `, [classId, classCode, className, gradeLevel, teacherName, dataJson]);
+
+        await conn.end();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Đã lưu lớp học & Mã lớp lên Cloud MySQL thành công!',
+          classObj: { ...cls, id: classId, class_code: classCode }
+        });
+      }
+
+      // Join Class / Save Real Student (with Parent Phone & Class Code)
+      if (body.action === 'join_class' || body.action === 'save_student' || body.student) {
+        const st = body.student || body;
+        const studentId = String(st.id || Date.now());
+        const classCode = (st.class_code || '2A1-8429').toUpperCase().trim();
+        const studentName = st.student_name || st.full_name || 'Học Sinh';
+        const parentPhone = st.parent_phone || '';
+        const studentAvatar = st.avatar || st.student_avatar || 'mascot-bear';
+        const gradeLevel = parseInt(st.grade_level || 2, 10);
+        const xp = parseInt(st.xp || 0, 10);
+        const dataJson = JSON.stringify({ ...st, id: studentId, class_code: classCode, full_name: studentName, parent_phone: parentPhone, avatar: studentAvatar, grade_level: gradeLevel, xp });
+
+        await conn.execute(`
+          INSERT INTO cloud_synced_students (id, class_code, student_name, parent_phone, student_avatar, grade_level, xp, data_json)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            class_code = VALUES(class_code),
+            student_name = VALUES(student_name),
+            parent_phone = VALUES(parent_phone),
+            student_avatar = VALUES(student_avatar),
+            grade_level = VALUES(grade_level),
+            xp = VALUES(xp),
+            data_json = VALUES(data_json)
+        `, [studentId, classCode, studentName, parentPhone, studentAvatar, gradeLevel, xp, dataJson]);
+
+        await conn.end();
+
+        return res.status(200).json({
+          success: true,
+          message: `Đã liên kết học sinh "${studentName}" vào Mã Lớp "${classCode}" trên Cloud MySQL! 🎉`,
+          student: { ...st, id: studentId, class_code: classCode }
+        });
+      }
+
+      // Delete Student from Class
+      if (body.action === 'delete_student' || body.deleteStudentId) {
+        const stId = String(body.deleteStudentId || body.id);
+        await conn.execute('DELETE FROM cloud_synced_students WHERE id = ? OR student_name = ?', [stId, stId]);
+        await conn.end();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Đã xóa học sinh khỏi Cloud MySQL thành công!'
         });
       }
 

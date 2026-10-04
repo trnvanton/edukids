@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { sound } from '../services/audio';
 
-export default function Navbar({ activeTab, setActiveTab }) {
+export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
   const {
     user,
     logout,
@@ -299,6 +299,33 @@ export default function Navbar({ activeTab, setActiveTab }) {
                 {isMuted ? '🔇' : '🔊'}
               </button>
 
+              {/* Student Join / Change Class Button */}
+              {user.role === 'student' && (
+                <button
+                  type="button"
+                  onClick={() => { sound.pop(); if (onOpenJoinClass) onOpenJoinClass(); }}
+                  title="Nhập mã lớp học của Thầy/Cô để vào lớp"
+                  style={{
+                    background: '#EEF2FF',
+                    border: '1.5px solid #C7D2FE',
+                    color: '#4338CA',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    padding: '5px 10px',
+                    borderRadius: '10px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    outline: 'none'
+                  }}
+                >
+                  <span>🔑</span>
+                  <span>Đổi / Vào Lớp</span>
+                </button>
+              )}
+
               {/* User Avatar & Name Profile Chip */}
               <div
                 onClick={() => { sound.pop(); setShowProfileModal(true); }}
@@ -347,13 +374,35 @@ export default function Navbar({ activeTab, setActiveTab }) {
               </button>
             </>
           ) : (
-            <div style={{ display: 'flex', gap: '8px', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              <button
+                type="button"
+                onClick={() => { sound.pop(); if (onOpenJoinClass) onOpenJoinClass(); }}
+                style={{
+                  background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
+                  border: '1.5px solid #818CF8',
+                  color: '#3730A3',
+                  fontWeight: 900,
+                  fontSize: '0.86rem',
+                  padding: '6px 14px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(99, 102, 241, 0.15)',
+                  outline: 'none'
+                }}
+              >
+                <span>🔑</span>
+                <span>Nhập Mã Lớp</span>
+              </button>
               <button
                 onClick={() => { sound.pop(); openLogin(); }}
                 className="btn-secondary"
                 style={{ padding: '6px 14px', fontSize: '0.85rem' }}
               >
-                <span>🔑 Đăng Nhập</span>
+                <span>Đăng Nhập</span>
               </button>
               <button
                 onClick={() => { sound.pop(); openRegister(); }}
