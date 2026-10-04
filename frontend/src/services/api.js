@@ -556,42 +556,47 @@ try {
   const storedCustom = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
   if (Array.isArray(storedCustom)) {
     storedCustom.forEach(ex => {
-      curriculumDatabase.exercises[ex.id] = ex;
-      const g = ex.grade_level || 4;
-      const s = ex.subject_id || 1;
-      if (!curriculumDatabase.lessonsByGradeAndSubject[g]) {
-        curriculumDatabase.lessonsByGradeAndSubject[g] = { 1: [], 2: [], 3: [], 4: [] };
+      if (ex && ex.id && Array.isArray(ex.questions) && ex.questions.length > 0) {
+        curriculumDatabase.exercises[ex.id] = ex;
+        const g = ex.grade_level || 4;
+        const s = ex.subject_id || 1;
+        if (!curriculumDatabase.lessonsByGradeAndSubject[g]) {
+          curriculumDatabase.lessonsByGradeAndSubject[g] = { 1: [], 2: [], 3: [], 4: [] };
+        }
+        if (!curriculumDatabase.lessonsByGradeAndSubject[g][s]) {
+          curriculumDatabase.lessonsByGradeAndSubject[g][s] = [];
+        }
+        curriculumDatabase.lessonsByGradeAndSubject[g][s].unshift({
+          id: ex.id + 50000,
+          subject_id: s,
+          grade_level: g,
+          title: ex.title,
+          topic_tag: `custom-${ex.id}`,
+          description: ex.is_random_pool ? `Ngân hàng ${ex.questions.length} câu (Random ${ex.random_count || 10} câu)` : `Bài tập gồm ${ex.questions.length} câu hỏi`,
+          icon: ex.is_random_pool ? '🎲' : (s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧'))),
+          exercise_id: ex.id
+        });
       }
-      if (!curriculumDatabase.lessonsByGradeAndSubject[g][s]) {
-        curriculumDatabase.lessonsByGradeAndSubject[g][s] = [];
-      }
-      curriculumDatabase.lessonsByGradeAndSubject[g][s].unshift({
-        id: ex.id + 50000,
-        subject_id: s,
-        grade_level: g,
-        title: ex.title,
-        topic_tag: `custom-${ex.id}`,
-        description: ex.is_random_pool ? `Ngân hàng ${ex.questions?.length || 0} câu (Random ${ex.random_count || 10} câu)` : `Bài tập gồm ${ex.questions?.length || 0} câu hỏi`,
-        icon: ex.is_random_pool ? '🎲' : (s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧'))),
-        exercise_id: ex.id
-      });
     });
   }
 
-  // Filter out any deleted exercises so they stay deleted across F5 page reloads
+  // Filter out any deleted exercises and remove any lesson that lacks real questions
   const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
-  if (Array.isArray(deletedIds) && deletedIds.length > 0) {
-    deletedIds.forEach(delId => {
-      const numericId = parseInt(delId, 10);
-      delete curriculumDatabase.exercises[numericId];
-      for (const g of Object.keys(curriculumDatabase.lessonsByGradeAndSubject)) {
-        for (const s of Object.keys(curriculumDatabase.lessonsByGradeAndSubject[g])) {
-          curriculumDatabase.lessonsByGradeAndSubject[g][s] = curriculumDatabase.lessonsByGradeAndSubject[g][s].filter(
-            l => l.exercise_id !== numericId
-          );
-        }
-      }
-    });
+  const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
+
+  deletedSet.forEach(numericId => {
+    delete curriculumDatabase.exercises[numericId];
+  });
+
+  for (const g of Object.keys(curriculumDatabase.lessonsByGradeAndSubject)) {
+    for (const s of Object.keys(curriculumDatabase.lessonsByGradeAndSubject[g])) {
+      curriculumDatabase.lessonsByGradeAndSubject[g][s] = curriculumDatabase.lessonsByGradeAndSubject[g][s].filter(l => {
+        const numId = parseInt(l.exercise_id, 10);
+        if (deletedSet.has(numId)) return false;
+        const ex = curriculumDatabase.exercises[numId];
+        return ex && Array.isArray(ex.questions) && ex.questions.length > 0;
+      });
+    }
   }
 } catch (e) {
   console.warn('Hydration error:', e);
@@ -933,15 +938,35 @@ class ApiService {
   async getLessons(subjectId, grade) {
     const query = grade ? `?grade=${grade}` : '';
     const res = await this.request(`/subjects/${subjectId}/lessons${query}`);
-    if (res.success && res.lessons && res.lessons.length > 0) return res;
+    const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
+    const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
+
+    if (res.success && res.lessons && res.lessons.length > 0) {
+      const valid = res.lessons.filter(l => {
+        const numId = parseInt(l.exercise_id, 10);
+        if (deletedSet.has(numId)) return false;
+        const ex = curriculumDatabase.exercises[numId];
+        return ex && Array.isArray(ex.questions) && ex.questions.length > 0;
+      });
+      return { success: true, lessons: valid };
+    }
 
     // Filter strictly by Grade and Subject ID
     const targetGrade = parseInt(grade, 10) || 2;
     const targetSubj = parseInt(subjectId, 10) || 1;
     const gradeLessons = curriculumDatabase.lessonsByGradeAndSubject[targetGrade];
-    const lessons = gradeLessons ? (gradeLessons[targetSubj] || []) : [];
+    const rawLessons = gradeLessons ? (gradeLessons[targetSubj] || []) : [];
 
-    return { success: true, lessons };
+    // ONLY return lessons that ACTUALLY exist in data (have valid questions) and are NOT deleted
+    const validLessons = rawLessons.filter(l => {
+      if (!l.exercise_id) return false;
+      const numId = parseInt(l.exercise_id, 10);
+      if (deletedSet.has(numId)) return false;
+      const ex = curriculumDatabase.exercises[numId];
+      return ex && Array.isArray(ex.questions) && ex.questions.length > 0;
+    });
+
+    return { success: true, lessons: validLessons };
   }
 
   // Exercise & Quiz
@@ -1039,7 +1064,7 @@ class ApiService {
     const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
 
     for (const [id, ex] of Object.entries(curriculumDatabase.exercises)) {
-      if (!ex) continue;
+      if (!ex || !Array.isArray(ex.questions) || ex.questions.length === 0) continue;
       const numericId = parseInt(id, 10);
       if (deletedIds.includes(numericId)) continue;
       const meta = metaMap[numericId] || {};
