@@ -301,7 +301,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
   const isRandomSubset = poolLength > totalQ;
 
   return (
-    <div className="container" style={{ padding: '24px 0 60px 0' }}>
+    <div className="container" style={{ padding: '24px 16px 60px 16px', maxWidth: '960px', margin: '0 auto' }}>
       {/* Quiz Top Bar */}
       <div style={{
         background: 'white',
@@ -383,7 +383,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
       )}
 
       {/* Main Question Card */}
-      <div className="card" style={{ padding: '36px', position: 'relative' }}>
+      <div className="card" style={{ padding: '32px 28px', position: 'relative' }}>
         {/* Type & Index Badges */}
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap' }}>
           <div style={{
@@ -444,12 +444,12 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
               return (
                 <button
                   key={opt.option_label || idx}
+                  type="button"
                   className={`option-card ${isSelected ? 'selected' : ''}`}
                   onClick={() => selectOption(currentQ.id, opt.option_label)}
-                  style={{ textAlign: 'left', minHeight: '68px', display: 'flex', alignItems: 'center' }}
                 >
                   <div className="option-badge">{opt.option_label}</div>
-                  <div className="option-text" style={{ fontSize: '1.15rem', fontWeight: 700 }}>
+                  <div className="option-text">
                     {opt.answer_text}
                   </div>
                 </button>

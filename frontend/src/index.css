@@ -494,3 +494,84 @@ body {
 .score-tag.high { background: #D1FAE5; color: #065F46; }
 .score-tag.mid { background: #FEF3C7; color: #92400E; }
 .score-tag.low { background: #FEE2E2; color: #991B1B; }
+
+/* =========================================================================
+   QUIZ & EXERCISE OPTIONS STYLES
+   ========================================================================= */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+  width: 100%;
+}
+
+@media (max-width: 680px) {
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.option-card {
+  width: 100%;
+  min-height: 72px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  border: 2.5px solid var(--border-color);
+  background: #F8FAFC;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  text-align: left;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  font-family: var(--font-family);
+  user-select: none;
+}
+
+.option-card:hover {
+  border-color: #818CF8;
+  background: #EEF2FF;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.12);
+}
+
+.option-card.selected {
+  border-color: #4F46E5;
+  background: #EEF2FF;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.18);
+  transform: translateY(-2px);
+}
+
+.option-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #E0E7FF;
+  color: #4338CA;
+  font-weight: 900;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  border: 1.5px solid #C7D2FE;
+}
+
+.option-card.selected .option-badge {
+  background: #4F46E5;
+  color: #FFFFFF;
+  border-color: #4F46E5;
+}
+
+.option-text {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main);
+  flex: 1;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
