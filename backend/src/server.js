@@ -9,13 +9,20 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const fs = require('fs');
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve frontend static assets directly from backend for convenience as well
-app.use(express.static(path.join(__dirname, '../../frontend')));
+const distPath = path.join(__dirname, '../../frontend/dist');
+const staticPath = path.join(__dirname, '../../frontend');
+
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+}
+app.use(express.static(staticPath));
 
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
@@ -34,8 +41,12 @@ app.get('/api/health', (req, res) => {
 });
 
 // Root route redirects / delivers frontend
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../../frontend/index.html'));
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
+  if (fs.existsSync(path.join(distPath, 'index.html'))) {
+    return res.sendFile(path.join(distPath, 'index.html'));
+  }
+  res.sendFile(path.join(staticPath, 'index.html'));
 });
 
 // Start Server

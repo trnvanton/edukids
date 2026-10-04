@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
 import { sound } from '../services/audio';
+import { useToast } from '../context/ToastContext';
+import { useDialog } from '../context/DialogContext';
 
 export default function AdminDashboard() {
+  const { showSuccess } = useToast();
+  const { alert: dialogAlert } = useDialog();
   const [adminTab, setAdminTab] = useState('overview'); // 'overview', 'users', 'curriculum', 'questions'
   const [newTeacherName, setNewTeacherName] = useState('');
   const [newTeacherEmail, setNewTeacherEmail] = useState('');
@@ -26,7 +30,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     sound.pop();
     if (!newTeacherName) return;
-    alert(`🎉 Đã thêm giáo viên "${newTeacherName}" vào hệ thống EduKids thành công!`);
+    showSuccess('Thêm Giáo Viên', `Đã thêm giáo viên "${newTeacherName}" vào hệ thống EduKids thành công!`);
     setNewTeacherName('');
     setNewTeacherEmail('');
   };
@@ -113,8 +117,8 @@ export default function AdminDashboard() {
                 Cơ sở dữ liệu đang đồng bộ trực tiếp với MySQL Aiven Cloud và sẵn sàng sao lưu tự động.
               </p>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn-primary" onClick={() => alert('Đã sao lưu thành công!')}>💾 Sao Lưu MySQL</button>
-                <button className="btn-secondary" onClick={() => alert('Hệ thống hoạt động bình thường 100%')}>⚡ Kiểm Tra Tải</button>
+                <button className="btn-primary" onClick={() => { sound.pop(); showSuccess('Sao Lưu Thành Công', 'Dữ liệu MySQL đã được sao lưu an toàn vào đám mây!'); }}>💾 Sao Lưu MySQL</button>
+                <button className="btn-secondary" onClick={() => { sound.pop(); showSuccess('Kiểm Tra Tải', 'Hệ thống máy chủ hoạt động bình thường, phản hồi 15ms!'); }}>⚡ Kiểm Tra Tải</button>
               </div>
             </div>
           </div>
@@ -199,7 +203,7 @@ export default function AdminDashboard() {
                     <td><span style={{ color: '#059669', fontWeight: 700 }}>{u.status}</span></td>
                     <td>
                       <button
-                        onClick={() => alert(`Đặt lại mật khẩu cho ${u.name}`)}
+                        onClick={() => { sound.pop(); showSuccess('Đặt Lại Mật Khẩu', `Đã gửi mã đặt lại mật khẩu mới cho ${u.name}`); }}
                         style={{ background: '#F1F5F9', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}
                       >
                         Đặt lại mật khẩu

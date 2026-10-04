@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { sound } from '../services/audio';
+import { useDialog } from '../context/DialogContext';
+import { useToast } from '../context/ToastContext';
 
 export default function QuizPage({ exerciseId, onFinish, onBack }) {
+  const { confirm } = useDialog();
+  const { showError } = useToast();
   const [exercise, setExercise] = useState(null);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({}); // { questionId: 'A' }
@@ -81,8 +85,14 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
     const answeredCount = Object.keys(answers).length;
 
     if (answeredCount < total) {
-      const confirm = window.confirm(`Bé còn ${total - answeredCount} câu chưa làm. Bé có muốn nộp bài luôn không?`);
-      if (!confirm) return;
+      const isConfirmed = await confirm({
+        title: 'Nộp Bài Tập Ngay?',
+        message: `Bé vẫn còn ${total - answeredCount} câu chưa trả lời. Bé có chắc chắn muốn nộp bài để chấm điểm luôn không?`,
+        icon: '📝',
+        confirmText: 'Nộp bài luôn 🚀',
+        cancelText: 'Làm tiếp ✏️'
+      });
+      if (!isConfirmed) return;
     }
 
     setIsSubmitting(true);
@@ -92,7 +102,7 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
     if (res.success && res.result) {
       onFinish(res.result);
     } else {
-      alert('Có lỗi khi nộp bài: ' + (res.message || 'Thử lại'));
+      showError('Lỗi nộp bài', res.message || 'Không thể chấm điểm lúc này. Vui lòng thử lại!');
     }
   };
 

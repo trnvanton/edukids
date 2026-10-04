@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { sound } from '../services/audio';
+import { useToast } from '../context/ToastContext';
+import { useDialog } from '../context/DialogContext';
 
 export default function TeacherDashboard() {
+  const { showSuccess } = useToast();
+  const { alert: dialogAlert } = useDialog();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTeacherTab, setActiveTeacherTab] = useState('classes'); // 'classes', 'create-class', 'create-exercise', 'assign'
@@ -45,7 +49,7 @@ export default function TeacherDashboard() {
   const handleCreateClass = (e) => {
     e.preventDefault();
     sound.pop();
-    alert(`🎉 Đã tạo thành công Lớp ${newClassName} (Khối ${newClassGrade}) và lưu vào MySQL!`);
+    showSuccess('Tạo Lớp Thành Công', `Đã tạo thành công Lớp ${newClassName} (Khối ${newClassGrade})!`);
     setActiveTeacherTab('classes');
   };
 
@@ -53,21 +57,21 @@ export default function TeacherDashboard() {
     e.preventDefault();
     sound.pop();
     if (!newStudentName) return;
-    alert(`🎉 Đã thêm học sinh "${newStudentName}" vào Lớp 4A1 thành công!`);
+    showSuccess('Thêm Học Sinh', `Đã thêm học sinh "${newStudentName}" vào Lớp 4A1 thành công!`);
     setNewStudentName('');
   };
 
   const handleCreateExercise = (e) => {
     e.preventDefault();
     sound.pop();
-    alert(`🎉 Đã tạo bài tập mới "${newExTitle}" kèm câu hỏi và lời giải thích chi tiết thành công!`);
+    showSuccess('Tạo Bài Tập', `Đã tạo bài tập mới "${newExTitle}" kèm câu hỏi và lời giải chi tiết!`);
     setActiveTeacherTab('classes');
   };
 
   const handleAssign = (e) => {
     e.preventDefault();
     sound.pop();
-    alert(`🎉 Đã giao bài "${assignTitle}" cho lớp thành công!`);
+    showSuccess('Giao Bài Tập', `Đã giao bài "${assignTitle}" cho lớp thành công!`);
     setActiveTeacherTab('classes');
   };
 

@@ -14,7 +14,7 @@ class QuizPlayer {
     window.audioManager.playPop();
     const res = await window.apiClient.getQuiz(quizId);
     if (!res.success || !res.quiz) {
-      alert('Không tải được bài tập: ' + (res.message || 'Lỗi'));
+      console.error('Không tải được bài tập:', res.message);
       return;
     }
 
@@ -164,6 +164,35 @@ class QuizPlayer {
     }
   }
 
+  showCustomConfirm(message, onConfirm) {
+    let modal = document.getElementById('custom-confirm-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'custom-confirm-modal';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.65);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:999999;padding:20px;';
+      document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+      <div style="background:white;border-radius:24px;max-width:440px;width:100%;padding:32px 28px;text-align:center;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);border:2px solid rgba(226,232,240,0.8);">
+        <div style="font-size:3rem;background:#EEF2FF;width:72px;height:72px;border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px auto;border:2px solid #C7D2FE;">📝</div>
+        <h3 style="font-size:1.35rem;font-weight:900;color:#1E293B;margin-bottom:10px;">Nộp Bài Tập Ngay?</h3>
+        <p style="font-size:0.98rem;color:#64748B;line-height:1.55;font-weight:600;margin-bottom:26px;">${message}</p>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button id="custom-modal-cancel" style="flex:1;padding:12px 20px;border-radius:14px;border:1.5px solid #E2E8F0;background:#F8FAFC;color:#64748B;font-weight:800;font-size:0.95rem;cursor:pointer;">Làm tiếp ✏️</button>
+          <button id="custom-modal-confirm" style="flex:1;padding:12px 20px;border-radius:14px;border:none;background:linear-gradient(135deg,#4F46E5,#4338CA);color:white;font-weight:900;font-size:0.95rem;cursor:pointer;box-shadow:0 8px 20px rgba(79,70,229,0.3);">Nộp bài luôn 🚀</button>
+        </div>
+      </div>
+    `;
+    modal.style.display = 'flex';
+    document.getElementById('custom-modal-cancel').onclick = () => {
+      modal.style.display = 'none';
+    };
+    document.getElementById('custom-modal-confirm').onclick = () => {
+      modal.style.display = 'none';
+      onConfirm();
+    };
+  }
+
   async submitQuiz() {
     if (this.isSubmitting) return;
 
@@ -171,10 +200,16 @@ class QuizPlayer {
     const total = this.currentQuiz.questions.length;
     const answeredCount = Object.keys(this.userAnswers).length;
     if (answeredCount < total) {
-      const confirmSubmit = confirm(`Bé còn ${total - answeredCount} câu chưa làm. Bé có chắc chắn muốn nộp bài luôn không?`);
-      if (!confirmSubmit) return;
+      this.showCustomConfirm(`Bé còn ${total - answeredCount} câu chưa làm. Bé có muốn nộp bài luôn không?`, () => {
+        this.executeSubmit();
+      });
+      return;
     }
 
+    this.executeSubmit();
+  }
+
+  async executeSubmit() {
     this.isSubmitting = true;
     this.stopTimer();
 
@@ -192,8 +227,6 @@ class QuizPlayer {
 
     if (res.success && res.result) {
       this.showResultAndExplanation(res.result);
-    } else {
-      alert('Có lỗi khi chấm bài: ' + (res.message || 'Thử lại'));
     }
   }
 
