@@ -52,18 +52,18 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
   const titleText = scorePercentage >= 80 ? '🎉 Xuất Sắc! Bé Đạt Điểm Rất Cao!' : (scorePercentage >= 50 ? '👏 Khá Lắm! Bé Cố Gắng Lên Nhé!' : '💪 Đừng Nản Lòng, Cùng Luyện Lại Nhé!');
   const subText = scorePercentage >= 80 ? 'Bé đã nắm rất vững kiến thức bài học này. Tiếp tục phát huy nhé!' : 'Hãy xem lại các câu chưa chính xác và lời giải chi tiết của cô giáo bên dưới nhé!';
 
-  const breakdownList = result.questionBreakdown || (result.feedback || []).map((f, i) => ({
-    questionId: f.questionId || i,
+  const breakdownList = (result.questionBreakdown || result.feedback || []).map((f, i) => ({
+    questionId: f.questionId || f.id || i,
     questionText: f.questionText || f.question_text || `Câu hỏi ${i + 1}`,
+    imageUrl: f.imageUrl || f.image_url,
     userAnswer: f.studentAnswer || f.userAnswer || 'Chưa trả lời',
-    correctAnswer: f.correctAnswer || 'A',
-    correctAnswerText: f.correctAnswerText || 'Đáp án chính xác',
+    correctAnswer: f.correctAnswer || f.correct_answer || 'A',
     isCorrect: f.isCorrect !== undefined ? f.isCorrect : true,
-    explanation: f.pedagogicalExplanation || f.explanation || 'Áp dụng công thức và lý thuyết bài học để giải bài toán.'
+    explanation: f.pedagogicalExplanation || f.explanation || (f.hint ? `💡 Gợi ý: ${f.hint}` : 'Bé hãy đối chiếu lại kiến thức bài học để nắm vững phương pháp giải nhé!')
   }));
 
   return (
-    <div className="container" style={{ padding: '24px 0 60px 0' }}>
+    <div className="container" style={{ padding: '24px 16px 60px 16px', maxWidth: '960px', margin: '0 auto' }}>
       {/* Hero Summary Card */}
       <div className="card" style={{ textAlign: 'center', padding: '36px 20px', marginBottom: '30px' }}>
         <div style={{ fontSize: '4.5rem', marginBottom: '12px' }}>
@@ -132,55 +132,81 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
             key={q.questionId || idx}
             className="card"
             style={{
-              marginBottom: '18px',
-              borderColor: q.isCorrect ? '#A7F3D0' : '#FECDD3',
-              background: q.isCorrect ? '#FCFDFD' : '#FFFDFD',
-              padding: '24px'
+              marginBottom: '20px',
+              borderColor: q.isCorrect ? '#86EFAC' : '#FECDD3',
+              background: q.isCorrect ? '#F8FCF9' : '#FFFBFB',
+              padding: '24px 28px',
+              borderWidth: '2px'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <span style={{ fontWeight: 800, color: 'var(--text-muted)' }}>Câu hỏi {idx + 1}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontWeight: 900, color: '#475569', fontSize: '1rem' }}>Câu hỏi {idx + 1}</span>
               <span
                 style={{
-                  padding: '6px 14px',
+                  padding: '6px 16px',
                   borderRadius: 'var(--radius-full)',
-                  fontWeight: 800,
+                  fontWeight: 900,
                   fontSize: '0.88rem',
                   background: q.isCorrect ? '#D1FAE5' : '#FEE2E2',
-                  color: q.isCorrect ? '#065F46' : '#991B1B'
+                  color: q.isCorrect ? '#065F46' : '#991B1B',
+                  border: `1.5px solid ${q.isCorrect ? '#A7F3D0' : '#FECDD3'}`
                 }}
               >
                 {q.isCorrect ? '✅ Trả lời chính xác (+5 XP)' : '❌ Chưa chính xác'}
               </span>
             </div>
 
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px', color: '#1E293B' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '18px', color: '#1E293B', lineHeight: 1.5 }}>
               {q.questionText}
             </div>
 
             {/* Attached image if any */}
             {q.imageUrl && (
-              <div style={{ marginBottom: '16px' }}>
-                <img src={q.imageUrl} alt="minh hoa" style={{ maxHeight: '160px', borderRadius: '12px', border: '1px solid #E2E8F0', objectFit: 'contain' }} />
+              <div style={{ marginBottom: '16px', textAlign: 'center' }}>
+                <img src={q.imageUrl} alt="minh hoa" style={{ maxHeight: '200px', maxWidth: '100%', borderRadius: '12px', border: '1.5px solid #E2E8F0', objectFit: 'contain' }} />
               </div>
             )}
 
-            {/* Answer Comparison */}
+            {/* Answer Comparison Box */}
             <div style={{
-              background: '#F8FAFC',
-              padding: '14px 18px',
-              borderRadius: 'var(--radius-sm)',
+              background: q.isCorrect ? '#F0FDF4' : '#FEF2F2',
+              border: `2px solid ${q.isCorrect ? '#BBF7D0' : '#FECDD3'}`,
+              padding: '16px 20px',
+              borderRadius: '16px',
               marginBottom: '16px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '8px'
+              gap: '10px'
             }}>
-              <div style={{ color: q.isCorrect ? '#059669' : '#DC2626', fontWeight: 800 }}>
-                👉 Lựa chọn của bé: <strong>{q.userAnswer ? `${q.userAnswer}` : 'Chưa trả lời'}</strong>
+              {/* Student Answer */}
+              <div style={{
+                color: q.isCorrect ? '#15803D' : '#DC2626',
+                fontWeight: 800,
+                fontSize: '1.05rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                flexWrap: 'wrap'
+              }}>
+                <span>{q.isCorrect ? '👉' : '❌'}</span>
+                <span>Lựa chọn của bé: <strong style={{ textDecoration: !q.isCorrect && q.userAnswer !== 'Chưa trả lời' ? 'line-through' : 'none' }}>{q.userAnswer}</strong></span>
               </div>
+
+              {/* Correct Answer (Shown prominently whenever incorrect) */}
               {!q.isCorrect && (
-                <div style={{ color: '#059669', fontWeight: 800 }}>
-                  🎯 Đáp án chính xác: <strong>{q.correctAnswer}</strong>
+                <div style={{
+                  color: '#15803D',
+                  fontWeight: 900,
+                  fontSize: '1.05rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  paddingTop: '10px',
+                  borderTop: '1.5px dashed #FECDD3',
+                  flexWrap: 'wrap'
+                }}>
+                  <span>🎯</span>
+                  <span>Đáp án đúng của câu hỏi: <strong style={{ color: '#047857' }}>{q.correctAnswer}</strong></span>
                 </div>
               )}
             </div>
@@ -189,8 +215,8 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
             <div style={{
               background: '#FFFBEB',
               border: '2px solid #FDE68A',
-              borderRadius: 'var(--radius-md)',
-              padding: '16px 18px'
+              borderRadius: '16px',
+              padding: '16px 20px'
             }}>
               <div style={{ color: '#B45309', fontWeight: 900, fontSize: '1rem', marginBottom: '6px' }}>
                 💡 Lời giải thích chi tiết của cô giáo:

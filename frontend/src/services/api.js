@@ -1190,23 +1190,44 @@ class ApiService {
     const questions = (Array.isArray(sessionQuestions) && sessionQuestions.length > 0) ? sessionQuestions : (ex?.questions || []);
 
     const detailedFeedback = questions.map((q, idx) => {
-      const studentAns = answers[q.id];
+      const qId = q.id !== undefined ? q.id : (idx + 1);
+      const studentAns = (answers[qId] !== undefined && answers[qId] !== null)
+        ? answers[qId]
+        : (answers[String(qId)] !== undefined ? answers[String(qId)] : (answers[q.session_index] ?? answers[idx + 1] ?? answers[idx]));
+
       const qType = q.question_type || 'multiple_choice';
       let isCorrect = false;
+      let formattedStudentAns = '';
+      let formattedCorrectAns = '';
 
       if (qType === 'multiple_choice') {
-        const correctOpt = (q.correct_answer || 'A').toString().trim().toUpperCase();
-        isCorrect = (studentAns?.toString().trim().toUpperCase() === correctOpt);
+        const studentChoice = (studentAns || '').toString().trim().toUpperCase();
+        const correctChoice = (q.correct_answer || 'A').toString().trim().toUpperCase();
+        isCorrect = (studentChoice === correctChoice && studentChoice !== '');
+
+        const selectedOpt = (q.options || []).find(o => (o.option_label || '').toString().trim().toUpperCase() === studentChoice);
+        const correctOpt = (q.options || []).find(o => (o.option_label || '').toString().trim().toUpperCase() === correctChoice);
+
+        if (studentChoice) {
+          formattedStudentAns = selectedOpt ? `${selectedOpt.option_label}. ${selectedOpt.answer_text}` : `${studentChoice}`;
+        } else {
+          formattedStudentAns = 'Chưa trả lời';
+        }
+
+        formattedCorrectAns = correctOpt ? `${correctOpt.option_label}. ${correctOpt.answer_text}` : `${correctChoice}`;
       } else if (qType === 'fill_blank') {
-        const correctText = (q.correct_answer || '').toString().trim().toLowerCase();
-        const userText = (studentAns || '').toString().trim().toLowerCase();
-        isCorrect = (userText === correctText && userText !== '');
+        const correctText = (q.correct_answer || '').toString().trim();
+        const userText = (studentAns !== undefined && studentAns !== null) ? studentAns.toString().trim() : '';
+        isCorrect = (userText.toLowerCase() === correctText.toLowerCase() && userText !== '');
+        formattedStudentAns = userText !== '' ? userText : 'Chưa trả lời';
+        formattedCorrectAns = correctText;
       } else if (qType === 'true_false') {
         const correctTf = (q.correct_answer || 'Đúng').toString().trim().toLowerCase();
         const userTf = (studentAns || '').toString().trim().toLowerCase();
-        isCorrect = (userTf === correctTf || (correctTf.includes('đúng') && userTf.includes('đúng')) || (correctTf.includes('sai') && userTf.includes('sai')));
+        isCorrect = (userTf !== '' && (userTf === correctTf || (correctTf.includes('đúng') && userTf.includes('đúng')) || (correctTf.includes('sai') && userTf.includes('sai'))));
+        formattedStudentAns = (studentAns !== undefined && studentAns !== null && String(studentAns).trim() !== '') ? String(studentAns).trim() : 'Chưa trả lời';
+        formattedCorrectAns = q.correct_answer || 'Đúng';
       } else if (qType === 'matching') {
-        // Matching validation: studentAns is an object { "1": "B", "2": "A", ... }
         if (q.matching_data?.correctPairs && studentAns && typeof studentAns === 'object') {
           const pairs = q.matching_data.correctPairs;
           const totalPairs = Object.keys(pairs).length;
@@ -1217,37 +1238,39 @@ class ApiService {
             }
           }
           isCorrect = (matchedCount === totalPairs && totalPairs > 0);
+          formattedStudentAns = Object.keys(studentAns).length > 0
+            ? Object.entries(studentAns).map(([l, r]) => `${l} ➔ ${r}`).join(', ')
+            : 'Chưa nối cặp';
         } else {
-          isCorrect = true;
+          isCorrect = false;
+          formattedStudentAns = 'Chưa nối cặp';
         }
+        formattedCorrectAns = q.matching_data?.correctPairs
+          ? Object.entries(q.matching_data.correctPairs).map(([l, r]) => `${l} ➔ ${r}`).join(', ')
+          : (q.correct_answer || 'Xem lời giải chi tiết');
       } else {
-        isCorrect = (studentAns === q.correct_answer);
+        isCorrect = (studentAns !== undefined && studentAns !== null && studentAns === q.correct_answer);
+        formattedStudentAns = studentAns ? String(studentAns) : 'Chưa trả lời';
+        formattedCorrectAns = String(q.correct_answer || 'A');
       }
 
       const score = isCorrect ? (q.points || 10) : 0;
       totalScore += score;
       if (isCorrect) earnedXp += 25;
 
-      let formattedStudentAns = studentAns;
-      let formattedCorrectAns = q.correct_answer || 'A';
-
-      if (qType === 'matching') {
-        formattedStudentAns = studentAns ? Object.entries(studentAns).map(([l, r]) => `${l} ➔ ${r}`).join(', ') : 'Chưa nối cặp';
-        formattedCorrectAns = q.matching_data?.correctPairs ? Object.entries(q.matching_data.correctPairs).map(([l, r]) => `${l} ➔ ${r}`).join(', ') : 'Xem lời giải';
-      }
-
       return {
-        questionId: q.id,
+        questionId: qId,
         index: idx + 1,
         questionType: qType,
         questionText: q.question_text,
         imageUrl: q.image_url,
-        studentAnswer: formattedStudentAns || 'Chưa trả lời',
+        studentAnswer: formattedStudentAns,
+        userAnswer: formattedStudentAns,
         correctAnswer: formattedCorrectAns,
         isCorrect: isCorrect,
         pointsEarned: score,
         pointsPossible: q.points || 10,
-        pedagogicalExplanation: q.explanation || (q.hint ? `💡 Gợi ý: ${q.hint}` : 'Xem lại kiến thức bài học và phương pháp giải.')
+        pedagogicalExplanation: q.explanation || (q.hint ? `💡 Gợi ý tư duy: ${q.hint}` : 'Bé hãy đối chiếu lại kiến thức trọng tâm của bài học nhé.')
       };
     });
 

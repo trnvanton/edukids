@@ -73,14 +73,20 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
       const ex = res.exercise;
       setRawExercise(ex);
 
-      const poolLength = ex.questions?.length || 0;
+      const safeQuestions = (ex.questions || []).map((q, idx) => ({
+        ...q,
+        id: (q.id !== undefined && q.id !== null) ? q.id : (idx + 1),
+        session_index: idx + 1
+      }));
+
+      const poolLength = safeQuestions.length;
 
       // If the exercise has more than 10 questions, ALWAYS let the student choose how many questions to do
       if (poolLength > 10) {
         setIsPreQuizPrompt(true);
         setSelectedRandomCount(Math.min(10, poolLength));
       } else {
-        setActiveQuestions(ex.questions || []);
+        setActiveQuestions(safeQuestions);
         setIsPreQuizPrompt(false);
       }
     }
@@ -108,8 +114,13 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
     }
 
     const finalQuestions = (sampled && sampled.length > 0) ? sampled : questionsPool;
+    const normalized = finalQuestions.map((q, idx) => ({
+      ...q,
+      id: (q.id !== undefined && q.id !== null) ? q.id : (idx + 1),
+      session_index: idx + 1
+    }));
 
-    setActiveQuestions(finalQuestions);
+    setActiveQuestions(normalized);
     setCurrentIdx(0);
     setAnswers({});
     setSecondsElapsed(0);
