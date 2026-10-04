@@ -1,12 +1,24 @@
-const { memoryStore } = require('../config/database');
-const StatisticsService = require('../services/statistics.service');
+const { query, getIsConnectedToMySQL, memoryStore } = require('../config/database');
 
 class ResultController {
   static async getHistory(req, res) {
     try {
       const userId = req.user ? req.user.id : (req.query.userId || 1);
-      const userSubs = memoryStore.submissions.filter(s => s.user_id === parseInt(userId, 10));
 
+      if (getIsConnectedToMySQL()) {
+        const history = await query(`
+          SELECT s.*, e.title as exerciseTitle, e.difficulty
+          FROM submissions s
+          JOIN exercises e ON s.exercise_id = e.id
+          WHERE s.user_id = ?
+          ORDER BY s.completed_at DESC
+          LIMIT 20
+        `, [userId]);
+
+        return res.json({ success: true, history });
+      }
+
+      const userSubs = memoryStore.submissions.filter(s => s.user_id === parseInt(userId, 10));
       const history = userSubs.map(s => {
         const ex = memoryStore.exercises.find(item => item.id === s.exercise_id) || {};
         return {
@@ -24,6 +36,18 @@ class ResultController {
 
   static async getLeaderboard(req, res) {
     try {
+      if (getIsConnectedToMySQL()) {
+        const students = await query(`
+          SELECT id, full_name, avatar, grade_level, xp, level, streak_days
+          FROM users
+          WHERE role = 'student'
+          ORDER BY xp DESC, streak_days DESC
+          LIMIT 10
+        `);
+
+        return res.json({ success: true, leaderboard: students });
+      }
+
       const students = memoryStore.users
         .filter(u => u.role === 'student')
         .map(u => ({
