@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function SubjectsPage({ onStartExercise }) {
   const { user, setShowProfileModal } = useAuth();
-  const currentGrade = user.grade_level || 1;
+  const currentGrade = user?.grade_level || 1;
 
   const [selectedSubject, setSelectedSubject] = useState(1); // 1: Toan
   const [subjects, setSubjects] = useState([]);

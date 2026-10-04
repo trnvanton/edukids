@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import ProfileModal from './components/ProfileModal';
+import AuthModal from './components/AuthModal';
 import Dashboard from './pages/Dashboard';
 import SubjectsPage from './pages/SubjectsPage';
 import QuizPage from './pages/QuizPage';
@@ -18,6 +19,10 @@ export default function App() {
 
   // Switch active tab automatically if role changes
   React.useEffect(() => {
+    if (!user) {
+      setActiveTab('dashboard');
+      return;
+    }
     if (user.role === 'teacher') {
       setActiveTab('teacher');
     } else if (user.role === 'admin') {
@@ -25,7 +30,7 @@ export default function App() {
     } else {
       setActiveTab('dashboard');
     }
-  }, [user.role]);
+  }, [user?.role]);
 
   const handleStartExercise = (exId) => {
     setSelectedExerciseId(exId);
@@ -43,6 +48,7 @@ export default function App() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
       <ProfileModal />
+      <AuthModal />
 
       <main style={{ flex: 1 }}>
         {/* Student Views */}

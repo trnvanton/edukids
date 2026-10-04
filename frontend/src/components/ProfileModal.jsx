@@ -4,9 +4,9 @@ import { sound } from '../services/audio';
 
 export default function ProfileModal() {
   const { user, updateProfile, showProfileModal, setShowProfileModal } = useAuth();
-  const [fullName, setFullName] = useState(user.full_name || '');
-  const [gradeLevel, setGradeLevel] = useState(user.grade_level || 1);
-  const [avatar, setAvatar] = useState(user.avatar || 'mascot-bear');
+  const [fullName, setFullName] = useState(user?.full_name || '');
+  const [gradeLevel, setGradeLevel] = useState(user?.grade_level || 1);
+  const [avatar, setAvatar] = useState(user?.avatar || 'mascot-bear');
 
   useEffect(() => {
     if (user) {
