@@ -514,6 +514,36 @@ const curriculumDatabase = {
   }
 };
 
+// Hydrate saved custom exercises from localStorage
+try {
+  const storedCustom = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
+  if (Array.isArray(storedCustom)) {
+    storedCustom.forEach(ex => {
+      curriculumDatabase.exercises[ex.id] = ex;
+      const g = ex.grade_level || 4;
+      const s = ex.subject_id || 1;
+      if (!curriculumDatabase.lessonsByGradeAndSubject[g]) {
+        curriculumDatabase.lessonsByGradeAndSubject[g] = { 1: [], 2: [], 3: [], 4: [] };
+      }
+      if (!curriculumDatabase.lessonsByGradeAndSubject[g][s]) {
+        curriculumDatabase.lessonsByGradeAndSubject[g][s] = [];
+      }
+      curriculumDatabase.lessonsByGradeAndSubject[g][s].unshift({
+        id: ex.id + 50000,
+        subject_id: s,
+        grade_level: g,
+        title: ex.title,
+        topic_tag: `custom-${ex.id}`,
+        description: `Bài tập gồm ${ex.questions?.length || 0} câu hỏi`,
+        icon: s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧')),
+        exercise_id: ex.id
+      });
+    });
+  }
+} catch (e) {
+  console.warn('Hydration error:', e);
+}
+
 class ApiService {
   constructor() {
     this.token = null;
@@ -833,6 +863,55 @@ class ApiService {
     return { success: true, exercise: ex };
   }
 
+  // Save new exercise created manually or imported from Excel by teacher
+  saveCustomExercise(exercise) {
+    const id = exercise.id || (Date.now() % 100000);
+    const grade = parseInt(exercise.grade_level, 10) || 4;
+    const subjectId = parseInt(exercise.subject_id, 10) || 1;
+
+    const fullExercise = {
+      id,
+      title: exercise.title || 'Bài Tập Mới Của Cô Giáo',
+      grade_level: grade,
+      subject_id: subjectId,
+      reward_xp: exercise.reward_xp || 50,
+      questions: exercise.questions || []
+    };
+
+    curriculumDatabase.exercises[id] = fullExercise;
+
+    // Add to lesson list if not present
+    if (!curriculumDatabase.lessonsByGradeAndSubject[grade]) {
+      curriculumDatabase.lessonsByGradeAndSubject[grade] = { 1: [], 2: [], 3: [], 4: [] };
+    }
+    if (!curriculumDatabase.lessonsByGradeAndSubject[grade][subjectId]) {
+      curriculumDatabase.lessonsByGradeAndSubject[grade][subjectId] = [];
+    }
+
+    const newLesson = {
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      subject_id: subjectId,
+      grade_level: grade,
+      title: fullExercise.title,
+      topic_tag: `custom-${id}`,
+      description: `Bài tập gồm ${fullExercise.questions.length} câu hỏi tương tác (Trắc nghiệm, Điền ô, Nối cặp, Đúng/Sai)`,
+      icon: subjectId === 1 ? '📐' : (subjectId === 2 ? '📖' : (subjectId === 3 ? '🔬' : '🇬🇧')),
+      exercise_id: id
+    };
+
+    curriculumDatabase.lessonsByGradeAndSubject[grade][subjectId].unshift(newLesson);
+
+    try {
+      const stored = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
+      stored.push(fullExercise);
+      localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
+    } catch (e) {
+      console.warn('Cannot persist to localStorage:', e);
+    }
+
+    return { success: true, exercise: fullExercise, lesson: newLesson };
+  }
+
   async submitExercise(exerciseId, answers, timeTakenSeconds) {
     const res = await this.request('/exercises/submit', {
       method: 'POST',
@@ -840,32 +919,75 @@ class ApiService {
     });
     if (res.success && res.result) return res;
 
-    // Intelligent local grading with step-by-step explanations
+    // Intelligent local grading supporting all question types (multiple_choice, fill_blank, matching, true_false)
     const ex = curriculumDatabase.exercises[exerciseId] || curriculumDatabase.exercises[1021] || curriculumDatabase.exercises[101];
     let totalScore = 0;
     let earnedXp = 0;
-    const detailedFeedback = (ex?.questions || []).map((q, idx) => {
+    const questions = ex?.questions || [];
+
+    const detailedFeedback = questions.map((q, idx) => {
       const studentAns = answers[q.id];
-      // Options A or B standard
-      const isCorrect = (studentAns === 'A' || studentAns === 'B' || studentAns === 'C');
-      const score = isCorrect ? q.points : 0;
+      const qType = q.question_type || 'multiple_choice';
+      let isCorrect = false;
+
+      if (qType === 'multiple_choice') {
+        const correctOpt = (q.correct_answer || 'A').toString().trim().toUpperCase();
+        isCorrect = (studentAns?.toString().trim().toUpperCase() === correctOpt);
+      } else if (qType === 'fill_blank') {
+        const correctText = (q.correct_answer || '').toString().trim().toLowerCase();
+        const userText = (studentAns || '').toString().trim().toLowerCase();
+        isCorrect = (userText === correctText && userText !== '');
+      } else if (qType === 'true_false') {
+        const correctTf = (q.correct_answer || 'Đúng').toString().trim().toLowerCase();
+        const userTf = (studentAns || '').toString().trim().toLowerCase();
+        isCorrect = (userTf === correctTf || (correctTf.includes('đúng') && userTf.includes('đúng')) || (correctTf.includes('sai') && userTf.includes('sai')));
+      } else if (qType === 'matching') {
+        // Matching validation: studentAns is an object { "1": "B", "2": "A", ... }
+        if (q.matching_data?.correctPairs && studentAns && typeof studentAns === 'object') {
+          const pairs = q.matching_data.correctPairs;
+          const totalPairs = Object.keys(pairs).length;
+          let matchedCount = 0;
+          for (const [leftKey, rightVal] of Object.entries(pairs)) {
+            if (studentAns[leftKey] === rightVal) {
+              matchedCount++;
+            }
+          }
+          isCorrect = (matchedCount === totalPairs && totalPairs > 0);
+        } else {
+          isCorrect = true;
+        }
+      } else {
+        isCorrect = (studentAns === q.correct_answer);
+      }
+
+      const score = isCorrect ? (q.points || 10) : 0;
       totalScore += score;
-      if (isCorrect) earnedXp += 20;
+      if (isCorrect) earnedXp += 25;
+
+      let formattedStudentAns = studentAns;
+      let formattedCorrectAns = q.correct_answer || 'A';
+
+      if (qType === 'matching') {
+        formattedStudentAns = studentAns ? Object.entries(studentAns).map(([l, r]) => `${l} ➔ ${r}`).join(', ') : 'Chưa nối cặp';
+        formattedCorrectAns = q.matching_data?.correctPairs ? Object.entries(q.matching_data.correctPairs).map(([l, r]) => `${l} ➔ ${r}`).join(', ') : 'Xem lời giải';
+      }
 
       return {
         questionId: q.id,
         index: idx + 1,
+        questionType: qType,
         questionText: q.question_text,
-        studentAnswer: studentAns || 'Chưa trả lời',
-        correctAnswer: 'A',
+        imageUrl: q.image_url,
+        studentAnswer: formattedStudentAns || 'Chưa trả lời',
+        correctAnswer: formattedCorrectAns,
         isCorrect: isCorrect,
         pointsEarned: score,
-        pointsPossible: q.points,
-        pedagogicalExplanation: `💡 Lời giải sư phạm: ${q.hint || 'Áp dụng công thức và kiến thức đã học trong bài để chọn đáp án chính xác nhất.'}`
+        pointsPossible: q.points || 10,
+        pedagogicalExplanation: q.explanation || (q.hint ? `💡 Gợi ý: ${q.hint}` : 'Xem lại kiến thức bài học và phương pháp giải.')
       };
     });
 
-    const totalQ = ex?.questions?.length || 1;
+    const totalQ = questions.length || 1;
     const maxScore = totalQ * 10;
     const score10 = Math.round((totalScore / maxScore) * 10);
     const scorePercentage = Math.round((totalScore / maxScore) * 100);
@@ -877,8 +999,8 @@ class ApiService {
         score10,
         totalPoints: maxScore,
         totalQuestions: totalQ,
-        correctCount: Math.round(totalScore / 10),
-        wrongCount: totalQ - Math.round(totalScore / 10),
+        correctCount: detailedFeedback.filter(f => f.isCorrect).length,
+        wrongCount: detailedFeedback.filter(f => !f.isCorrect).length,
         scorePercentage,
         percentage: scorePercentage,
         xpEarned: earnedXp || 30,

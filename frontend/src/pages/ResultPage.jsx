@@ -154,9 +154,16 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
               </span>
             </div>
 
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px' }}>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '16px', color: '#1E293B' }}>
               {q.questionText}
             </div>
+
+            {/* Attached image if any */}
+            {q.imageUrl && (
+              <div style={{ marginBottom: '16px' }}>
+                <img src={q.imageUrl} alt="minh hoa" style={{ maxHeight: '160px', borderRadius: '12px', border: '1px solid #E2E8F0', objectFit: 'contain' }} />
+              </div>
+            )}
 
             {/* Answer Comparison */}
             <div style={{
@@ -169,11 +176,11 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
               gap: '8px'
             }}>
               <div style={{ color: q.isCorrect ? '#059669' : '#DC2626', fontWeight: 800 }}>
-                👉 Lựa chọn của bé: <strong>{q.userAnswer ? `[Đáp án ${q.userAnswer}]` : 'Chưa trả lời'}</strong>
+                👉 Lựa chọn của bé: <strong>{q.userAnswer ? `${q.userAnswer}` : 'Chưa trả lời'}</strong>
               </div>
               {!q.isCorrect && (
                 <div style={{ color: '#059669', fontWeight: 800 }}>
-                  🎯 Đáp án chính xác: <strong>[Đáp án {q.correctAnswer}] - {q.correctAnswerText}</strong>
+                  🎯 Đáp án chính xác: <strong>{q.correctAnswer}</strong>
                 </div>
               )}
             </div>
