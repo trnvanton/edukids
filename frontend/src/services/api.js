@@ -571,10 +571,26 @@ try {
         grade_level: g,
         title: ex.title,
         topic_tag: `custom-${ex.id}`,
-        description: `Bài tập gồm ${ex.questions?.length || 0} câu hỏi`,
-        icon: s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧')),
+        description: ex.is_random_pool ? `Ngân hàng ${ex.questions?.length || 0} câu (Random ${ex.random_count || 10} câu)` : `Bài tập gồm ${ex.questions?.length || 0} câu hỏi`,
+        icon: ex.is_random_pool ? '🎲' : (s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧'))),
         exercise_id: ex.id
       });
+    });
+  }
+
+  // Filter out any deleted exercises so they stay deleted across F5 page reloads
+  const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
+  if (Array.isArray(deletedIds) && deletedIds.length > 0) {
+    deletedIds.forEach(delId => {
+      const numericId = parseInt(delId, 10);
+      delete curriculumDatabase.exercises[numericId];
+      for (const g of Object.keys(curriculumDatabase.lessonsByGradeAndSubject)) {
+        for (const s of Object.keys(curriculumDatabase.lessonsByGradeAndSubject[g])) {
+          curriculumDatabase.lessonsByGradeAndSubject[g][s] = curriculumDatabase.lessonsByGradeAndSubject[g][s].filter(
+            l => l.exercise_id !== numericId
+          );
+        }
+      }
     });
   }
 } catch (e) {
@@ -1020,9 +1036,12 @@ class ApiService {
       }
     }
 
+    const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
+
     for (const [id, ex] of Object.entries(curriculumDatabase.exercises)) {
       if (!ex) continue;
       const numericId = parseInt(id, 10);
+      if (deletedIds.includes(numericId)) continue;
       const meta = metaMap[numericId] || {};
       const gradeLevel = ex.grade_level || meta.grade_level || (numericId >= 1050 ? 5 : (numericId >= 1040 || numericId <= 110 ? 4 : (numericId >= 1030 ? 3 : (numericId >= 1020 ? 2 : 1))));
       const subjectId = ex.subject_id || meta.subject_id || 1;
@@ -1114,10 +1133,20 @@ class ApiService {
     }
 
     try {
+      // 1. Remove from custom exercises if present
       let stored = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
       stored = stored.filter(ex => ex.id !== numericId);
       localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
-    } catch (e) {}
+
+      // 2. Add to deleted exercises blacklist so it NEVER comes back on F5 reload!
+      let deletedList = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
+      if (!deletedList.includes(numericId)) {
+        deletedList.push(numericId);
+      }
+      localStorage.setItem('edukids_deleted_exercises', JSON.stringify(deletedList));
+    } catch (e) {
+      console.warn('Cannot persist deleted exercise:', e);
+    }
 
     return { success: true };
   }

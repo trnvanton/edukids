@@ -19,6 +19,10 @@ class SoundManager {
     return this.isMuted;
   }
 
+  click() {
+    this.pop();
+  }
+
   pop() {
     if (this.isMuted) return;
     this.init();

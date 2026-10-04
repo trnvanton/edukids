@@ -13,12 +13,21 @@ export function sampleRandomQuestions(questions, config = {}) {
     shuffleOptions = false
   } = config;
 
-  // 1. Clone question array
-  let pool = questions.map(q => ({
-    ...q,
-    options: Array.isArray(q.options) ? q.options.map(opt => ({ ...opt })) : q.options,
-    matching_data: q.matching_data ? { ...q.matching_data } : undefined
-  }));
+  // 1. Clone question array safely
+  let pool = questions.map(q => {
+    if (!q) return null;
+    let opts = q.options;
+    if (Array.isArray(opts)) {
+      opts = opts.map(opt => typeof opt === 'object' && opt !== null ? { ...opt } : { option_label: 'A', answer_text: String(opt) });
+    }
+    return {
+      ...q,
+      options: opts,
+      matching_data: q.matching_data ? { ...q.matching_data } : undefined
+    };
+  }).filter(Boolean);
+
+  if (pool.length === 0) return [];
 
   // 2. Shuffle questions in pool using Fisher-Yates
   if (shuffleQuestions) {
@@ -28,20 +37,20 @@ export function sampleRandomQuestions(questions, config = {}) {
     }
   }
 
-  // 3. Slice to desired count (if count is valid and less than pool size)
-  const targetCount = (count && count > 0 && count < pool.length) ? count : pool.length;
+  // 3. Slice to desired count safely
+  const targetCount = (count && count > 0) ? Math.min(count, pool.length) : Math.min(10, pool.length);
   let selected = pool.slice(0, targetCount);
 
   // 4. Optionally shuffle option answers for multiple choice questions
   if (shuffleOptions) {
     selected = selected.map(q => {
       if (q.question_type === 'multiple_choice' && Array.isArray(q.options) && q.options.length > 1) {
-        const originalCorrectLabel = (q.correct_answer || 'A').toUpperCase();
-        const correctOptObj = q.options.find(o => (o.option_label || '').toUpperCase() === originalCorrectLabel) || q.options[0];
+        const originalCorrectLabel = (q.correct_answer || 'A').toString().toUpperCase();
+        const correctOptObj = q.options.find(o => (o.option_label || '').toString().toUpperCase() === originalCorrectLabel) || q.options[0];
         const correctText = correctOptObj ? correctOptObj.answer_text : '';
 
         // Shuffle option texts
-        let shuffledAnswers = q.options.map(o => o.answer_text);
+        let shuffledAnswers = q.options.map(o => o.answer_text || '');
         for (let i = shuffledAnswers.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [shuffledAnswers[i], shuffledAnswers[j]] = [shuffledAnswers[j], shuffledAnswers[i]];

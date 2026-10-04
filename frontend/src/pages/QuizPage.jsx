@@ -98,13 +98,28 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
   };
 
   const handleStartRandomQuiz = (count) => {
-    sound.click();
-    const sampled = sampleRandomQuestions(rawExercise.questions, {
-      count: count || selectedRandomCount,
-      shuffleQuestions: rawExercise.shuffle_questions !== false,
-      shuffleOptions: !!rawExercise.shuffle_options
-    });
-    setActiveQuestions(sampled);
+    try {
+      sound.pop();
+    } catch (e) {}
+
+    const targetCount = count || selectedRandomCount || 10;
+    const questionsPool = (rawExercise && Array.isArray(rawExercise.questions)) ? rawExercise.questions : [];
+    
+    let sampled = [];
+    try {
+      sampled = sampleRandomQuestions(questionsPool, {
+        count: targetCount,
+        shuffleQuestions: rawExercise?.shuffle_questions !== false,
+        shuffleOptions: !!rawExercise?.shuffle_options
+      });
+    } catch (err) {
+      console.warn('Sampling error, fallback to raw questions:', err);
+      sampled = questionsPool.slice(0, targetCount);
+    }
+
+    const finalQuestions = (sampled && sampled.length > 0) ? sampled : questionsPool;
+
+    setActiveQuestions(finalQuestions);
     setCurrentIdx(0);
     setAnswers({});
     setSecondsElapsed(0);
