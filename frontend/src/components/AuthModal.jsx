@@ -232,30 +232,108 @@ export default function AuthModal() {
 
             {/* Quick Demo Login Chips */}
             <div style={{ marginTop: '22px', borderTop: '1.5px dashed var(--border-color)', paddingTop: '16px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                Hoặc bấm đăng nhập nhanh 1 chạm (Tài khoản mẫu):
+              <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#475569', display: 'block', marginBottom: '10px' }}>
+                ⚡ Hoặc đăng nhập nhanh 1 chạm bằng tài khoản mẫu:
               </span>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <button
                   type="button"
-                  onClick={() => quickDemoLogin('student1', '123456')}
-                  style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', border: '1.5px solid #C7D2FE', background: '#EEF2FF', color: 'var(--primary)', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer' }}
+                  onClick={() => quickDemoLogin('admin', '123456')}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #CBD5E1',
+                    background: '#F1F5F9',
+                    color: '#0F172A',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    textAlign: 'left'
+                  }}
                 >
-                  👦 Bé Minh Anh (Lớp 4)
+                  <span style={{ fontSize: '1.2rem' }}>👨‍💼</span>
+                  <div>
+                    <div style={{ fontWeight: 900, color: '#1E293B' }}>Admin Quản Trị</div>
+                    <div style={{ fontSize: '0.72rem', color: '#64748B' }}>admin / 123456</div>
+                  </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => quickDemoLogin('student_lop2', '123456')}
-                  style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', border: '1.5px solid #A7F3D0', background: '#ECFDF5', color: '#065F46', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer' }}
-                >
-                  🐥 Bé Bảo Ngọc (Lớp 2)
-                </button>
+
                 <button
                   type="button"
                   onClick={() => quickDemoLogin('teacher1', '123456')}
-                  style={{ padding: '6px 12px', borderRadius: 'var(--radius-full)', border: '1.5px solid #FDE68A', background: '#FEF3C7', color: '#B45309', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer' }}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #FDE68A',
+                    background: '#FEF3C7',
+                    color: '#92400E',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    textAlign: 'left'
+                  }}
                 >
-                  👩‍🏫 Cô Hoàng Mai
+                  <span style={{ fontSize: '1.2rem' }}>👩‍🏫</span>
+                  <div>
+                    <div style={{ fontWeight: 900, color: '#B45309' }}>Cô Hoàng Mai</div>
+                    <div style={{ fontSize: '0.72rem', color: '#92400E' }}>teacher1 / 123456</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => quickDemoLogin('student_lop2', '123456')}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #A7F3D0',
+                    background: '#ECFDF5',
+                    color: '#065F46',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    textAlign: 'left'
+                  }}
+                >
+                  <span style={{ fontSize: '1.2rem' }}>🐥</span>
+                  <div>
+                    <div style={{ fontWeight: 900, color: '#047857' }}>Học Sinh Lớp 2</div>
+                    <div style={{ fontSize: '0.72rem', color: '#065F46' }}>Bé Bảo Ngọc</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => quickDemoLogin('student1', '123456')}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #C7D2FE',
+                    background: '#EEF2FF',
+                    color: '#3730A3',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    textAlign: 'left'
+                  }}
+                >
+                  <span style={{ fontSize: '1.2rem' }}>👦</span>
+                  <div>
+                    <div style={{ fontWeight: 900, color: '#4338CA' }}>Học Sinh Lớp 4</div>
+                    <div style={{ fontSize: '0.72rem', color: '#4F46E5' }}>Bé Minh Anh</div>
+                  </div>
                 </button>
               </div>
             </div>
@@ -265,15 +343,58 @@ export default function AuthModal() {
         {/* REGISTER FORM */}
         {authModalMode === 'register' && (
           <form onSubmit={handleRegister}>
+            {/* Role Switcher */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '6px' }}>
+                Loại tài khoản đăng ký:
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setRegRole('student')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    border: regRole === 'student' ? '2px solid var(--primary)' : '1.5px solid var(--border-color)',
+                    background: regRole === 'student' ? '#EEF2FF' : '#F8FAFC',
+                    color: regRole === 'student' ? 'var(--primary)' : '#64748B',
+                    fontWeight: 800,
+                    fontSize: '0.88rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  👦 Bé Học Sinh
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegRole('teacher')}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    border: regRole === 'teacher' ? '2px solid #D97706' : '1.5px solid var(--border-color)',
+                    background: regRole === 'teacher' ? '#FEF3C7' : '#F8FAFC',
+                    color: regRole === 'teacher' ? '#B45309' : '#64748B',
+                    fontWeight: 800,
+                    fontSize: '0.88rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  👩‍🏫 Thầy / Cô Giáo
+                </button>
+              </div>
+            </div>
+
             <div style={{ marginBottom: '12px' }}>
               <label style={{ display: 'block', fontWeight: 800, fontSize: '0.9rem', marginBottom: '4px' }}>
-                Họ và tên của bé:
+                {regRole === 'student' ? 'Họ và tên của bé:' : 'Họ và tên giáo viên:'}
               </label>
               <input
                 type="text"
                 value={regFullName}
                 onChange={e => setRegFullName(e.target.value)}
-                placeholder="Ví dụ: Bé Trần Tuấn Kiệt..."
+                placeholder={regRole === 'student' ? 'Ví dụ: Bé Trần Tuấn Kiệt...' : 'Ví dụ: Cô Nguyễn Mai Phương...'}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid var(--border-color)', fontWeight: 700 }}
                 required
               />
@@ -288,7 +409,7 @@ export default function AuthModal() {
                   type="text"
                   value={regUsername}
                   onChange={e => setRegUsername(e.target.value)}
-                  placeholder="tuankiet2017"
+                  placeholder={regRole === 'student' ? 'tuankiet2017' : 'cophuong2025'}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1.5px solid var(--border-color)', fontWeight: 700 }}
                   required
                 />
@@ -309,10 +430,10 @@ export default function AuthModal() {
               </div>
             </div>
 
-            {/* Select Grade on Registration */}
+            {/* Select Grade for Student / Teacher */}
             <div style={{ marginBottom: '14px' }}>
               <label style={{ display: 'block', fontWeight: 800, fontSize: '0.9rem', marginBottom: '4px', color: 'var(--primary)' }}>
-                🏫 Bé đang học Khối Lớp nào?
+                {regRole === 'student' ? '🏫 Bé đang học Khối Lớp nào?' : '🏫 Khối lớp phụ trách / giảng dạy:'}
               </label>
               <select
                 value={regGrade}
@@ -340,7 +461,7 @@ export default function AuthModal() {
             {/* Select Mascot Avatar */}
             <div style={{ marginBottom: '18px' }}>
               <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', marginBottom: '6px' }}>
-                Chọn bạn linh vật yêu thích:
+                Chọn hình đại diện / linh vật:
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 {Object.keys(mascotMap).map(key => (
@@ -374,7 +495,7 @@ export default function AuthModal() {
               disabled={loading}
               style={{ width: '100%', justifyContent: 'center', padding: '14px', background: 'linear-gradient(135deg, #10B981, #059669)' }}
             >
-              <span>{loading ? '⏳ Đang tạo tài khoản...' : 'Tạo Tài Khoản & Nhận 50 XP 🌟'}</span>
+              <span>{loading ? '⏳ Đang tạo tài khoản...' : (regRole === 'teacher' ? 'Đăng Ký Tài Khoản Giáo Viên 👩‍🏫' : 'Tạo Tài Khoản Bé & Nhận 50 XP 🌟')}</span>
             </button>
           </form>
         )}
