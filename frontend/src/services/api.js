@@ -200,7 +200,8 @@ class ApiService {
               if (!deletedStudentSet.has(name) && !deletedStudentSet.has(id)) {
                 const existing = stMap.get(id);
                 if (existing) {
-                  stMap.set(id, { ...existing, ...s, xp: Math.max(existing.xp || 0, s.xp || 0) });
+                  // Keep local existing names/avatars if recently edited, take max XP
+                  stMap.set(id, { ...s, ...existing, xp: Math.max(existing.xp || 0, s.xp || 0) });
                 } else {
                   stMap.set(id, s);
                 }

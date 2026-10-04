@@ -11,20 +11,10 @@ export const mascotMap = {
   'mascot-panda': '🐼'
 };
 
-// Automatically wipe legacy mock session on load
-try {
-  if (localStorage.getItem('edukids_user')) {
-    localStorage.removeItem('edukids_user');
-    localStorage.removeItem('edukids_token');
-  }
-} catch (e) {
-  // Ignore localStorage errors
-}
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     try {
-      const saved = localStorage.getItem('edukids_v2_user');
+      const saved = localStorage.getItem('edukids_v2_user') || localStorage.getItem('edukids_user');
       return saved ? JSON.parse(saved) : null;
     } catch (e) {
       return null;
@@ -57,7 +47,8 @@ export const AuthProvider = ({ children }) => {
         if (saved) {
           const parsed = JSON.parse(saved);
           setUser(prev => {
-            if (!prev || prev.xp !== parsed.xp || prev.class_code !== parsed.class_code || prev.full_name !== parsed.full_name) {
+            if (!prev) return parsed;
+            if (prev.xp !== parsed.xp || prev.class_code !== parsed.class_code || prev.full_name !== parsed.full_name || prev.avatar !== parsed.avatar || prev.grade_level !== parsed.grade_level) {
               return parsed;
             }
             return prev;
@@ -67,7 +58,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     window.addEventListener('storage', handleSync);
-    const interval = setInterval(handleSync, 4000);
+    const interval = setInterval(handleSync, 3000);
     return () => {
       window.removeEventListener('storage', handleSync);
       clearInterval(interval);
@@ -116,19 +107,32 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (updates) => {
     if (!user) return;
+    const oldName = user.full_name || user.username || '';
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
     try {
       localStorage.setItem('edukids_v2_user', JSON.stringify(updatedUser));
+      localStorage.setItem('edukids_user', JSON.stringify(updatedUser));
+      
       let customSt = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
-      customSt = customSt.map(s => (s.full_name === user.full_name || String(s.id) === String(user.id) ? { ...s, ...updates } : s));
+      let matched = false;
+      customSt = customSt.map(s => {
+        if (s.full_name === oldName || s.student_name === oldName || String(s.id) === String(user.id)) {
+          matched = true;
+          return { ...s, ...updates, full_name: updates.full_name || s.full_name, student_name: updates.full_name || s.student_name };
+        }
+        return s;
+      });
+      if (!matched && updates.full_name) {
+        customSt.push(updatedUser);
+      }
       localStorage.setItem('edukids_custom_students', JSON.stringify(customSt));
     } catch (e) {}
 
-    // Async Cloud sync to Aiven MySQL
+    // Async Cloud sync to Aiven MySQL with oldName
     api.request('/sync', {
       method: 'POST',
-      body: JSON.stringify({ action: 'save_student', student: updatedUser })
+      body: JSON.stringify({ action: 'save_student', student: updatedUser, oldName })
     }).catch(() => {});
   };
 

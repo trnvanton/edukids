@@ -232,10 +232,10 @@ export default async function handler(req, res) {
       }
 
       // Join Class / Save Real Student (with Parent Phone & Class Code)
-      if (body.action === 'join_class' || body.action === 'save_student' || body.student) {
+      if (body.action === 'join_class' || body.action === 'save_student' || body.action === 'update_profile' || body.student) {
         const st = body.student || body;
         const studentId = String(st.id || Date.now());
-        const classCode = (st.class_code || '2A1-8429').toUpperCase().trim();
+        const classCode = st.class_code ? st.class_code.toUpperCase().trim() : '';
         const studentName = st.student_name || st.full_name || 'Học Sinh';
         const parentPhone = st.parent_phone || '';
         const studentAvatar = st.avatar || st.student_avatar || 'mascot-bear';
@@ -256,11 +256,17 @@ export default async function handler(req, res) {
             data_json = VALUES(data_json)
         `, [studentId, classCode, studentName, parentPhone, studentAvatar, gradeLevel, xp, dataJson]);
 
+        if (body.oldName && body.oldName !== studentName) {
+          try {
+            await conn.execute('DELETE FROM cloud_synced_students WHERE student_name = ? AND id != ?', [body.oldName, studentId]);
+          } catch (e) {}
+        }
+
         await conn.end();
 
         return res.status(200).json({
           success: true,
-          message: `Đã liên kết học sinh "${studentName}" vào Mã Lớp "${classCode}" trên Cloud MySQL! 🎉`,
+          message: `Đã lưu hồ sơ học sinh "${studentName}" trên Cloud MySQL! 🎉`,
           student: { ...st, id: studentId, class_code: classCode }
         });
       }
