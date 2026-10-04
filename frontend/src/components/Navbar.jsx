@@ -29,19 +29,23 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
   return (
     <header style={{
-      background: '#FFFFFF',
-      borderBottom: '1px solid #E2E8F0',
+      background: 'rgba(255, 255, 255, 0.96)',
+      backdropFilter: 'blur(12px)',
+      borderBottom: '1.5px solid #E2E8F0',
       position: 'sticky',
       top: 0,
-      zIndex: 100,
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
+      zIndex: 1000,
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)'
     }}>
-      <div className="container" style={{
+      <div style={{
+        maxWidth: '1360px',
+        margin: '0 auto',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        height: '68px',
-        padding: '0 20px'
+        height: '62px',
+        padding: '0 20px',
+        gap: '12px'
       }}>
         {/* Left: Brand Logo */}
         <div
@@ -51,58 +55,72 @@ export default function Navbar({ activeTab, setActiveTab }) {
             alignItems: 'center',
             gap: '10px',
             cursor: 'pointer',
-            userSelect: 'none'
+            userSelect: 'none',
+            flexShrink: 0
           }}
         >
           <div style={{
-            fontSize: '1.6rem',
+            fontSize: '1.4rem',
             background: 'linear-gradient(135deg, #EEF2FF, #E0E7FF)',
-            width: '40px',
-            height: '40px',
-            borderRadius: '12px',
+            width: '38px',
+            height: '38px',
+            borderRadius: '10px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid #C7D2FE'
+            border: '1.5px solid #C7D2FE',
+            boxShadow: '0 2px 6px rgba(79, 70, 229, 0.12)'
           }}>
             🎒
           </div>
           <div>
             <span style={{
-              fontSize: '1.3rem',
+              fontSize: '1.2rem',
               fontWeight: 900,
-              color: '#4F46E5',
+              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
               letterSpacing: '-0.3px',
               display: 'block',
-              lineHeight: 1.1
+              lineHeight: 1.1,
+              whiteSpace: 'nowrap'
             }}>
               EduKids
             </span>
-            <span style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 800, whiteSpace: 'nowrap' }}>
               Tiểu Học Thông Minh
             </span>
           </div>
         </div>
 
-        {/* Center: Clean Navigation Links */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Center: Clean Navigation Links with No Text Wrapping */}
+        <nav style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          flexShrink: 0
+        }}>
           {user && user.role === 'student' && (
             <>
               <button
+                type="button"
                 onClick={() => { sound.pop(); setActiveTab('dashboard'); }}
                 style={{
-                  padding: '8px 16px',
+                  padding: '7px 14px',
                   borderRadius: '10px',
                   border: 'none',
                   fontWeight: 800,
-                  fontSize: '0.92rem',
+                  fontSize: '0.88rem',
                   cursor: 'pointer',
-                  background: activeTab === 'dashboard' ? '#EEF2FF' : 'transparent',
-                  color: activeTab === 'dashboard' ? '#4F46E5' : '#64748B',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
+                  background: activeTab === 'dashboard' ? '#4F46E5' : 'transparent',
+                  color: activeTab === 'dashboard' ? '#FFFFFF' : '#475569',
+                  boxShadow: activeTab === 'dashboard' ? '0 3px 10px rgba(79, 70, 229, 0.25)' : 'none',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  outline: 'none'
                 }}
               >
                 <span>🏠</span>
@@ -110,20 +128,24 @@ export default function Navbar({ activeTab, setActiveTab }) {
               </button>
 
               <button
+                type="button"
                 onClick={() => { sound.pop(); setActiveTab('subjects'); }}
                 style={{
-                  padding: '8px 16px',
+                  padding: '7px 14px',
                   borderRadius: '10px',
                   border: 'none',
                   fontWeight: 800,
-                  fontSize: '0.92rem',
+                  fontSize: '0.88rem',
                   cursor: 'pointer',
-                  background: activeTab === 'subjects' ? '#EEF2FF' : 'transparent',
-                  color: activeTab === 'subjects' ? '#4F46E5' : '#64748B',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
+                  background: activeTab === 'subjects' ? '#4F46E5' : 'transparent',
+                  color: activeTab === 'subjects' ? '#FFFFFF' : '#475569',
+                  boxShadow: activeTab === 'subjects' ? '0 3px 10px rgba(79, 70, 229, 0.25)' : 'none',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  outline: 'none'
                 }}
               >
                 <span>📚</span>
@@ -131,20 +153,24 @@ export default function Navbar({ activeTab, setActiveTab }) {
               </button>
 
               <button
+                type="button"
                 onClick={() => { sound.pop(); setActiveTab('leaderboard'); }}
                 style={{
-                  padding: '8px 16px',
+                  padding: '7px 14px',
                   borderRadius: '10px',
                   border: 'none',
                   fontWeight: 800,
-                  fontSize: '0.92rem',
+                  fontSize: '0.88rem',
                   cursor: 'pointer',
-                  background: activeTab === 'leaderboard' ? '#EEF2FF' : 'transparent',
-                  color: activeTab === 'leaderboard' ? '#4F46E5' : '#64748B',
-                  transition: 'all 0.2s ease',
-                  display: 'flex',
+                  background: activeTab === 'leaderboard' ? '#4F46E5' : 'transparent',
+                  color: activeTab === 'leaderboard' ? '#FFFFFF' : '#475569',
+                  boxShadow: activeTab === 'leaderboard' ? '0 3px 10px rgba(79, 70, 229, 0.25)' : 'none',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  outline: 'none'
                 }}
               >
                 <span>🏆</span>
@@ -155,43 +181,62 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
           {user && user.role === 'teacher' && (
             <button
+              type="button"
               onClick={() => { sound.pop(); setActiveTab('teacher'); }}
               style={{
-                padding: '8px 16px',
+                padding: '7px 16px',
                 borderRadius: '10px',
                 border: 'none',
                 fontWeight: 800,
-                fontSize: '0.92rem',
+                fontSize: '0.88rem',
                 cursor: 'pointer',
                 background: '#FEF3C7',
-                color: '#B45309'
+                color: '#B45309',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+                outline: 'none'
               }}
             >
-              👩‍🏫 Quản Lý Lớp Học & Bài Tập
+              <span>👩‍🏫</span>
+              <span>Quản Lý Lớp Học & Bài Tập</span>
             </button>
           )}
 
           {user && user.role === 'admin' && (
             <button
+              type="button"
               onClick={() => { sound.pop(); setActiveTab('admin'); }}
               style={{
-                padding: '8px 16px',
+                padding: '7px 16px',
                 borderRadius: '10px',
                 border: 'none',
                 fontWeight: 800,
-                fontSize: '0.92rem',
+                fontSize: '0.88rem',
                 cursor: 'pointer',
                 background: '#ECFDF5',
-                color: '#065F46'
+                color: '#065F46',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+                outline: 'none'
               }}
             >
-              👨‍💼 Quản Trị Hệ Thống
+              <span>👨‍💼</span>
+              <span>Quản Trị Hệ Thống</span>
             </button>
           )}
         </nav>
 
-        {/* Right: Consolidated Student Badge & Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* Right: Consolidated Student Badges, Audio, User Profile & Logout */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          flexShrink: 0
+        }}>
           {user ? (
             <>
               {/* Consolidated Student Status Pill */}
@@ -200,26 +245,32 @@ export default function Navbar({ activeTab, setActiveTab }) {
                   onClick={() => { sound.pop(); setShowProfileModal(true); }}
                   title="Bấm để đổi khối lớp hoặc avatar"
                   style={{
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '10px',
+                    gap: '8px',
                     background: '#F8FAFC',
-                    border: '1px solid #E2E8F0',
-                    padding: '5px 12px',
+                    border: '1.5px solid #E2E8F0',
+                    padding: '4px 10px',
                     borderRadius: '9999px',
                     cursor: 'pointer',
-                    fontSize: '0.85rem',
+                    fontSize: '0.82rem',
                     fontWeight: 800,
-                    transition: 'all 0.2s ease'
+                    whiteSpace: 'nowrap'
                   }}
                 >
-                  <span style={{ color: '#4F46E5', background: '#EEF2FF', padding: '2px 8px', borderRadius: '9999px' }}>
+                  <span style={{
+                    color: '#4F46E5',
+                    background: '#EEF2FF',
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    fontWeight: 900
+                  }}>
                     🏫 Lớp {user.grade_level || 2}
                   </span>
-                  <span style={{ color: '#D97706' }}>
+                  <span style={{ color: '#D97706', fontWeight: 800 }}>
                     ⭐ {user.xp || 0} XP
                   </span>
-                  <span style={{ color: '#EF4444' }}>
+                  <span style={{ color: '#EF4444', fontWeight: 800 }}>
                     🔥 {user.streak_days || 1}d
                   </span>
                 </div>
@@ -227,59 +278,68 @@ export default function Navbar({ activeTab, setActiveTab }) {
 
               {/* Sound Toggle Button */}
               <button
+                type="button"
                 onClick={handleSound}
-                title="Bật/Tắt âm thanh"
+                title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
                 style={{
                   background: '#F8FAFC',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
+                  border: '1.5px solid #E2E8F0',
+                  borderRadius: '10px',
+                  width: '34px',
+                  height: '34px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '1rem',
-                  cursor: 'pointer'
+                  fontSize: '0.95rem',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  flexShrink: 0
                 }}
               >
                 {isMuted ? '🔇' : '🔊'}
               </button>
 
-              {/* User Avatar & Name */}
+              {/* User Avatar & Name Profile Chip */}
               <div
                 onClick={() => { sound.pop(); setShowProfileModal(true); }}
-                title="Hồ sơ của bé"
+                title="Hồ sơ tài khoản"
                 style={{
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '6px',
                   cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: '8px'
+                  padding: '4px 10px',
+                  borderRadius: '10px',
+                  background: '#F1F5F9',
+                  border: '1.5px solid #E2E8F0',
+                  whiteSpace: 'nowrap'
                 }}
               >
-                <span style={{ fontSize: '1.4rem' }}>{getAvatarEmoji(user.avatar)}</span>
-                <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1E293B' }}>
-                  {user.full_name}
+                <span style={{ fontSize: '1.25rem' }}>{getAvatarEmoji(user.avatar)}</span>
+                <span style={{ fontWeight: 800, fontSize: '0.85rem', color: '#1E293B' }}>
+                  {user.full_name || user.username}
                 </span>
               </div>
 
-              {/* Minimal Logout Button */}
+              {/* Logout Button */}
               <button
+                type="button"
                 onClick={handleLogout}
                 title="Đăng xuất"
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#EF4444',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
+                  background: '#FEF2F2',
+                  border: '1.5px solid #FECDD3',
+                  color: '#DC2626',
+                  fontWeight: 800,
+                  fontSize: '0.82rem',
                   cursor: 'pointer',
-                  padding: '6px 10px',
-                  borderRadius: '8px',
-                  display: 'flex',
+                  padding: '5px 10px',
+                  borderRadius: '10px',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  outline: 'none'
                 }}
               >
                 <span>🚪</span>
@@ -287,21 +347,20 @@ export default function Navbar({ activeTab, setActiveTab }) {
               </button>
             </>
           ) : (
-            /* Logged Out CTAs */
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', whiteSpace: 'nowrap' }}>
               <button
                 onClick={() => { sound.pop(); openLogin(); }}
                 className="btn-secondary"
-                style={{ padding: '7px 16px', fontSize: '0.88rem' }}
+                style={{ padding: '6px 14px', fontSize: '0.85rem' }}
               >
                 <span>🔑 Đăng Nhập</span>
               </button>
               <button
                 onClick={() => { sound.pop(); openRegister(); }}
                 className="btn-primary"
-                style={{ padding: '7px 18px', fontSize: '0.88rem' }}
+                style={{ padding: '6px 16px', fontSize: '0.85rem' }}
               >
-                <span>⭐ Đăng Ký Mới</span>
+                <span>⭐ Đăng Ký</span>
               </button>
             </div>
           )}
