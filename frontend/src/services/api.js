@@ -2,6 +2,72 @@
 import { generate100QuestionsPool } from './randomPoolService';
 
 const API_BASE = '/api';
+const CLOUD_STORAGE_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a10baafb4d7c9b';
+
+// Direct Cloud REST Communication Helpers
+async function fetchDirectCloud() {
+  try {
+    const res = await fetch(CLOUD_STORAGE_URL, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const data = json.data || {};
+    return {
+      success: true,
+      exercises: Array.isArray(data.exercises) ? data.exercises : [],
+      classes: Array.isArray(data.classes) ? data.classes : [],
+      students: Array.isArray(data.students) ? data.students : [],
+      submissions: Array.isArray(data.submissions) ? data.submissions : [],
+      deleted_exercise_ids: Array.isArray(data.deleted_exercise_ids) ? data.deleted_exercise_ids : [...SYSTEM_DELETED_EXERCISES],
+      deleted_class_ids: Array.isArray(data.deleted_class_ids) ? data.deleted_class_ids : [],
+      deleted_student_ids: Array.isArray(data.deleted_student_ids) ? data.deleted_student_ids : []
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function mutateDirectCloud(modifier) {
+  try {
+    const current = await fetchDirectCloud();
+    const state = current ? {
+      exercises: current.exercises,
+      classes: current.classes,
+      students: current.students,
+      submissions: current.submissions,
+      deleted_exercise_ids: current.deleted_exercise_ids,
+      deleted_class_ids: current.deleted_class_ids,
+      deleted_student_ids: current.deleted_student_ids
+    } : {
+      exercises: [],
+      classes: [],
+      students: [],
+      submissions: [],
+      deleted_exercise_ids: [...SYSTEM_DELETED_EXERCISES],
+      deleted_class_ids: [],
+      deleted_student_ids: []
+    };
+
+    modifier(state);
+
+    const res = await fetch(CLOUD_STORAGE_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        name: 'edukids_global_data',
+        data: state
+      })
+    });
+    return res.ok;
+  } catch (e) {
+    console.warn('mutateDirectCloud warning:', e);
+    return false;
+  }
+}
 
 // Curriculum Dataset - Exclusively populated and synchronized via Cloud Server & Teacher Dashboard
 const curriculumDatabase = {
@@ -122,9 +188,86 @@ class ApiService {
     }
   }
 
+  async syncWithCloud(action, payload = {}) {
+    // 1. Fire serverless endpoint
+    try {
+      this.request('/sync', {
+        method: 'POST',
+        body: JSON.stringify({ action, ...payload })
+      }).catch(() => {});
+    } catch (e) {}
+
+    // 2. Direct Cloud Storage Mutation (Guaranteed sync across all devices)
+    try {
+      await mutateDirectCloud((state) => {
+        const deletedSet = new Set((state.deleted_exercise_ids || []).map(d => parseInt(d, 10)));
+        SYSTEM_DELETED_EXERCISES.forEach(id => deletedSet.add(id));
+
+        if (action === 'save_exercise' && payload.exercise) {
+          const ex = payload.exercise;
+          const numId = parseInt(ex.id, 10);
+          if (numId && !deletedSet.has(numId)) {
+            state.exercises = (state.exercises || []).filter(e => parseInt(e.id, 10) !== numId);
+            state.exercises.unshift(ex);
+            state.deleted_exercise_ids = (state.deleted_exercise_ids || []).filter(id => parseInt(id, 10) !== numId);
+          }
+        } else if (action === 'delete_exercise' && payload.deleteId) {
+          const numId = parseInt(payload.deleteId, 10);
+          state.exercises = (state.exercises || []).filter(e => parseInt(e.id, 10) !== numId);
+          if (!state.deleted_exercise_ids.includes(numId)) {
+            state.deleted_exercise_ids.push(numId);
+          }
+        } else if (action === 'save_class' && payload.classObj) {
+          const cls = payload.classObj;
+          const code = String(cls.class_code || cls.id);
+          state.classes = (state.classes || []).filter(c => String(c.class_code || c.id) !== code);
+          state.classes.push(cls);
+        } else if (action === 'delete_class' && (payload.deleteClassId || payload.class_code)) {
+          const idStr = String(payload.deleteClassId || '');
+          const code = String(payload.class_code || '');
+          state.classes = (state.classes || []).filter(c => String(c.id) !== idStr && String(c.class_code) !== code);
+          if (idStr && !state.deleted_class_ids.includes(idStr)) state.deleted_class_ids.push(idStr);
+          if (code && !state.deleted_class_ids.includes(code)) state.deleted_class_ids.push(code);
+        } else if ((action === 'save_student' || action === 'join_class' || action === 'update_profile') && payload.student) {
+          const st = payload.student;
+          const uName = (st.username || st.full_name || '').toLowerCase().trim();
+          const idStr = String(st.id);
+          state.students = (state.students || []).filter(s => {
+            const sUser = (s.username || s.full_name || '').toLowerCase().trim();
+            const sId = String(s.id);
+            return sUser !== uName && sId !== idStr;
+          });
+          state.students.unshift(st);
+        } else if (action === 'delete_student' && (payload.deleteStudentId || payload.student_name)) {
+          const idStr = String(payload.deleteStudentId || '');
+          const name = (payload.student_name || '').toLowerCase().trim();
+          state.students = (state.students || []).filter(s => String(s.id) !== idStr && (s.full_name || '').toLowerCase().trim() !== name);
+          if (idStr && !state.deleted_student_ids.includes(idStr)) state.deleted_student_ids.push(idStr);
+          if (name && !state.deleted_student_ids.includes(name)) state.deleted_student_ids.push(name);
+        } else if (action === 'save_submission' && payload.submission) {
+          const sub = payload.submission;
+          const subId = String(sub.id || Date.now());
+          state.submissions = (state.submissions || []).filter(s => String(s.id) !== subId);
+          state.submissions.unshift(sub);
+          if (state.submissions.length > 300) {
+            state.submissions = state.submissions.slice(0, 300);
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('syncWithCloud direct mutation warning:', e);
+    }
+  }
+
   async initCloudSync() {
     try {
-      const res = await this.request('/sync');
+      let res = await this.request('/sync');
+      if (!res || !res.success || !Array.isArray(res.exercises)) {
+        const directRes = await fetchDirectCloud();
+        if (directRes && directRes.success) {
+          res = directRes;
+        }
+      }
       if (res && res.success) {
         const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
         const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
@@ -813,11 +956,8 @@ class ApiService {
       stored.push(classObj);
       localStorage.setItem('edukids_custom_classes', JSON.stringify(stored));
 
-      // Async Cloud sync
-      this.request('/sync', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_class', classObj })
-      }).catch(() => {});
+      // Dual-tier Cloud sync
+      this.syncWithCloud('save_class', { classObj });
 
       return { success: true, classes: stored, classObj };
     } catch (e) {
@@ -838,10 +978,7 @@ class ApiService {
 
       const updatedObj = stored.find(c => String(c.id) === String(classId) || c.class_code === classId);
       if (updatedObj) {
-        this.request('/sync', {
-          method: 'POST',
-          body: JSON.stringify({ action: 'save_class', classObj: updatedObj })
-        }).catch(() => {});
+        this.syncWithCloud('save_class', { classObj: updatedObj });
       }
       return { success: true, classes: stored, classObj: updatedObj };
     } catch (e) {
@@ -862,11 +999,8 @@ class ApiService {
       if (target?.class_code && !deletedClasses.includes(target.class_code)) deletedClasses.push(target.class_code);
       localStorage.setItem('edukids_deleted_classes', JSON.stringify(deletedClasses));
 
-      // Async Cloud sync delete
-      this.request('/sync', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'delete_class', deleteClassId: classId, class_code: target?.class_code || classId })
-      }).catch(() => {});
+      // Dual-tier Cloud sync delete
+      this.syncWithCloud('delete_class', { deleteClassId: classId, class_code: target?.class_code || classId });
 
       return { success: true, classes: stored };
     } catch (e) {
@@ -886,11 +1020,8 @@ class ApiService {
       stored.push(studentObj);
       localStorage.setItem('edukids_custom_students', JSON.stringify(stored));
 
-      // Async Cloud sync
-      this.request('/sync', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_student', student: studentObj })
-      }).catch(() => {});
+      // Dual-tier Cloud sync
+      this.syncWithCloud('save_student', { student: studentObj });
 
       return { success: true, students: stored, student: studentObj };
     } catch (e) {
@@ -923,11 +1054,8 @@ class ApiService {
         localStorage.setItem('edukids_submissions', JSON.stringify(subs));
       } catch (e) {}
 
-      // Async Cloud sync delete
-      this.request('/sync', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'delete_student', deleteStudentId: studentId, studentName: nameToDelete })
-      }).catch(() => {});
+      // Dual-tier Cloud sync delete
+      this.syncWithCloud('delete_student', { deleteStudentId: studentId, student_name: nameToDelete });
 
       return { success: true, students: stored };
     } catch (e) {
@@ -1114,36 +1242,51 @@ class ApiService {
   }
 
   async getLessons(subjectId, grade) {
-    const query = grade ? `?grade=${grade}` : '';
-    const res = await this.request(`/subjects/${subjectId}/lessons${query}`);
+    const targetGrade = parseInt(grade, 10) || 2;
+    const targetSubj = parseInt(subjectId, 10) || 1;
+
     const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
     const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
     SYSTEM_DELETED_EXERCISES.forEach(id => deletedSet.add(id));
 
-    if (res.success && res.lessons && res.lessons.length > 0) {
-      const valid = res.lessons.filter(l => {
-        const numId = parseInt(l.exercise_id, 10);
-        if (deletedSet.has(numId)) return false;
-        const ex = curriculumDatabase.exercises[numId];
-        return ex && Array.isArray(ex.questions) && ex.questions.length > 0;
-      });
-      return { success: true, lessons: valid };
-    }
+    // Ensure all valid exercises matching grade & subject in curriculumDatabase.exercises are indexed into lessons
+    const validLessons = [];
+    const seenExerciseIds = new Set();
 
-    // Filter strictly by Grade and Subject ID
-    const targetGrade = parseInt(grade, 10) || 2;
-    const targetSubj = parseInt(subjectId, 10) || 1;
+    // 1. Check lessons matrix
     const gradeLessons = curriculumDatabase.lessonsByGradeAndSubject[targetGrade];
     const rawLessons = gradeLessons ? (gradeLessons[targetSubj] || []) : [];
-
-    // ONLY return lessons that ACTUALLY exist in data (have valid questions) and are NOT deleted
-    const validLessons = rawLessons.filter(l => {
-      if (!l.exercise_id) return false;
+    rawLessons.forEach(l => {
       const numId = parseInt(l.exercise_id, 10);
-      if (deletedSet.has(numId)) return false;
-      const ex = curriculumDatabase.exercises[numId];
-      return ex && Array.isArray(ex.questions) && ex.questions.length > 0;
+      if (numId && !deletedSet.has(numId) && !seenExerciseIds.has(numId)) {
+        const ex = curriculumDatabase.exercises[numId];
+        if (ex && Array.isArray(ex.questions) && ex.questions.length > 0) {
+          validLessons.push(l);
+          seenExerciseIds.add(numId);
+        }
+      }
     });
+
+    // 2. Also scan curriculumDatabase.exercises directly to guarantee NO synced exercise is missed
+    for (const [idStr, ex] of Object.entries(curriculumDatabase.exercises)) {
+      const numId = parseInt(idStr, 10);
+      if (!numId || deletedSet.has(numId) || seenExerciseIds.has(numId)) continue;
+      const exGrade = parseInt(ex.grade_level, 10) || 4;
+      const exSubj = parseInt(ex.subject_id, 10) || 1;
+      if (exGrade === targetGrade && exSubj === targetSubj && Array.isArray(ex.questions) && ex.questions.length > 0) {
+        validLessons.unshift({
+          id: numId + 50000,
+          subject_id: exSubj,
+          grade_level: exGrade,
+          title: ex.title,
+          topic_tag: `custom-${numId}`,
+          description: ex.is_random_pool ? `Ngân hàng ${ex.questions.length} câu (Random ${ex.random_count || 10} câu)` : `Bài tập gồm ${ex.questions.length} câu hỏi`,
+          icon: ex.is_random_pool ? '🎲' : (exSubj === 1 ? '📐' : (exSubj === 2 ? '📖' : (exSubj === 3 ? '🔬' : '🇬🇧'))),
+          exercise_id: numId
+        });
+        seenExerciseIds.add(numId);
+      }
+    }
 
     return { success: true, lessons: validLessons };
   }
@@ -1195,13 +1338,23 @@ class ApiService {
       };
     }
 
-    const res = await this.request(`/exercises/${id}`);
-    if (res.success && res.exercise) return res;
-
-    // Look up by ID with safe fallback
+    // Look up by ID with fallback
     const numericId = parseInt(id, 10);
-    const ex = curriculumDatabase.exercises[numericId] || Object.values(curriculumDatabase.exercises)[0] || null;
-    return { success: true, exercise: ex };
+    const ex = curriculumDatabase.exercises[numericId];
+    if (ex && Array.isArray(ex.questions) && ex.questions.length > 0) {
+      return { success: true, exercise: ex };
+    }
+
+    try {
+      const stored = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
+      const found = stored.find(e => parseInt(e.id, 10) === numericId);
+      if (found && Array.isArray(found.questions) && found.questions.length > 0) {
+        curriculumDatabase.exercises[numericId] = found;
+        return { success: true, exercise: found };
+      }
+    } catch (e) {}
+
+    return { success: false, message: 'Bài tập không tồn tại hoặc đã bị xóa' };
   }
 
   // Mistake Notebook: "Sai ở đâu – Học lại ở đó" API
@@ -1348,11 +1501,8 @@ class ApiService {
       stored.push(fullExercise);
       localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
       
-      // Async Cloud sync to Aiven MySQL
-      this.request('/sync', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_exercise', exercise: fullExercise })
-      }).catch(() => {});
+      // Dual-tier Cloud sync
+      this.syncWithCloud('save_exercise', { exercise: fullExercise });
     } catch (e) {
       console.warn('Cannot persist to localStorage:', e);
     }
@@ -1461,11 +1611,8 @@ class ApiService {
       }
       localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
 
-      // Async Cloud sync to Aiven MySQL
-      this.request('/sync', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_exercise', exercise: merged })
-      }).catch(() => {});
+      // Dual-tier Cloud sync
+      this.syncWithCloud('save_exercise', { exercise: merged });
     } catch (e) {}
 
     return { success: true, exercise: merged };
@@ -1497,11 +1644,8 @@ class ApiService {
       }
       localStorage.setItem('edukids_deleted_exercises', JSON.stringify(deletedList));
 
-      // Async Cloud sync delete on Cloud MySQL
-      await this.request('/sync', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'delete_exercise', deleteId: numericId })
-      }).catch(() => {});
+      // Dual-tier Cloud sync delete
+      await this.syncWithCloud('delete_exercise', { deleteId: numericId });
     } catch (e) {
       console.warn('Cannot persist deleted exercise:', e);
     }
@@ -1711,18 +1855,12 @@ class ApiService {
           localStorage.setItem('edukids_custom_students', JSON.stringify(customSt));
         } catch (e) {}
 
-        // Async Cloud sync updated student and submission to Aiven MySQL
-        this.request('/sync', {
-          method: 'POST',
-          body: JSON.stringify({ action: 'save_student', student: updatedUser })
-        }).catch(() => {});
+        // Dual-tier Cloud sync updated student and submission
+        this.syncWithCloud('save_student', { student: updatedUser });
       }
 
-      // Async Cloud sync submission to Aiven MySQL
-      this.request('/sync', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'save_submission', submission: newSubmission })
-      }).catch(() => {});
+      // Dual-tier Cloud sync submission
+      this.syncWithCloud('save_submission', { submission: newSubmission });
     } catch (e) {
       console.warn('Cannot record submission:', e);
     }
