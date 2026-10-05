@@ -464,32 +464,102 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
 
       {/* Main Question Card */}
       <div className="card" style={{ padding: '32px 28px', position: 'relative' }}>
-        {/* Type & Index Badges */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'var(--primary-light)',
-            color: 'var(--primary)',
-            padding: '6px 16px',
-            borderRadius: 'var(--radius-full)',
-            fontWeight: 800,
-            fontSize: '0.95rem'
-          }}>
-            <span>❓ Câu hỏi {currentIdx + 1} / {totalQ}</span>
+        {/* Type & Index Badges + Quick Top Navigation Controls */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          {/* Left: Badges */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'var(--primary-light)',
+              color: 'var(--primary)',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              fontWeight: 800,
+              fontSize: '0.92rem'
+            }}>
+              <span>❓ Câu {currentIdx + 1} / {totalQ}</span>
+            </div>
+
+            <div style={{
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              fontSize: '0.85rem',
+              fontWeight: 800,
+              background: qType === 'multiple_select' ? '#F0FDF4' : (qType === 'fill_blank' ? '#ECFDF5' : (qType === 'matching' ? '#FFFBEB' : (qType === 'true_false' ? '#F5F3FF' : '#EEF2FF'))),
+              color: qType === 'multiple_select' ? '#15803D' : (qType === 'fill_blank' ? '#065F46' : (qType === 'matching' ? '#92400E' : (qType === 'true_false' ? '#5B21B6' : '#3730A3'))),
+              border: '1px solid currentColor'
+            }}>
+              {qType === 'multiple_select' ? '☑️ Chọn Nhiều Đáp Án' : (qType === 'fill_blank' ? '✏️ Điền Từ / Điền Số' : (qType === 'matching' ? '🔗 Nối Cặp Tương Ứng' : (qType === 'true_false' ? '✅ Đúng hay Sai' : '🎯 Trắc Nghiệm')))}
+            </div>
           </div>
 
-          <div style={{
-            padding: '6px 14px',
-            borderRadius: '9999px',
-            fontSize: '0.85rem',
-            fontWeight: 800,
-            background: qType === 'multiple_select' ? '#F0FDF4' : (qType === 'fill_blank' ? '#ECFDF5' : (qType === 'matching' ? '#FFFBEB' : (qType === 'true_false' ? '#F5F3FF' : '#EEF2FF'))),
-            color: qType === 'multiple_select' ? '#15803D' : (qType === 'fill_blank' ? '#065F46' : (qType === 'matching' ? '#92400E' : (qType === 'true_false' ? '#5B21B6' : '#3730A3'))),
-            border: '1px solid currentColor'
-          }}>
-            {qType === 'multiple_select' ? '☑️ Chọn Nhiều Đáp Án' : (qType === 'fill_blank' ? '✏️ Điền Từ / Điền Số' : (qType === 'matching' ? '🔗 Nối Cặp Tương Ứng' : (qType === 'true_false' ? '✅ Đúng hay Sai' : '🎯 Trắc Nghiệm')))}
+          {/* Right: Quick Top Navigation Controls (Prev / Next / Finish) */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={prevQuestion}
+              disabled={currentIdx === 0}
+              style={{
+                padding: '7px 14px',
+                fontSize: '0.88rem',
+                fontWeight: 800,
+                opacity: currentIdx === 0 ? 0.45 : 1,
+                borderRadius: '10px'
+              }}
+              title="Quay lại câu trước"
+            >
+              <span>⬅️ Trước</span>
+            </button>
+
+            {currentIdx < activeQuestions.length - 1 ? (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={nextQuestion}
+                style={{
+                  padding: '7px 18px',
+                  fontSize: '0.9rem',
+                  fontWeight: 900,
+                  borderRadius: '10px',
+                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+                title="Chuyển sang câu tiếp theo"
+              >
+                <span>Câu Tiếp Theo ➡️</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                style={{
+                  padding: '7px 18px',
+                  fontSize: '0.9rem',
+                  fontWeight: 900,
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #10B981, #059669)',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                }}
+                title="Nộp bài hoàn thành"
+              >
+                <span>{isSubmitting ? '⏳ Đang Chấm...' : '🚀 Nộp Bài'}</span>
+              </button>
+            )}
           </div>
         </div>
 

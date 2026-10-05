@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4F46E5" />
+      <stop offset="50%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+    <linearGradient id="capGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1B4B" />
+      <stop offset="100%" stop-color="#312E81" />
+    </linearGradient>
+    <linearGradient id="starGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="100%" stop-color="#EAB308" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Rounded App Icon Background -->
+  <rect x="6" y="6" width="116" height="116" rx="28" fill="url(#bgGrad)" filter="url(#glow)" />
+
+  <!-- Inner Soft Highlight Border -->
+  <rect x="7" y="7" width="114" height="114" rx="27" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2" />
+
+  <!-- Cute Bear Face / Mascot in White Background Bubble -->
+  <circle cx="64" cy="74" r="34" fill="#FFFFFF" />
+
+  <!-- Bear Ears -->
+  <circle cx="38" cy="46" r="13" fill="#FBBF24" stroke="#D97706" stroke-width="2" />
+  <circle cx="38" cy="46" r="7" fill="#FEF3C7" />
+  <circle cx="90" cy="46" r="13" fill="#FBBF24" stroke="#D97706" stroke-width="2" />
+  <circle cx="90" cy="46" r="7" fill="#FEF3C7" />
+
+  <!-- Bear Head -->
+  <circle cx="64" cy="74" r="30" fill="#F59E0B" />
+
+  <!-- Bear Muzzle -->
+  <ellipse cx="64" cy="80" rx="14" ry="11" fill="#FEF3C7" />
+  <ellipse cx="64" cy="74" rx="5" ry="3.5" fill="#1E293B" />
+  <path d="M 64 77.5 Q 60 83 56 80 M 64 77.5 Q 68 83 72 80" fill="none" stroke="#1E293B" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Cute Eyes -->
+  <circle cx="53" cy="67" r="4.5" fill="#1E293B" />
+  <circle cx="51.5" cy="65.5" r="1.5" fill="#FFFFFF" />
+  <circle cx="75" cy="67" r="4.5" fill="#1E293B" />
+  <circle cx="73.5" cy="65.5" r="1.5" fill="#FFFFFF" />
+
+  <!-- Rosy Cheeks -->
+  <ellipse cx="44" cy="76" rx="4" ry="2.5" fill="#F43F5E" opacity="0.6" />
+  <ellipse cx="84" cy="76" rx="4" ry="2.5" fill="#F43F5E" opacity="0.6" />
+
+  <!-- Graduation Cap (Mũ cử nhân bé giỏi) -->
+  <g transform="translate(64, 40) rotate(-6)">
+    <!-- Cap Diamond Top -->
+    <polygon points="0,-16 28,-7 0,2 -28,-7" fill="url(#capGrad)" stroke="#4338CA" stroke-width="1.5" />
+    <polygon points="0,-16 28,-7 0,-4 -28,-7" fill="#4338CA" opacity="0.4" />
+    <!-- Cap Skull Base -->
+    <path d="M -12,-6 Q 0,-3 12,-6 L 10,-1 Q 0,4 -10,-1 Z" fill="#1E1B4B" />
+    <!-- Golden Tassel Ribbon -->
+    <circle cx="0" cy="-7" r="2.5" fill="#FCD34D" />
+    <path d="M 0,-7 Q 16,-3 22,7" fill="none" stroke="#F59E0B" stroke-width="2.5" stroke-linecap="round" />
+    <circle cx="22" cy="8" r="3" fill="url(#starGrad)" />
+  </g>
+
+  <!-- Sparkle Star (Trí Tuệ) -->
+  <path d="M 102 24 Q 102 32 110 32 Q 102 32 102 40 Q 102 32 94 32 Q 102 32 102 24 Z" fill="url(#starGrad)" />
+</svg>
