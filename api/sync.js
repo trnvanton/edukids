@@ -38,6 +38,34 @@ export default async function handler(req, res) {
     // Auto-create cloud tables if not exist
     try {
       await conn.execute(`
+        CREATE TABLE IF NOT EXISTS cloud_synced_exercises (
+          id INT PRIMARY KEY,
+          title VARCHAR(255),
+          grade_level INT,
+          subject_id INT,
+          created_by VARCHAR(100),
+          data_json LONGTEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+
+      await conn.execute(`
+        CREATE TABLE IF NOT EXISTS cloud_synced_submissions (
+          id VARCHAR(100) PRIMARY KEY,
+          exercise_id INT,
+          student_name VARCHAR(100),
+          student_avatar VARCHAR(50),
+          grade_level INT,
+          score10 FLOAT,
+          correct_count INT,
+          total_questions INT,
+          data_json LONGTEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      await conn.execute(`
         CREATE TABLE IF NOT EXISTS cloud_synced_classes (
           id VARCHAR(50) PRIMARY KEY,
           class_code VARCHAR(50) UNIQUE,

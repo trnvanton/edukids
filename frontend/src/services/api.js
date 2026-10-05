@@ -3,292 +3,7 @@ import { generate100QuestionsPool } from './randomPoolService';
 
 const API_BASE = '/api';
 
-// Curriculum Dataset - Built-in Standard Curriculum for Grades 1-5 + Teacher Custom Exercises
-const STANDARD_EXERCISES = {
-  // LỚP 1
-  101: {
-    id: 101,
-    title: 'Làm Quen Các Số 1 Đến 10 & So Sánh Số Lượng',
-    grade_level: 1,
-    subject_id: 1,
-    subject_code: 'toan',
-    topic_tag: 'toan-1-co-ban',
-    questions: [
-      {
-        id: 1011,
-        question_type: 'multiple_choice',
-        question_text: 'Số nào lớn hơn số 7 trong các số sau?',
-        options: [
-          { option_label: 'A', answer_text: '5' },
-          { option_label: 'B', answer_text: '9' },
-          { option_label: 'C', answer_text: '6' },
-          { option_label: 'D', answer_text: '4' }
-        ],
-        correct_answer: 'B',
-        explanation: 'Ta có thứ tự các số: 4 < 5 < 6 < 7 < 9. Vậy số 9 lớn hơn số 7.'
-      },
-      {
-        id: 1012,
-        question_type: 'multiple_select',
-        question_text: 'Những số nào sau đây nhỏ hơn số 6? (Chọn tất cả các đáp án đúng)',
-        options: [
-          { option_label: 'A', answer_text: 'Số 2' },
-          { option_label: 'B', answer_text: 'Số 8' },
-          { option_label: 'C', answer_text: 'Số 4' },
-          { option_label: 'D', answer_text: 'Số 5' }
-        ],
-        correct_answer: 'A, C, D',
-        explanation: 'Các số 2, 4, 5 đều nhỏ hơn 6. Số 8 lớn hơn 6.'
-      },
-      {
-        id: 1013,
-        question_type: 'fill_blank',
-        question_text: 'Kết quả của phép tính: 5 + 3 = ?',
-        correct_answer: '8',
-        explanation: '5 cộng thêm 3 bằng 8.'
-      },
-      {
-        id: 1014,
-        question_type: 'true_false',
-        question_text: 'Phép tính 9 - 4 = 5 là Đúng hay Sai?',
-        correct_answer: 'Đúng',
-        explanation: '9 trừ đi 4 bằng 5 là phép tính chính xác.'
-      }
-    ]
-  },
-  102: {
-    id: 102,
-    title: 'Làm Quen Bảng Chữ Cái & Ghép Vần Cơ Bản',
-    grade_level: 1,
-    subject_id: 2,
-    subject_code: 'tieng-viet',
-    topic_tag: 'tv-1-chu-cai',
-    questions: [
-      {
-        id: 1021,
-        question_type: 'multiple_choice',
-        question_text: 'Từ nào sau đây bắt đầu bằng chữ "B"?',
-        options: [
-          { option_label: 'A', answer_text: 'Bàn học' },
-          { option_label: 'B', answer_text: 'Cây táo' },
-          { option_label: 'C', answer_text: 'Dòng sông' },
-          { option_label: 'D', answer_text: 'Mặt trời' }
-        ],
-        correct_answer: 'A',
-        explanation: 'Từ "Bàn học" có tiếng "Bàn" bắt đầu bằng chữ cái "B".'
-      },
-      {
-        id: 1022,
-        question_type: 'multiple_select',
-        question_text: 'Những từ nào sau đây là từ chỉ người trong gia đình? (Chọn tất cả đáp án đúng)',
-        options: [
-          { option_label: 'A', answer_text: 'Ông bà' },
-          { option_label: 'B', answer_text: 'Cái bút' },
-          { option_label: 'C', answer_text: 'Bố mẹ' },
-          { option_label: 'D', answer_text: 'Anh chị' }
-        ],
-        correct_answer: 'A, C, D',
-        explanation: 'Ông bà, Bố mẹ, Anh chị là những người thân trong gia đình.'
-      }
-    ]
-  },
-  103: {
-    id: 103,
-    title: 'Cơ Thể Em & Các Động Vật Quanh Em',
-    grade_level: 1,
-    subject_id: 3,
-    subject_code: 'khoa-hoc',
-    topic_tag: 'kh-1-co-the',
-    questions: [
-      {
-        id: 1031,
-        question_type: 'multiple_choice',
-        question_text: 'Bộ phận nào trên cơ thể giúp chúng ta nhìn thấy mọi vật?',
-        options: [
-          { option_label: 'A', answer_text: 'Đôi tai' },
-          { option_label: 'B', answer_text: 'Đôi mắt' },
-          { option_label: 'C', answer_text: 'Cái mũi' },
-          { option_label: 'D', answer_text: 'Bàn tay' }
-        ],
-        correct_answer: 'B',
-        explanation: 'Đôi mắt là cơ quan thị giác giúp chúng ta nhìn ngắm thế giới xung quanh.'
-      }
-    ]
-  },
-  104: {
-    id: 104,
-    title: 'English Fun 1: Colors & Animals',
-    grade_level: 1,
-    subject_id: 4,
-    subject_code: 'tieng-anh',
-    topic_tag: 'en-1-colors',
-    questions: [
-      {
-        id: 1041,
-        question_type: 'multiple_choice',
-        question_text: 'Từ "Cat" trong tiếng Anh có nghĩa là con gì?',
-        options: [
-          { option_label: 'A', answer_text: 'Con mèo' },
-          { option_label: 'B', answer_text: 'Con chó' },
-          { option_label: 'C', answer_text: 'Con chim' },
-          { option_label: 'D', answer_text: 'Con cá' }
-        ],
-        correct_answer: 'A',
-        explanation: 'Cat có nghĩa là Con mèo trong tiếng Anh.'
-      }
-    ]
-  },
-
-  // LỚP 2
-  201: {
-    id: 201,
-    title: 'Phép Cộng Trừ Có Nhớ & Bảng Nhân 2, 5',
-    grade_level: 2,
-    subject_id: 1,
-    subject_code: 'toan',
-    topic_tag: 'toan-2-co-ban',
-    questions: [
-      {
-        id: 2011,
-        question_type: 'multiple_choice',
-        question_text: 'Kết quả của phép tính: 48 + 27 = ?',
-        options: [
-          { option_label: 'A', answer_text: '65' },
-          { option_label: 'B', answer_text: '75' },
-          { option_label: 'C', answer_text: '73' },
-          { option_label: 'D', answer_text: '85' }
-        ],
-        correct_answer: 'B',
-        explanation: '8 + 7 = 15 viết 5 nhớ 1; 4 + 2 = 6 thêm 1 bằng 7. Vậy 48 + 27 = 75.'
-      },
-      {
-        id: 2012,
-        question_type: 'multiple_select',
-        question_text: 'Những phép tính nào sau đây có kết quả bằng 20? (Chọn tất cả đáp án đúng)',
-        options: [
-          { option_label: 'A', answer_text: '5 × 4' },
-          { option_label: 'B', answer_text: '2 × 10' },
-          { option_label: 'C', answer_text: '15 + 6' },
-          { option_label: 'D', answer_text: '10 + 10' }
-        ],
-        correct_answer: 'A, B, D',
-        explanation: '5 × 4 = 20, 2 × 10 = 20, 10 + 10 = 20. Riêng 15 + 6 = 21.'
-      }
-    ]
-  },
-  202: {
-    id: 202,
-    title: 'Mở Rộng Vốn Từ: Gia Đình & Nhà Trường',
-    grade_level: 2,
-    subject_id: 2,
-    subject_code: 'tieng-viet',
-    topic_tag: 'tv-2-tu-vung',
-    questions: [
-      {
-        id: 2021,
-        question_type: 'multiple_choice',
-        question_text: 'Từ nào sau đây là từ chỉ hoạt động của học sinh ở trường?',
-        options: [
-          { option_label: 'A', answer_text: 'Nghe giảng' },
-          { option_label: 'B', answer_text: 'Bảng đen' },
-          { option_label: 'C', answer_text: 'Cây phượng' },
-          { option_label: 'D', answer_text: 'Phấn trắng' }
-        ],
-        correct_answer: 'A',
-        explanation: '"Nghe giảng" là từ chỉ hoạt động học tập của học sinh.'
-      }
-    ]
-  },
-
-  // LỚP 3
-  301: {
-    id: 301,
-    title: 'Bảng Cửu Chương Nhân Chia & Hình Học Lớp 3',
-    grade_level: 3,
-    subject_id: 1,
-    subject_code: 'toan',
-    topic_tag: 'toan-3-nhan-chia',
-    questions: [
-      {
-        id: 3011,
-        question_type: 'multiple_choice',
-        question_text: 'Tính chu vi của hình vuông có độ dài cạnh là 8 cm:',
-        options: [
-          { option_label: 'A', answer_text: '24 cm' },
-          { option_label: 'B', answer_text: '32 cm' },
-          { option_label: 'C', answer_text: '64 cm' },
-          { option_label: 'D', answer_text: '16 cm' }
-        ],
-        correct_answer: 'B',
-        explanation: 'Chu vi hình vuông = Độ dài cạnh × 4 = 8 × 4 = 32 cm.'
-      }
-    ]
-  },
-
-  // LỚP 4
-  401: {
-    id: 401,
-    title: 'Phân Số & Bốn Phép Tính Với Phân Số',
-    grade_level: 4,
-    subject_id: 1,
-    subject_code: 'toan',
-    topic_tag: 'toan-4-phan-so',
-    questions: [
-      {
-        id: 4011,
-        question_type: 'multiple_choice',
-        question_text: 'Rút gọn phân số 18/24 về dạng tối giản được phân số nào?',
-        options: [
-          { option_label: 'A', answer_text: '3/4' },
-          { option_label: 'B', answer_text: '9/12' },
-          { option_label: 'C', answer_text: '2/3' },
-          { option_label: 'D', answer_text: '6/8' }
-        ],
-        correct_answer: 'A',
-        explanation: 'Chia cả tử số và mẫu số cho 6: 18:6 = 3, 24:6 = 4. Phân số tối giản là 3/4.'
-      },
-      {
-        id: 4012,
-        question_type: 'multiple_select',
-        question_text: 'Những phân số nào sau đây lớn hơn 1? (Chọn tất cả các đáp án đúng)',
-        options: [
-          { option_label: 'A', answer_text: '5/4' },
-          { option_label: 'B', answer_text: '3/7' },
-          { option_label: 'C', answer_text: '8/3' },
-          { option_label: 'D', answer_text: '9/2' }
-        ],
-        correct_answer: 'A, C, D',
-        explanation: 'Phân số lớn hơn 1 khi tử số lớn hơn mẫu số (5/4, 8/3, 9/2).'
-      }
-    ]
-  },
-
-  // LỚP 5
-  501: {
-    id: 501,
-    title: 'Số Thập Phân & Tỉ Số Phần Trăm',
-    grade_level: 5,
-    subject_id: 1,
-    subject_code: 'toan',
-    topic_tag: 'toan-5-thap-phan',
-    questions: [
-      {
-        id: 5011,
-        question_type: 'multiple_choice',
-        question_text: 'Tìm 25% của 160:',
-        options: [
-          { option_label: 'A', answer_text: '30' },
-          { option_label: 'B', answer_text: '40' },
-          { option_label: 'C', answer_text: '50' },
-          { option_label: 'D', answer_text: '80' }
-        ],
-        correct_answer: 'B',
-        explanation: '25% của 160 = 160 × 25 / 100 = 40.'
-      }
-    ]
-  }
-};
-
+// Curriculum Dataset - Exclusively populated and synchronized via Cloud Server & Teacher Dashboard
 const curriculumDatabase = {
   // Subjects
   subjects: [
@@ -298,7 +13,7 @@ const curriculumDatabase = {
     { id: 4, name: 'Tiếng Anh', code: 'tieng-anh', icon: '🇬🇧', color: '#10B981', description: 'English Vocabulary, Phonics, Grammar & Daily Communication' }
   ],
 
-  // Lessons Matrix: [grade_level][subject_id]
+  // Lessons Matrix: [grade_level][subject_id] - Exclusively populated by Teacher / Cloud Exercises
   lessonsByGradeAndSubject: {
     1: { 1: [], 2: [], 3: [], 4: [] },
     2: { 1: [], 2: [], 3: [], 4: [] },
@@ -307,31 +22,9 @@ const curriculumDatabase = {
     5: { 1: [], 2: [], 3: [], 4: [] }
   },
 
-  // Question Bank
-  exercises: { ...STANDARD_EXERCISES }
+  // Question Bank - Exclusively populated by Teacher / Cloud Exercises
+  exercises: {}
 };
-
-// Populate default lessons matrix
-Object.values(STANDARD_EXERCISES).forEach(ex => {
-  const g = ex.grade_level || 1;
-  const s = ex.subject_id || 1;
-  if (!curriculumDatabase.lessonsByGradeAndSubject[g]) {
-    curriculumDatabase.lessonsByGradeAndSubject[g] = { 1: [], 2: [], 3: [], 4: [] };
-  }
-  if (!curriculumDatabase.lessonsByGradeAndSubject[g][s]) {
-    curriculumDatabase.lessonsByGradeAndSubject[g][s] = [];
-  }
-  curriculumDatabase.lessonsByGradeAndSubject[g][s].push({
-    id: ex.id + 50000,
-    subject_id: s,
-    grade_level: g,
-    title: ex.title,
-    topic_tag: ex.topic_tag || `grade-${g}-${s}`,
-    description: `Bài học rèn luyện gồm ${ex.questions.length} câu hỏi tương tác`,
-    icon: s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧')),
-    exercise_id: ex.id
-  });
-});
 
 // System blacklist of deleted exercises to ensure they never reappear across any device/session
 const SYSTEM_DELETED_EXERCISES = [35108];
@@ -1100,22 +793,6 @@ class ApiService {
         student.xp = Math.max(student.xp || 0, totalSubsXp, userXp);
       }
 
-      // 5. If fresh device with few students, seed standard classmates so leaderboard is always lively
-      const defaultClassmates = [
-        { id: 901, full_name: 'Nguyễn Minh Anh', student_name: 'Nguyễn Minh Anh', username: 'minhanh', class_name: '1A1', class_code: '1A1-8429', avatar: 'mascot-bear', grade_level: 1, xp: 480 },
-        { id: 902, full_name: 'Trần Bảo Ngọc', student_name: 'Trần Bảo Ngọc', username: 'baongoc', class_name: '1A1', class_code: '1A1-8429', avatar: 'mascot-rabbit', grade_level: 1, xp: 420 },
-        { id: 903, full_name: 'Lê Hoàng Long', student_name: 'Lê Hoàng Long', username: 'hoanglong', class_name: '1A1', class_code: '1A1-8429', avatar: 'mascot-lion', grade_level: 1, xp: 360 },
-        { id: 904, full_name: 'Phạm Quỳnh Chi', student_name: 'Phạm Quỳnh Chi', username: 'quynhchi', class_name: '2A1', class_code: '2A1-8429', avatar: 'mascot-fox', grade_level: 2, xp: 520 },
-        { id: 905, full_name: 'Đỗ Gia Hưng', student_name: 'Đỗ Gia Hưng', username: 'giahung', class_name: '4A1', class_code: '4A1-8429', avatar: 'mascot-panda', grade_level: 4, xp: 750 }
-      ];
-
-      defaultClassmates.forEach(dm => {
-        const k = dm.username.toLowerCase();
-        if (!studentMap.has(k) && !deletedSet.has(dm.full_name.toLowerCase())) {
-          studentMap.set(k, dm);
-        }
-      });
-
       return Array.from(studentMap.values());
     } catch (e) {
       return [];
@@ -1484,7 +1161,7 @@ class ApiService {
             id: 'mistake_review',
             title: '🎯 Ôn Luyện Lỗi Sai: Sai Ở Đâu - Học Lại Ở Đó',
             grade_level: curUser.grade_level || 1,
-            questions: (curriculumDatabase.exercises[101] || STANDARD_EXERCISES[101]).questions
+            questions: []
           }
         };
       }
@@ -1523,7 +1200,7 @@ class ApiService {
 
     // Look up by ID with safe fallback
     const numericId = parseInt(id, 10);
-    const ex = curriculumDatabase.exercises[numericId] || STANDARD_EXERCISES[numericId] || curriculumDatabase.exercises[101] || STANDARD_EXERCISES[101];
+    const ex = curriculumDatabase.exercises[numericId] || Object.values(curriculumDatabase.exercises)[0] || null;
     return { success: true, exercise: ex };
   }
 
