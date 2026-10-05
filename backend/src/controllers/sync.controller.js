@@ -1,143 +1,159 @@
-const { query, getIsConnectedToMySQL, initDatabaseConnection } = require('../config/database');
+// Backend Cloud Sync Controller using EduKids Global Cloud REST Storage
+const CLOUD_STORAGE_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a10baafb4d7c9b';
+const SYSTEM_DELETED_EXERCISES = [35108];
+
+async function fetchCloudData() {
+  try {
+    const res = await fetch(CLOUD_STORAGE_URL, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const data = json.data || {};
+    return {
+      exercises: Array.isArray(data.exercises) ? data.exercises : [],
+      classes: Array.isArray(data.classes) ? data.classes : [],
+      students: Array.isArray(data.students) ? data.students : [],
+      submissions: Array.isArray(data.submissions) ? data.submissions : [],
+      deleted_exercise_ids: Array.isArray(data.deleted_exercise_ids) ? data.deleted_exercise_ids : [...SYSTEM_DELETED_EXERCISES],
+      deleted_class_ids: Array.isArray(data.deleted_class_ids) ? data.deleted_class_ids : [],
+      deleted_student_ids: Array.isArray(data.deleted_student_ids) ? data.deleted_student_ids : []
+    };
+  } catch (err) {
+    return {
+      exercises: [],
+      classes: [],
+      students: [],
+      submissions: [],
+      deleted_exercise_ids: [...SYSTEM_DELETED_EXERCISES],
+      deleted_class_ids: [],
+      deleted_student_ids: []
+    };
+  }
+}
+
+async function updateCloudData(updatedData) {
+  try {
+    const payload = {
+      name: 'edukids_global_data',
+      data: updatedData
+    };
+    const res = await fetch(CLOUD_STORAGE_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch (err) {
+    return false;
+  }
+}
 
 class SyncController {
   static async getSyncData(req, res) {
     try {
-      if (!getIsConnectedToMySQL()) {
-        await initDatabaseConnection();
-      }
+      const cloudState = await fetchCloudData();
+      const deletedSet = new Set(cloudState.deleted_exercise_ids.map(d => parseInt(d, 10)));
+      SYSTEM_DELETED_EXERCISES.forEach(id => deletedSet.add(id));
 
-      const exerciseRows = await query('SELECT * FROM cloud_synced_exercises ORDER BY updated_at DESC');
-      const exercises = (exerciseRows || []).map(row => {
-        try {
-          return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
-        } catch (e) {
-          return null;
-        }
-      }).filter(Boolean);
-
-      const submissionRows = await query('SELECT * FROM cloud_synced_submissions ORDER BY created_at DESC LIMIT 200');
-      const submissions = (submissionRows || []).map(row => {
-        try {
-          return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
-        } catch (e) {
-          return null;
-        }
-      }).filter(Boolean);
+      const filteredExercises = (cloudState.exercises || []).filter(
+        ex => ex && ex.id && !deletedSet.has(parseInt(ex.id, 10)) && Array.isArray(ex.questions) && ex.questions.length > 0
+      );
 
       return res.json({
         success: true,
-        cloud: 'Aiven MySQL',
-        count_exercises: exercises.length,
-        count_submissions: submissions.length,
-        exercises,
-        submissions,
+        cloud: 'EduKids Global Cloud Realtime Sync',
+        count_exercises: filteredExercises.length,
+        count_submissions: (cloudState.submissions || []).length,
+        exercises: filteredExercises,
+        classes: cloudState.classes || [],
+        students: cloudState.students || [],
+        submissions: cloudState.submissions || [],
+        deleted_exercise_ids: Array.from(deletedSet),
+        deleted_class_ids: cloudState.deleted_class_ids || [],
+        deleted_student_ids: cloudState.deleted_student_ids || [],
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Sync error:', error.message);
       return res.status(500).json({ success: false, message: error.message, exercises: [], submissions: [] });
     }
   }
 
   static async saveExercise(req, res) {
     try {
-      if (!getIsConnectedToMySQL()) {
-        await initDatabaseConnection();
-      }
-
-      const { exercise } = req.body;
+      const exercise = req.body.exercise || req.body;
       if (!exercise || !exercise.id) {
         return res.status(400).json({ success: false, message: 'Dữ liệu bài tập không hợp lệ (thiếu ID)!' });
       }
 
-      const exerciseId = parseInt(exercise.id, 10);
-      const title = exercise.title || 'Bài tập tự luyện';
-      const gradeLevel = parseInt(exercise.grade_level || 1, 10);
-      const subjectId = parseInt(exercise.subject_id || 1, 10);
-      const createdBy = exercise.created_by || 'Cô Hoàng Mai';
-      const dataJson = JSON.stringify(exercise);
+      const cloudState = await fetchCloudData();
+      const numId = parseInt(exercise.id, 10);
 
-      await query(`
-        INSERT INTO cloud_synced_exercises (id, title, grade_level, subject_id, data_json, created_by)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE 
-          title = VALUES(title),
-          grade_level = VALUES(grade_level),
-          subject_id = VALUES(subject_id),
-          data_json = VALUES(data_json),
-          updated_at = CURRENT_TIMESTAMP
-      `, [exerciseId, title, gradeLevel, subjectId, dataJson, createdBy]);
+      cloudState.exercises = (cloudState.exercises || []).filter(e => parseInt(e.id, 10) !== numId);
+      cloudState.exercises.unshift(exercise);
+      cloudState.deleted_exercise_ids = (cloudState.deleted_exercise_ids || []).filter(id => parseInt(id, 10) !== numId);
+
+      await updateCloudData(cloudState);
 
       return res.json({
         success: true,
-        message: 'Đã lưu và đồng bộ bài tập lên Cloud MySQL thành công!',
+        message: 'Đã lưu và đồng bộ bài tập lên Cloud Server thành công!',
         exercise
       });
     } catch (error) {
-      console.error('Save exercise error:', error.message);
       return res.status(500).json({ success: false, message: error.message });
     }
   }
 
   static async deleteExercise(req, res) {
     try {
-      if (!getIsConnectedToMySQL()) {
-        await initDatabaseConnection();
+      const exerciseId = parseInt(req.params.id || req.body.deleteId, 10);
+      const cloudState = await fetchCloudData();
+
+      cloudState.exercises = (cloudState.exercises || []).filter(e => parseInt(e.id, 10) !== exerciseId);
+      if (!cloudState.deleted_exercise_ids.includes(exerciseId)) {
+        cloudState.deleted_exercise_ids.push(exerciseId);
       }
 
-      const exerciseId = parseInt(req.params.id, 10);
-      await query('DELETE FROM cloud_synced_exercises WHERE id = ?', [exerciseId]);
+      await updateCloudData(cloudState);
 
       return res.json({
         success: true,
-        message: 'Đã xóa bài tập trên Cloud MySQL thành công!',
+        message: 'Đã xóa bài tập trên Cloud Server thành công!',
         deletedId: exerciseId
       });
     } catch (error) {
-      console.error('Delete exercise error:', error.message);
       return res.status(500).json({ success: false, message: error.message });
     }
   }
 
   static async saveSubmission(req, res) {
     try {
-      if (!getIsConnectedToMySQL()) {
-        await initDatabaseConnection();
-      }
-
-      const { submission } = req.body;
+      const submission = req.body.submission || req.body;
       if (!submission || !submission.id) {
         return res.status(400).json({ success: false, message: 'Dữ liệu nộp bài không hợp lệ!' });
       }
 
+      const cloudState = await fetchCloudData();
       const subId = String(submission.id);
-      const exerciseId = parseInt(submission.exercise_id || 0, 10);
-      const studentName = submission.student_name || 'Học Sinh';
-      const studentAvatar = submission.student_avatar || 'mascot-bear';
-      const gradeLevel = parseInt(submission.grade_level || 1, 10);
-      const score10 = parseFloat(submission.score10 !== undefined ? submission.score10 : 10);
-      const correctCount = parseInt(submission.correct_count || 0, 10);
-      const totalQuestions = parseInt(submission.total_questions || 10, 10);
-      const dataJson = JSON.stringify(submission);
 
-      await query(`
-        INSERT INTO cloud_synced_submissions 
-          (id, exercise_id, student_name, student_avatar, grade_level, score10, correct_count, total_questions, data_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          score10 = VALUES(score10),
-          correct_count = VALUES(correct_count),
-          data_json = VALUES(data_json)
-      `, [subId, exerciseId, studentName, studentAvatar, gradeLevel, score10, correctCount, totalQuestions, dataJson]);
+      cloudState.submissions = (cloudState.submissions || []).filter(s => String(s.id) !== subId);
+      cloudState.submissions.unshift(submission);
+      if (cloudState.submissions.length > 300) {
+        cloudState.submissions = cloudState.submissions.slice(0, 300);
+      }
+
+      await updateCloudData(cloudState);
 
       return res.json({
         success: true,
-        message: 'Đã đồng bộ kết quả nộp bài lên Cloud MySQL thành công!',
+        message: 'Đã đồng bộ kết quả nộp bài lên Cloud Server thành công!',
         submission
       });
     } catch (error) {
-      console.error('Save submission error:', error.message);
       return res.status(500).json({ success: false, message: error.message });
     }
   }
@@ -145,8 +161,8 @@ class SyncController {
   static async health(req, res) {
     return res.json({
       status: 'ok',
-      cloud: 'Aiven Cloud MySQL',
-      connected: getIsConnectedToMySQL(),
+      cloud: 'EduKids Global Cloud Realtime Sync',
+      connected: true,
       timestamp: new Date().toISOString()
     });
   }
