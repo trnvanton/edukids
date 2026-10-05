@@ -26,13 +26,26 @@ const curriculumDatabase = {
   exercises: {}
 };
 
+// System blacklist of deleted exercises to ensure they never reappear across any device/session
+const SYSTEM_DELETED_EXERCISES = [35108];
+
 // Hydrate saved custom exercises from localStorage
 try {
+  // 1. Gather all deleted IDs
+  const localDeleted = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
+  const deletedSet = new Set(Array.isArray(localDeleted) ? localDeleted.map(d => parseInt(d, 10)) : []);
+  SYSTEM_DELETED_EXERCISES.forEach(id => deletedSet.add(id));
+  localStorage.setItem('edukids_deleted_exercises', JSON.stringify(Array.from(deletedSet)));
+
+  // 2. Hydrate only valid non-deleted custom exercises
   const storedCustom = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
+  const cleanCustom = [];
   if (Array.isArray(storedCustom)) {
     storedCustom.forEach(ex => {
-      if (ex && ex.id && Array.isArray(ex.questions) && ex.questions.length > 0) {
-        curriculumDatabase.exercises[ex.id] = ex;
+      const numId = ex && ex.id ? parseInt(ex.id, 10) : null;
+      if (numId && !deletedSet.has(numId) && Array.isArray(ex.questions) && ex.questions.length > 0) {
+        cleanCustom.push(ex);
+        curriculumDatabase.exercises[numId] = ex;
         const g = ex.grade_level || 4;
         const s = ex.subject_id || 1;
         if (!curriculumDatabase.lessonsByGradeAndSubject[g]) {
@@ -42,23 +55,21 @@ try {
           curriculumDatabase.lessonsByGradeAndSubject[g][s] = [];
         }
         curriculumDatabase.lessonsByGradeAndSubject[g][s].unshift({
-          id: ex.id + 50000,
+          id: numId + 50000,
           subject_id: s,
           grade_level: g,
           title: ex.title,
-          topic_tag: `custom-${ex.id}`,
+          topic_tag: `custom-${numId}`,
           description: ex.is_random_pool ? `Ngân hàng ${ex.questions.length} câu (Random ${ex.random_count || 10} câu)` : `Bài tập gồm ${ex.questions.length} câu hỏi`,
           icon: ex.is_random_pool ? '🎲' : (s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧'))),
-          exercise_id: ex.id
+          exercise_id: numId
         });
       }
     });
   }
+  localStorage.setItem('edukids_custom_exercises', JSON.stringify(cleanCustom));
 
-  // Filter out any deleted exercises and remove any lesson that lacks real questions
-  const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
-  const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
-
+  // Purge any accidental deleted items from database and lessons
   deletedSet.forEach(numericId => {
     delete curriculumDatabase.exercises[numericId];
   });
@@ -117,17 +128,47 @@ class ApiService {
       if (res && res.success) {
         const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
         const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
+        SYSTEM_DELETED_EXERCISES.forEach(id => deletedSet.add(id));
+
+        if (Array.isArray(res.deleted_exercise_ids)) {
+          res.deleted_exercise_ids.forEach(id => {
+            const num = parseInt(id, 10);
+            if (!isNaN(num)) deletedSet.add(num);
+          });
+        }
+        localStorage.setItem('edukids_deleted_exercises', JSON.stringify(Array.from(deletedSet)));
 
         const deletedClasses = JSON.parse(localStorage.getItem('edukids_deleted_classes') || '[]');
         const deletedClassSet = new Set(Array.isArray(deletedClasses) ? deletedClasses.map(String) : []);
+        if (Array.isArray(res.deleted_class_ids)) {
+          res.deleted_class_ids.forEach(id => deletedClassSet.add(String(id)));
+          localStorage.setItem('edukids_deleted_classes', JSON.stringify(Array.from(deletedClassSet)));
+        }
 
         const deletedStudents = JSON.parse(localStorage.getItem('edukids_deleted_students') || '[]');
         const deletedStudentSet = new Set(Array.isArray(deletedStudents) ? deletedStudents.map(s => String(s).toLowerCase()) : []);
+        if (Array.isArray(res.deleted_student_ids)) {
+          res.deleted_student_ids.forEach(id => deletedStudentSet.add(String(id).toLowerCase()));
+          localStorage.setItem('edukids_deleted_students', JSON.stringify(Array.from(deletedStudentSet)));
+        }
+
+        // Purge deleted exercises from local cache & curriculumDatabase
+        deletedSet.forEach(numId => {
+          delete curriculumDatabase.exercises[numId];
+        });
+
+        for (const g of Object.keys(curriculumDatabase.lessonsByGradeAndSubject)) {
+          for (const s of Object.keys(curriculumDatabase.lessonsByGradeAndSubject[g])) {
+            curriculumDatabase.lessonsByGradeAndSubject[g][s] = curriculumDatabase.lessonsByGradeAndSubject[g][s].filter(
+              l => !deletedSet.has(parseInt(l.exercise_id, 10))
+            );
+          }
+        }
 
         if (Array.isArray(res.exercises)) {
           res.exercises.forEach(ex => {
-            if (ex && ex.id && !deletedSet.has(parseInt(ex.id, 10)) && Array.isArray(ex.questions) && ex.questions.length > 0) {
-              const numericId = parseInt(ex.id, 10);
+            const numericId = ex && ex.id ? parseInt(ex.id, 10) : null;
+            if (numericId && !deletedSet.has(numericId) && Array.isArray(ex.questions) && ex.questions.length > 0) {
               curriculumDatabase.exercises[numericId] = ex;
               const g = ex.grade_level || 4;
               const s = ex.subject_id || 1;
@@ -156,9 +197,15 @@ class ApiService {
           try {
             const localCustom = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
             const map = new Map();
-            localCustom.forEach(ex => map.set(parseInt(ex.id, 10), ex));
-            res.exercises.forEach(ex => map.set(parseInt(ex.id, 10), ex));
-            const mergedList = Array.from(map.values()).filter(ex => !deletedSet.has(parseInt(ex.id, 10)));
+            localCustom.forEach(ex => {
+              const numId = parseInt(ex.id, 10);
+              if (numId && !deletedSet.has(numId)) map.set(numId, ex);
+            });
+            res.exercises.forEach(ex => {
+              const numId = parseInt(ex.id, 10);
+              if (numId && !deletedSet.has(numId)) map.set(numId, ex);
+            });
+            const mergedList = Array.from(map.values());
             localStorage.setItem('edukids_custom_exercises', JSON.stringify(mergedList));
           } catch (e) {}
         }
@@ -1071,6 +1118,7 @@ class ApiService {
     const res = await this.request(`/subjects/${subjectId}/lessons${query}`);
     const deletedIds = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
     const deletedSet = new Set(Array.isArray(deletedIds) ? deletedIds.map(d => parseInt(d, 10)) : []);
+    SYSTEM_DELETED_EXERCISES.forEach(id => deletedSet.add(id));
 
     if (res.success && res.lessons && res.lessons.length > 0) {
       const valid = res.lessons.filter(l => {
@@ -1287,15 +1335,15 @@ class ApiService {
     return { success: true, exercise: merged };
   }
 
-  deleteExercise(id) {
+  async deleteExercise(id) {
     const numericId = parseInt(id, 10);
     delete curriculumDatabase.exercises[numericId];
 
-    // Remove from lessons
+    // Remove from lessons matrix
     for (const g of Object.keys(curriculumDatabase.lessonsByGradeAndSubject)) {
       for (const s of Object.keys(curriculumDatabase.lessonsByGradeAndSubject[g])) {
         curriculumDatabase.lessonsByGradeAndSubject[g][s] = curriculumDatabase.lessonsByGradeAndSubject[g][s].filter(
-          l => l.exercise_id !== numericId
+          l => parseInt(l.exercise_id, 10) !== numericId
         );
       }
     }
@@ -1303,18 +1351,18 @@ class ApiService {
     try {
       // 1. Remove from custom exercises if present
       let stored = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
-      stored = stored.filter(ex => ex.id !== numericId);
+      stored = stored.filter(ex => parseInt(ex.id, 10) !== numericId);
       localStorage.setItem('edukids_custom_exercises', JSON.stringify(stored));
 
-      // 2. Add to deleted exercises blacklist so it NEVER comes back on F5 reload!
+      // 2. Add to deleted exercises blacklist so it NEVER comes back on F5 reload or sync!
       let deletedList = JSON.parse(localStorage.getItem('edukids_deleted_exercises') || '[]');
       if (!deletedList.includes(numericId)) {
         deletedList.push(numericId);
       }
       localStorage.setItem('edukids_deleted_exercises', JSON.stringify(deletedList));
 
-      // Async Cloud sync delete on Aiven MySQL
-      this.request('/sync', {
+      // Async Cloud sync delete on Cloud MySQL
+      await this.request('/sync', {
         method: 'POST',
         body: JSON.stringify({ action: 'delete_exercise', deleteId: numericId })
       }).catch(() => {});

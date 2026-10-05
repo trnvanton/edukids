@@ -86,7 +86,7 @@ export default function AdminDashboard() {
     });
 
     if (isConfirmed) {
-      api.deleteExercise(ex.id);
+      await api.deleteExercise(ex.id);
       showSuccess('Đã Xóa Bài Tập', `Bài tập "${ex.title}" đã được xóa vĩnh viễn khỏi hệ thống!`);
       loadAllExercises();
     }

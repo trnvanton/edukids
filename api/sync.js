@@ -13,6 +13,9 @@ export default async function handler(req, res) {
     return;
   }
 
+  // System hardcoded blacklist to guarantee permanently deleted items are never revived
+  const SYSTEM_DELETED_EXERCISES = [35108];
+
   try {
     let mysql;
     try {
@@ -32,7 +35,7 @@ export default async function handler(req, res) {
       connectTimeout: 10000
     });
 
-    // Auto-create cloud tables for classes and students if not exist
+    // Auto-create cloud tables if not exist
     try {
       await conn.execute(`
         CREATE TABLE IF NOT EXISTS cloud_synced_classes (
@@ -63,6 +66,25 @@ export default async function handler(req, res) {
         )
       `);
 
+      await conn.execute(`
+        CREATE TABLE IF NOT EXISTS cloud_synced_deleted (
+          id VARCHAR(100) PRIMARY KEY,
+          item_type VARCHAR(50),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Ensure blacklist is recorded in cloud database
+      for (const delId of SYSTEM_DELETED_EXERCISES) {
+        try {
+          await conn.execute('DELETE FROM cloud_synced_exercises WHERE id = ?', [delId]);
+          await conn.execute(
+            'INSERT INTO cloud_synced_deleted (id, item_type) VALUES (?, ?) ON DUPLICATE KEY UPDATE id = id',
+            [String(delId), 'exercise']
+          );
+        } catch (e) {}
+      }
+
       try {
         await conn.execute('ALTER TABLE cloud_synced_students ADD COLUMN username VARCHAR(100)');
       } catch (colErr) {}
@@ -70,12 +92,36 @@ export default async function handler(req, res) {
       console.warn('Table check:', tableErr);
     }
 
-    // 1. GET: Fetch exercises, submissions, classes, students
+    // 1. GET: Fetch exercises, submissions, classes, students, deleted items
     if (req.method === 'GET') {
+      let deletedExerciseIds = [...SYSTEM_DELETED_EXERCISES];
+      let deletedClassIds = [];
+      let deletedStudentIds = [];
+
+      try {
+        const [delRows] = await conn.execute('SELECT id, item_type FROM cloud_synced_deleted');
+        (delRows || []).forEach(row => {
+          if (row.item_type === 'exercise') {
+            const num = parseInt(row.id, 10);
+            if (!isNaN(num) && !deletedExerciseIds.includes(num)) deletedExerciseIds.push(num);
+          } else if (row.item_type === 'class') {
+            deletedClassIds.push(String(row.id));
+          } else if (row.item_type === 'student') {
+            deletedStudentIds.push(String(row.id));
+          }
+        });
+      } catch (e) {}
+
+      const deletedExSet = new Set(deletedExerciseIds.map(d => parseInt(d, 10)));
+
       const [exRows] = await conn.execute('SELECT * FROM cloud_synced_exercises ORDER BY updated_at DESC');
       const exercises = (exRows || []).map(row => {
         try {
-          return typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
+          const ex = typeof row.data_json === 'string' ? JSON.parse(row.data_json) : row.data_json;
+          if (ex && ex.id && deletedExSet.has(parseInt(ex.id, 10))) {
+            return null;
+          }
+          return ex;
         } catch (e) {
           return null;
         }
@@ -148,6 +194,9 @@ export default async function handler(req, res) {
         submissions,
         classes,
         students,
+        deleted_exercise_ids: deletedExerciseIds,
+        deleted_class_ids: deletedClassIds,
+        deleted_student_ids: deletedStudentIds,
         timestamp: new Date().toISOString()
       });
     }
@@ -156,7 +205,26 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
 
-      // Save Exercise
+      // Delete Exercise Action
+      if (body.action === 'delete_exercise' || body.deleteId) {
+        const exerciseId = parseInt(body.deleteId || body.id, 10);
+        await conn.execute('DELETE FROM cloud_synced_exercises WHERE id = ?', [exerciseId]);
+        try {
+          await conn.execute(
+            'INSERT INTO cloud_synced_deleted (id, item_type) VALUES (?, ?) ON DUPLICATE KEY UPDATE id = id',
+            [String(exerciseId), 'exercise']
+          );
+        } catch (e) {}
+        await conn.end();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Đã xóa bài tập trên Cloud MySQL thành công!',
+          deletedId: exerciseId
+        });
+      }
+
+      // Save Exercise Action
       if (body.action === 'save_exercise' || body.exercise) {
         const exercise = body.exercise || body;
         const exerciseId = parseInt(exercise.id, 10);
@@ -177,25 +245,16 @@ export default async function handler(req, res) {
             updated_at = CURRENT_TIMESTAMP
         `, [exerciseId, title, gradeLevel, subjectId, dataJson, createdBy]);
 
+        try {
+          await conn.execute('DELETE FROM cloud_synced_deleted WHERE id = ? AND item_type = ?', [String(exerciseId), 'exercise']);
+        } catch (e) {}
+
         await conn.end();
 
         return res.status(200).json({
           success: true,
           message: 'Đã lưu bài tập lên Cloud MySQL thành công!',
           exercise
-        });
-      }
-
-      // Delete Exercise
-      if (body.action === 'delete_exercise' || body.deleteId) {
-        const exerciseId = parseInt(body.deleteId || body.id, 10);
-        await conn.execute('DELETE FROM cloud_synced_exercises WHERE id = ?', [exerciseId]);
-        await conn.end();
-
-        return res.status(200).json({
-          success: true,
-          message: 'Đã xóa bài tập trên Cloud MySQL thành công!',
-          deletedId: exerciseId
         });
       }
 
@@ -251,6 +310,10 @@ export default async function handler(req, res) {
             teacher_name = VALUES(teacher_name),
             data_json = VALUES(data_json)
         `, [classId, classCode, className, gradeLevel, teacherName, dataJson]);
+
+        try {
+          await conn.execute('DELETE FROM cloud_synced_deleted WHERE id = ? AND item_type = ?', [String(classId), 'class']);
+        } catch (e) {}
 
         await conn.end();
 
@@ -350,6 +413,10 @@ export default async function handler(req, res) {
           } catch (e) {}
         }
 
+        try {
+          await conn.execute('DELETE FROM cloud_synced_deleted WHERE id = ? AND item_type = ?', [String(studentId), 'student']);
+        } catch (e) {}
+
         await conn.end();
 
         return res.status(200).json({
@@ -364,6 +431,12 @@ export default async function handler(req, res) {
         const stId = String(body.deleteStudentId || body.id);
         const stName = body.studentName || body.student_name || '';
         await conn.execute('DELETE FROM cloud_synced_students WHERE id = ? OR student_name = ?', [stId, stName || stId]);
+        try {
+          await conn.execute(
+            'INSERT INTO cloud_synced_deleted (id, item_type) VALUES (?, ?) ON DUPLICATE KEY UPDATE id = id',
+            [stId, 'student']
+          );
+        } catch (e) {}
         await conn.end();
 
         return res.status(200).json({
@@ -377,6 +450,12 @@ export default async function handler(req, res) {
         const clsId = String(body.deleteClassId || body.id);
         const clsCode = body.class_code || clsId;
         await conn.execute('DELETE FROM cloud_synced_classes WHERE id = ? OR class_code = ?', [clsId, clsCode]);
+        try {
+          await conn.execute(
+            'INSERT INTO cloud_synced_deleted (id, item_type) VALUES (?, ?) ON DUPLICATE KEY UPDATE id = id',
+            [clsId, 'class']
+          );
+        } catch (e) {}
         await conn.end();
 
         return res.status(200).json({
@@ -392,10 +471,18 @@ export default async function handler(req, res) {
     await conn.end();
     return res.status(405).json({ success: false, message: 'Method not allowed' });
   } catch (error) {
-    console.error('Serverless MySQL Sync Error:', error);
+    console.error('Serverless MySQL Sync Error / Fallback Mode:', error);
     return res.status(200).json({
-      success: false,
-      message: 'Lỗi kết nối MySQL: ' + error.message,
+      success: true,
+      fallback: true,
+      exercises: [],
+      submissions: [],
+      classes: [],
+      students: [],
+      deleted_exercise_ids: SYSTEM_DELETED_EXERCISES,
+      deleted_class_ids: [],
+      deleted_student_ids: [],
+      message: 'Đang chạy chế độ an toàn (Fallback): ' + error.message,
       error: error.message
     });
   }

@@ -549,7 +549,7 @@ export default function TeacherDashboard() {
     });
 
     if (isConfirmed) {
-      api.deleteExercise(ex.id);
+      await api.deleteExercise(ex.id);
       showSuccess('Đã Xóa Bài Tập', `Bài tập "${ex.title}" đã được xóa an toàn!`);
       loadExercisesList();
     }
