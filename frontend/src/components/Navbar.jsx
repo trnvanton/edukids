@@ -28,100 +28,222 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
   };
 
   return (
-    <header style={{
-      background: 'rgba(255, 255, 255, 0.96)',
-      backdropFilter: 'blur(12px)',
-      borderBottom: '1.5px solid #E2E8F0',
-      position: 'sticky',
-      top: 0,
-      zIndex: 1000,
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)'
-    }}>
-      <div style={{
-        maxWidth: '1360px',
-        margin: '0 auto',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        height: '62px',
-        padding: '0 20px',
-        gap: '12px'
-      }}>
-        {/* Left: Brand Logo */}
+    <header className="edukids-header">
+      <style>{`
+        .edukids-header {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(12px);
+          border-bottom: 1.5px solid #E2E8F0;
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+        }
+        .header-inner {
+          max-width: 1320px;
+          margin: 0 auto;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 60px;
+          padding: 0 16px;
+          gap: 10px;
+        }
+        .header-logo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+          user-select: none;
+          flex-shrink: 0;
+        }
+        .header-logo-icon {
+          font-size: 1.3rem;
+          background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1.5px solid #C7D2FE;
+          box-shadow: 0 2px 5px rgba(79, 70, 229, 0.12);
+        }
+        .header-logo-title {
+          font-size: 1.15rem;
+          font-weight: 900;
+          background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          letter-spacing: -0.3px;
+          line-height: 1.1;
+        }
+        .header-logo-sub {
+          font-size: 0.65rem;
+          color: #94A3B8;
+          font-weight: 800;
+          display: block;
+        }
+
+        .header-nav {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          flex-shrink: 0;
+        }
+        .nav-item-btn {
+          padding: 6px 10px;
+          border-radius: 10px;
+          border: none;
+          font-weight: 800;
+          font-size: 0.84rem;
+          cursor: pointer;
+          background: transparent;
+          color: #475569;
+          transition: all 0.15s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          white-space: nowrap;
+          outline: none;
+        }
+        .nav-item-btn:hover {
+          background: #F1F5F9;
+          color: #1E293B;
+        }
+        .nav-item-btn.active {
+          background: #4F46E5;
+          color: #FFFFFF;
+          box-shadow: 0 3px 8px rgba(79, 70, 229, 0.28);
+        }
+        .nav-item-btn.active-red {
+          background: #DC2626;
+          color: #FFFFFF;
+          box-shadow: 0 3px 8px rgba(220, 38, 38, 0.28);
+        }
+
+        .header-actions {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          flex-shrink: 0;
+        }
+
+        .stat-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          padding: 4px 8px;
+          border-radius: 9999px;
+          font-size: 0.78rem;
+          font-weight: 800;
+          white-space: nowrap;
+          cursor: pointer;
+        }
+        .stat-pill:hover {
+          background: #EEF2FF;
+          border-color: #C7D2FE;
+        }
+
+        .user-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          cursor: pointer;
+          padding: 4px 8px;
+          border-radius: 9999px;
+          background: #F1F5F9;
+          border: 1px solid #E2E8F0;
+          white-space: nowrap;
+          max-width: 120px;
+          font-size: 0.78rem;
+          font-weight: 800;
+          color: #1E293B;
+          transition: all 0.15s ease;
+        }
+        .user-chip:hover {
+          background: #E2E8F0;
+        }
+        .user-chip-name {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .icon-action-btn {
+          background: #F8FAFC;
+          border: 1px solid #E2E8F0;
+          border-radius: 8px;
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 0.9rem;
+          cursor: pointer;
+          outline: none;
+          transition: all 0.15s ease;
+        }
+        .icon-action-btn:hover {
+          background: #F1F5F9;
+          border-color: #CBD5E1;
+        }
+
+        .logout-btn {
+          background: #FEF2F2;
+          border: 1px solid #FECDD3;
+          color: #DC2626;
+          font-weight: 800;
+          font-size: 0.78rem;
+          cursor: pointer;
+          padding: 5px 8px;
+          border-radius: 8px;
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+          white-space: nowrap;
+          outline: none;
+          transition: all 0.15s ease;
+        }
+        .logout-btn:hover {
+          background: #FEE2E2;
+          border-color: #FDA4AF;
+        }
+
+        @media (max-width: 1100px) {
+          .header-logo-sub { display: none; }
+          .nav-item-btn { padding: 5px 8px; font-size: 0.8rem; }
+          .stat-pill { padding: 3px 6px; }
+        }
+        @media (max-width: 900px) {
+          .header-inner { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .header-nav { gap: 2px; }
+        }
+      `}</style>
+
+      <div className="header-inner">
+        {/* Brand Logo */}
         <div
+          className="header-logo"
           onClick={() => { sound.pop(); setActiveTab('dashboard'); }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            cursor: 'pointer',
-            userSelect: 'none',
-            flexShrink: 0
-          }}
         >
-          <div style={{
-            fontSize: '1.4rem',
-            background: 'linear-gradient(135deg, #EEF2FF, #E0E7FF)',
-            width: '38px',
-            height: '38px',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1.5px solid #C7D2FE',
-            boxShadow: '0 2px 6px rgba(79, 70, 229, 0.12)'
-          }}>
-            🎒
-          </div>
+          <div className="header-logo-icon">🎒</div>
           <div>
-            <span style={{
-              fontSize: '1.2rem',
-              fontWeight: 900,
-              background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              letterSpacing: '-0.3px',
-              display: 'block',
-              lineHeight: 1.1,
-              whiteSpace: 'nowrap'
-            }}>
-              EduKids
-            </span>
-            <span style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 800, whiteSpace: 'nowrap' }}>
-              Tiểu Học Thông Minh
-            </span>
+            <span className="header-logo-title">EduKids</span>
+            <span className="header-logo-sub">Tiểu Học Thông Minh</span>
           </div>
         </div>
 
-        {/* Center: Clean Navigation Links with No Text Wrapping */}
-        <nav style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          flexShrink: 0
-        }}>
+        {/* Center: Navigation Links */}
+        <nav className="header-nav">
           {user && user.role === 'student' && (
             <>
               <button
                 type="button"
+                className={`nav-item-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={() => { sound.pop(); setActiveTab('dashboard'); }}
-                style={{
-                  padding: '6px 11px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  background: activeTab === 'dashboard' ? '#4F46E5' : 'transparent',
-                  color: activeTab === 'dashboard' ? '#FFFFFF' : '#475569',
-                  boxShadow: activeTab === 'dashboard' ? '0 3px 10px rgba(79, 70, 229, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  outline: 'none'
-                }}
               >
                 <span>🏠</span>
                 <span>Trang Chủ</span>
@@ -129,99 +251,36 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
 
               <button
                 type="button"
+                className={`nav-item-btn ${activeTab === 'subjects' ? 'active' : ''}`}
                 onClick={() => { sound.pop(); setActiveTab('subjects'); }}
-                style={{
-                  padding: '6px 11px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  background: activeTab === 'subjects' ? '#4F46E5' : 'transparent',
-                  color: activeTab === 'subjects' ? '#FFFFFF' : '#475569',
-                  boxShadow: activeTab === 'subjects' ? '0 3px 10px rgba(79, 70, 229, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  outline: 'none'
-                }}
               >
                 <span>📚</span>
-                <span>Môn Học & Bài Tập</span>
+                <span>Bài Tập</span>
               </button>
 
               <button
                 type="button"
+                className={`nav-item-btn ${activeTab === 'history' ? 'active' : ''}`}
                 onClick={() => { sound.pop(); setActiveTab('history'); }}
-                style={{
-                  padding: '6px 11px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  background: activeTab === 'history' ? '#4F46E5' : 'transparent',
-                  color: activeTab === 'history' ? '#FFFFFF' : '#475569',
-                  boxShadow: activeTab === 'history' ? '0 3px 10px rgba(79, 70, 229, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  outline: 'none'
-                }}
               >
                 <span>📜</span>
-                <span>Lịch Sử Làm Bài</span>
+                <span>Lịch Sử</span>
               </button>
 
               <button
                 type="button"
+                className={`nav-item-btn ${activeTab === 'mistakes' ? 'active-red' : ''}`}
                 onClick={() => { sound.pop(); setActiveTab('mistakes'); }}
-                style={{
-                  padding: '6px 11px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  background: activeTab === 'mistakes' ? '#DC2626' : 'transparent',
-                  color: activeTab === 'mistakes' ? '#FFFFFF' : '#DC2626',
-                  boxShadow: activeTab === 'mistakes' ? '0 3px 10px rgba(220, 38, 38, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  outline: 'none'
-                }}
+                style={{ color: activeTab === 'mistakes' ? '#FFFFFF' : '#DC2626' }}
               >
                 <span>🎯</span>
-                <span>Sổ Tay Lỗi Sai</span>
+                <span>Sổ Lỗi</span>
               </button>
 
               <button
                 type="button"
+                className={`nav-item-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
                 onClick={() => { sound.pop(); setActiveTab('leaderboard'); }}
-                style={{
-                  padding: '6px 11px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  background: activeTab === 'leaderboard' ? '#4F46E5' : 'transparent',
-                  color: activeTab === 'leaderboard' ? '#FFFFFF' : '#475569',
-                  boxShadow: activeTab === 'leaderboard' ? '0 3px 10px rgba(79, 70, 229, 0.25)' : 'none',
-                  transition: 'all 0.15s ease',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  outline: 'none'
-                }}
               >
                 <span>🏆</span>
                 <span>Bảng Vàng</span>
@@ -232,22 +291,9 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
           {user && user.role === 'teacher' && (
             <button
               type="button"
+              className="nav-item-btn active"
+              style={{ background: '#FEF3C7', color: '#B45309' }}
               onClick={() => { sound.pop(); setActiveTab('teacher'); }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '10px',
-                border: 'none',
-                fontWeight: 800,
-                fontSize: '0.86rem',
-                cursor: 'pointer',
-                background: '#FEF3C7',
-                color: '#B45309',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                outline: 'none'
-              }}
             >
               <span>👩‍🏫</span>
               <span>Quản Lý Lớp Học & Bài Tập</span>
@@ -257,22 +303,9 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
           {user && user.role === 'admin' && (
             <button
               type="button"
+              className="nav-item-btn active"
+              style={{ background: '#ECFDF5', color: '#065F46' }}
               onClick={() => { sound.pop(); setActiveTab('admin'); }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '10px',
-                border: 'none',
-                fontWeight: 800,
-                fontSize: '0.86rem',
-                cursor: 'pointer',
-                background: '#ECFDF5',
-                color: '#065F46',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                whiteSpace: 'nowrap',
-                outline: 'none'
-              }}
             >
               <span>👨‍💼</span>
               <span>Quản Trị Hệ Thống</span>
@@ -280,157 +313,91 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
           )}
         </nav>
 
-        {/* Right: Consolidated Student Badges, Audio, User Profile & Logout */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          flexShrink: 0
-        }}>
+        {/* Right: Actions, Badges & Profile */}
+        <div className="header-actions">
           {user ? (
             <>
-              {/* Consolidated Student Status Pill */}
+              {/* Student Stats & Class Badge */}
               {user.role === 'student' && (
-                <div
-                  onClick={() => { sound.pop(); setShowProfileModal(true); }}
-                  title={user.class_code ? `Lớp: ${user.class_name ? `Lớp ${user.class_name}` : ''} (${user.class_code}) • Bấm để xem hồ sơ` : `Bé chưa vào lớp nào (Khối ${user.grade_level || 2}) • Bấm để xem hồ sơ`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: '#F8FAFC',
-                    border: '1.5px solid #E2E8F0',
-                    padding: '3px 8px',
-                    borderRadius: '9999px',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
-                  }}
-                >
-                  <span style={{
-                    color: user.class_code ? '#4F46E5' : '#D97706',
-                    background: user.class_code ? '#EEF2FF' : '#FEF3C7',
-                    padding: '2px 8px',
-                    borderRadius: '9999px',
-                    fontWeight: 900
-                  }}>
-                    {user.class_code ? `🏫 Lớp ${user.class_name || user.class_code.split('-')[0]}` : `🏫 Khối ${user.grade_level || 2}`}
-                  </span>
-                  <span style={{ color: '#D97706', fontWeight: 800 }}>
-                    ⭐ {user.xp || 0}
-                  </span>
-                  <span style={{ color: '#EF4444', fontWeight: 800 }}>
-                    🔥 {user.streak_days || 1}d
-                  </span>
-                </div>
+                <>
+                  <div
+                    className="stat-pill"
+                    onClick={() => { sound.pop(); setShowProfileModal(true); }}
+                    title={`Khối ${user.grade_level || 2} • Bấm để đổi thông tin / xem hồ sơ`}
+                  >
+                    <span style={{
+                      color: user.class_code ? '#4F46E5' : '#D97706',
+                      background: user.class_code ? '#EEF2FF' : '#FEF3C7',
+                      padding: '1px 6px',
+                      borderRadius: '9999px',
+                      fontWeight: 900,
+                      fontSize: '0.74rem'
+                    }}>
+                      {user.class_code ? (user.class_name ? `Lớp ${user.class_name}` : user.class_code) : `Khối ${user.grade_level || 2}`}
+                    </span>
+                    <span style={{ color: '#D97706' }}>⭐ {user.xp || 0}</span>
+                    <span style={{ color: '#EF4444' }}>🔥 {user.streak_days || 1}d</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => { sound.pop(); if (onOpenJoinClass) onOpenJoinClass(); }}
+                    title={user.class_code ? `Đang ở lớp ${user.class_name || user.class_code}. Bấm để đổi mã lớp` : "Nhập mã lớp của Thầy/Cô"}
+                    style={{
+                      background: user.class_code ? '#F0FDF4' : '#EEF2FF',
+                      border: user.class_code ? '1px solid #BBF7D0' : '1px solid #C7D2FE',
+                      color: user.class_code ? '#15803D' : '#4338CA',
+                      fontWeight: 800,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      padding: '4px 7px',
+                      borderRadius: '8px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      whiteSpace: 'nowrap',
+                      outline: 'none'
+                    }}
+                  >
+                    <span>{user.class_code ? '🔄' : '🔑'}</span>
+                    <span>{user.class_code ? 'Đổi Lớp' : 'Vào Lớp'}</span>
+                  </button>
+                </>
               )}
 
-              {/* Sound Toggle Button */}
+              {/* Sound Toggle */}
               <button
                 type="button"
+                className="icon-action-btn"
                 onClick={handleSound}
                 title={isMuted ? 'Bật âm thanh' : 'Tắt âm thanh'}
-                style={{
-                  background: '#F8FAFC',
-                  border: '1.5px solid #E2E8F0',
-                  borderRadius: '8px',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  outline: 'none',
-                  flexShrink: 0
-                }}
               >
                 {isMuted ? '🔇' : '🔊'}
               </button>
 
-              {/* Student Join / Change Class Button */}
-              {user.role === 'student' && (
-                <button
-                  type="button"
-                  onClick={() => { sound.pop(); if (onOpenJoinClass) onOpenJoinClass(); }}
-                  title={user.class_code ? `Bé đang ở Lớp ${user.class_name || user.class_code} (${user.class_code}). Bấm để đổi Mã Lớp khác` : "Nhập mã lớp học của Thầy/Cô để vào lớp"}
-                  style={{
-                    background: user.class_code ? '#F0FDF4' : '#EEF2FF',
-                    border: user.class_code ? '1.5px solid #BBF7D0' : '1.5px solid #C7D2FE',
-                    color: user.class_code ? '#15803D' : '#4338CA',
-                    fontWeight: 800,
-                    fontSize: '0.78rem',
-                    cursor: 'pointer',
-                    padding: '5px 8px',
-                    borderRadius: '8px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    whiteSpace: 'nowrap',
-                    outline: 'none',
-                    flexShrink: 0
-                  }}
-                >
-                  <span>{user.class_code ? '🔄' : '🔑'}</span>
-                  <span>{user.class_code ? 'Đổi Lớp' : 'Vào Lớp'}</span>
-                </button>
-              )}
-
-              {/* User Avatar & Name Profile Chip */}
+              {/* User Avatar & Name */}
               <div
+                className="user-chip"
                 onClick={() => { sound.pop(); setShowProfileModal(true); }}
-                title={`Hồ sơ: ${user.full_name || user.username}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  cursor: 'pointer',
-                  padding: '4px 8px',
-                  borderRadius: '8px',
-                  background: '#F1F5F9',
-                  border: '1.5px solid #E2E8F0',
-                  whiteSpace: 'nowrap',
-                  maxWidth: '120px',
-                  flexShrink: 1
-                }}
+                title={`Hồ sơ: ${user.full_name || user.username} (Bấm để mở hồ sơ)`}
               >
-                <span style={{ fontSize: '1.15rem', flexShrink: 0 }}>{getAvatarEmoji(user.avatar)}</span>
-                <span style={{ fontWeight: 800, fontSize: '0.8rem', color: '#1E293B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.full_name || user.username}
-                </span>
+                <span style={{ fontSize: '1.05rem', flexShrink: 0 }}>{getAvatarEmoji(user.avatar)}</span>
+                <span className="user-chip-name">{user.full_name || user.username}</span>
               </div>
 
-              {/* Logout Button (High Priority, Always Visible) */}
+              {/* Logout Button */}
               <button
                 type="button"
+                className="logout-btn"
                 onClick={handleLogout}
                 title="Đăng xuất khỏi tài khoản"
-                style={{
-                  background: '#FEF2F2',
-                  border: '1.5px solid #FECDD3',
-                  color: '#DC2626',
-                  fontWeight: 900,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                  padding: '5px 10px',
-                  borderRadius: '8px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                  outline: 'none',
-                  flexShrink: 0,
-                  boxShadow: '0 1px 3px rgba(220, 38, 38, 0.1)'
-                }}
               >
                 <span>🚪</span>
-                <span>Đăng xuất</span>
+                <span>Thoát</span>
               </button>
             </>
           ) : (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', whiteSpace: 'nowrap' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', whiteSpace: 'nowrap' }}>
               <button
                 type="button"
                 onClick={() => { sound.pop(); if (onOpenJoinClass) onOpenJoinClass(); }}
@@ -439,14 +406,13 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
                   border: '1.5px solid #818CF8',
                   color: '#3730A3',
                   fontWeight: 900,
-                  fontSize: '0.86rem',
-                  padding: '6px 14px',
-                  borderRadius: '10px',
+                  fontSize: '0.82rem',
+                  padding: '5px 10px',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 2px 8px rgba(99, 102, 241, 0.15)',
+                  gap: '4px',
                   outline: 'none'
                 }}
               >
@@ -456,14 +422,14 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
               <button
                 onClick={() => { sound.pop(); openLogin(); }}
                 className="btn-secondary"
-                style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                style={{ padding: '5px 10px', fontSize: '0.82rem' }}
               >
                 <span>Đăng Nhập</span>
               </button>
               <button
                 onClick={() => { sound.pop(); openRegister(); }}
                 className="btn-primary"
-                style={{ padding: '6px 16px', fontSize: '0.85rem' }}
+                style={{ padding: '5px 12px', fontSize: '0.82rem' }}
               >
                 <span>⭐ Đăng Ký</span>
               </button>
