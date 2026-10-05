@@ -13,12 +13,9 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTeacherTab, setActiveTeacherTab] = useState('classes'); // 'classes', 'assigned-list', 'create-exercise', 'import-excel', 'create-class', 'assign'
 
-  // Form states - Create Class & Add Student
-  const [newClassName, setNewClassName] = useState('5A2');
-  const [newClassGrade, setNewClassGrade] = useState('5');
-  const [newStudentName, setNewStudentName] = useState('');
-  const [newStudentPhone, setNewStudentPhone] = useState('');
-  const [targetClassForStudent, setTargetClassForStudent] = useState('1');
+  // Form states - Create Class
+  const [newClassName, setNewClassName] = useState('3A1');
+  const [newClassGrade, setNewClassGrade] = useState('3');
   const [selectedQRClass, setSelectedQRClass] = useState(null);
 
   // Edit Class Modal State
@@ -666,40 +663,6 @@ export default function TeacherDashboard() {
     }
   };
 
-  const handleAddStudent = (e) => {
-    e.preventDefault();
-    sound.pop();
-    if (!newStudentName.trim()) return;
-    
-    // Find target class
-    let grade = 2;
-    let targetCode = '';
-    if (targetClassForStudent) {
-      const cls = classAnalytics.find(c => String(c.classId) === String(targetClassForStudent) || c.className === targetClassForStudent);
-      if (cls) {
-        grade = cls.gradeLevel;
-        targetCode = cls.class_code;
-      }
-    }
-
-    const newStudentObj = {
-      id: Date.now(),
-      full_name: newStudentName.trim(),
-      parent_phone: newStudentPhone.trim(),
-      grade_level: grade,
-      class_id: targetClassForStudent || `${grade}A1`,
-      class_code: targetCode || `${grade}A1-8429`,
-      avatar: 'mascot-bear',
-      xp: 0
-    };
-    api.saveCustomStudent(newStudentObj);
-    showSuccess('Thêm Học Sinh Thành Công! 🎉', `Đã thêm học sinh "${newStudentName}" vào danh sách!`);
-    setNewStudentName('');
-    setNewStudentPhone('');
-    loadTeacherData();
-    setActiveTeacherTab('classes');
-  };
-
   const handleDeleteStudent = async (student) => {
     sound.pop();
     const isConfirmed = await confirm({
@@ -889,7 +852,7 @@ export default function TeacherDashboard() {
           }}
         >
           <span>➕</span>
-          <span>Tạo Lớp & Học Sinh</span>
+          <span>Tạo Lớp Học</span>
         </button>
 
         <button
@@ -1150,16 +1113,9 @@ export default function TeacherDashboard() {
                       type="button"
                       onClick={() => { sound.pop(); setSelectedQRClass(cls); }}
                       className="btn-primary"
-                      style={{ padding: '8px 18px', fontSize: '0.88rem', background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}
+                      style={{ padding: '9px 22px', fontSize: '0.9rem', background: 'linear-gradient(135deg, #7C3AED, #6D28D9)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                     >
                       <span>📱 Mở Mã QR & Link Gửi Phụ Huynh</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { sound.pop(); setActiveTeacherTab('create-class'); }}
-                      style={{ padding: '8px 18px', borderRadius: '10px', border: '1.5px solid #CBD5E1', background: 'white', fontWeight: 800, fontSize: '0.88rem', cursor: 'pointer' }}
-                    >
-                      <span>➕ Thêm Học Sinh Thủ Công</span>
                     </button>
                   </div>
                 </div>
@@ -3427,85 +3383,57 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 5: CREATE CLASS & ADD STUDENT */}
+      {/* TAB 5: CREATE CLASS */}
       {activeTeacherTab === 'create-class' && (
-        <div className="grid-2">
-          {/* Create Class Card */}
-          <div className="card">
-            <div className="card-title">
-              <span>🏫</span>
-              <span>Tạo Lớp Học Mới</span>
+        <div style={{ maxWidth: '520px', margin: '0 auto' }}>
+          <div className="card" style={{ padding: '28px', borderRadius: '20px', boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
+            <div className="card-title" style={{ marginBottom: '18px' }}>
+              <span style={{ fontSize: '1.5rem' }}>🏫</span>
+              <span style={{ fontSize: '1.25rem', fontWeight: 900 }}>Tạo Lớp Học Mới</span>
             </div>
+
+            <p style={{ color: '#64748B', fontSize: '0.9rem', marginBottom: '20px', lineHeight: 1.5 }}>
+              Sau khi tạo lớp, hệ thống sẽ tự động tạo <strong>Mã Lớp Học</strong> và <strong>Mã QR</strong> để Cô gửi vào nhóm Zalo Phụ huynh. Học sinh chỉ cần nhập mã là vào lớp tự động!
+            </p>
+
             <form onSubmit={handleCreateClass}>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontWeight: 700, marginBottom: '6px' }}>Tên lớp học:</label>
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontWeight: 800, marginBottom: '6px', color: '#334155', fontSize: '0.9rem' }}>
+                  Tên lớp học: <span style={{ color: '#EF4444' }}>*</span>
+                </label>
                 <input
                   type="text"
                   value={newClassName}
                   onChange={e => setNewClassName(e.target.value)}
-                  placeholder="Ví dụ: 3A1, 4B, 5C..."
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid var(--border-color)', fontWeight: 700 }}
+                  placeholder="Ví dụ: 2A1, 3B, 4A2, 5C..."
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1.5px solid #CBD5E1', fontWeight: 800, fontSize: '0.95rem' }}
                   required
                 />
               </div>
 
-              <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontWeight: 700, marginBottom: '6px' }}>Khối lớp:</label>
+              <div style={{ marginBottom: '22px' }}>
+                <label style={{ display: 'block', fontWeight: 800, marginBottom: '6px', color: '#334155', fontSize: '0.9rem' }}>
+                  Khối lớp: <span style={{ color: '#EF4444' }}>*</span>
+                </label>
                 <select
                   value={newClassGrade}
                   onChange={e => setNewClassGrade(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid var(--border-color)', fontWeight: 700 }}
+                  style={{ width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1.5px solid #CBD5E1', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer' }}
                 >
-                  <option value="1">Lớp 1 🌱</option>
-                  <option value="2">Lớp 2 🐥</option>
-                  <option value="3">Lớp 3 🐱</option>
-                  <option value="4">Lớp 4 🚀</option>
-                  <option value="5">Lớp 5 👑</option>
+                  <option value="1">🌱 Khối 1</option>
+                  <option value="2">🐥 Khối 2</option>
+                  <option value="3">🐱 Khối 3</option>
+                  <option value="4">🚀 Khối 4</option>
+                  <option value="5">👑 Khối 5</option>
                 </select>
               </div>
 
-              <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                <span>Tạo Lớp Học 🚀</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Add Student Card */}
-          <div className="card">
-            <div className="card-title">
-              <span>👦</span>
-              <span>Thêm Học Sinh Vào Lớp</span>
-            </div>
-            <form onSubmit={handleAddStudent}>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontWeight: 700, marginBottom: '6px' }}>Chọn lớp tiếp nhận:</label>
-                <select
-                  value={targetClassForStudent}
-                  onChange={e => setTargetClassForStudent(e.target.value)}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid var(--border-color)', fontWeight: 700 }}
-                >
-                  {classAnalytics.map(cls => (
-                    <option key={cls.classId} value={cls.classId}>
-                      Lớp {cls.className} (Khối {cls.gradeLevel} • {cls.stats.totalStudents} học sinh)
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontWeight: 700, marginBottom: '6px' }}>Họ và tên học sinh:</label>
-                <input
-                  type="text"
-                  value={newStudentName}
-                  onChange={e => setNewStudentName(e.target.value)}
-                  placeholder="Ví dụ: Bé Lê Hoàng Nam..."
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid var(--border-color)', fontWeight: 700 }}
-                  required
-                />
-              </div>
-
-              <button type="submit" className="btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
-                <span>Thêm Vào Danh Sách Lớp ➕</span>
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ width: '100%', justifyContent: 'center', padding: '12px', fontSize: '1rem', fontWeight: 900, background: 'linear-gradient(135deg, #059669, #10B981)', borderRadius: '12px' }}
+              >
+                <span>Tạo Lớp Học Ngay 🚀</span>
               </button>
             </form>
           </div>
