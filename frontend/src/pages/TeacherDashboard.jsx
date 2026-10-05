@@ -660,9 +660,9 @@ export default function TeacherDashboard() {
     });
 
     if (isConfirmed) {
-      api.deleteCustomClass(cls.classId || cls.id || cls.class_code);
+      await api.deleteCustomClass(cls.classId || cls.id, cls.class_code);
       showSuccess('Đã Xóa Lớp Học', `Đã xóa thành công Lớp ${cls.className}!`);
-      loadTeacherData();
+      await loadTeacherData();
     }
   };
 
@@ -710,9 +710,9 @@ export default function TeacherDashboard() {
       cancelText: 'Hủy'
     });
     if (isConfirmed) {
-      api.deleteCustomStudent(student.id, student.full_name);
+      await api.deleteCustomStudent(student.id, student.full_name);
       showSuccess('Đã Xóa Học Sinh', `Đã xóa học sinh "${student.full_name}" khỏi danh sách lớp.`);
-      loadTeacherData();
+      await loadTeacherData();
     }
   };
 
@@ -924,7 +924,26 @@ export default function TeacherDashboard() {
       {/* TAB 1: CLASSES & STUDENT SCORES */}
       {activeTeacherTab === 'classes' && (
         <div>
-          {classAnalytics.map(cls => (
+          {(!classAnalytics || classAnalytics.length === 0) ? (
+            <div className="card" style={{ textAlign: 'center', padding: '48px 24px', borderRadius: '20px', border: '2px dashed #CBD5E1', background: '#F8FAFC' }}>
+              <span style={{ fontSize: '3.5rem', display: 'block', marginBottom: '12px' }}>🏫</span>
+              <h3 style={{ fontWeight: 900, color: '#1E293B', fontSize: '1.3rem', marginBottom: '8px' }}>
+                Thầy/Cô Chưa Có Lớp Học Nào
+              </h3>
+              <p style={{ color: '#64748B', fontSize: '0.95rem', maxWidth: '480px', margin: '0 auto 20px auto', lineHeight: 1.6 }}>
+                Các lớp học đã được xóa khỏi hệ thống. Thầy/Cô có thể tạo lớp học mới để nhận <strong>Mã Lớp & Link Zalo</strong> gửi cho Phụ huynh!
+              </p>
+              <button
+                type="button"
+                onClick={() => { sound.pop(); setActiveTeacherTab('create-class'); }}
+                className="btn-primary"
+                style={{ padding: '10px 24px', fontSize: '0.95rem', background: 'linear-gradient(135deg, #059669, #10B981)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+              >
+                <span>➕ Tạo Lớp Học Mới Ngay</span>
+              </button>
+            </div>
+          ) : (
+            classAnalytics.map(cls => (
             <div key={cls.classId} className="card" style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1222,7 +1241,7 @@ export default function TeacherDashboard() {
                 </table>
               )}
             </div>
-          ))}
+          )))}
         </div>
       )}
 

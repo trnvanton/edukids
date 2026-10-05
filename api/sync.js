@@ -170,15 +170,10 @@ export default async function handler(req, res) {
         const teacher = newClass.teacher_name || 'Cô Hoàng Mai';
         const dataJson = JSON.stringify(newClass);
 
+        await d1Query('DELETE FROM cloud_synced_classes WHERE id = ? OR class_code = ?;', [id, code]);
         await d1Query(
           `INSERT INTO cloud_synced_classes (id, class_code, class_name, grade_level, teacher_name, data_json)
-           VALUES (?, ?, ?, ?, ?, ?)
-           ON CONFLICT(id) DO UPDATE SET
-             class_code = excluded.class_code,
-             class_name = excluded.class_name,
-             grade_level = excluded.grade_level,
-             teacher_name = excluded.teacher_name,
-             data_json = excluded.data_json;`,
+           VALUES (?, ?, ?, ?, ?, ?);`,
           [id, code, name, grade, teacher, dataJson]
         );
 
@@ -187,6 +182,25 @@ export default async function handler(req, res) {
           cloud: 'Cloudflare D1',
           message: 'Đã lưu lớp học lên Cloudflare D1!',
           classObj: newClass
+        });
+      }
+
+      // Action: DELETE CLASS
+      if (body.action === 'delete_class' || body.deleteClassId) {
+        const clsId = String(body.deleteClassId || body.id || '');
+        const code = String(body.class_code || '');
+        if (clsId) {
+          await d1Query('DELETE FROM cloud_synced_classes WHERE id = ? OR class_code = ?;', [clsId, clsId]);
+        }
+        if (code) {
+          await d1Query('DELETE FROM cloud_synced_classes WHERE class_code = ? OR id = ?;', [code, code]);
+        }
+
+        return res.status(200).json({
+          success: true,
+          cloud: 'Cloudflare D1',
+          message: 'Đã xóa lớp học trên Cloudflare D1 thành công!',
+          deletedClassId: clsId || code
         });
       }
 
@@ -202,18 +216,10 @@ export default async function handler(req, res) {
         const xp = parseInt(st.xp || 50, 10);
         const dataJson = JSON.stringify(st);
 
+        await d1Query('DELETE FROM cloud_synced_students WHERE id = ? OR (username != "" AND username = ?);', [id, username]);
         await d1Query(
           `INSERT INTO cloud_synced_students (id, username, full_name, parent_phone, class_code, grade_level, xp, data_json, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-           ON CONFLICT(id) DO UPDATE SET
-             username = excluded.username,
-             full_name = excluded.full_name,
-             parent_phone = excluded.parent_phone,
-             class_code = excluded.class_code,
-             grade_level = excluded.grade_level,
-             xp = excluded.xp,
-             data_json = excluded.data_json,
-             updated_at = datetime('now');`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));`,
           [id, username, fullName, phone, classCode, grade, xp, dataJson]
         );
 
@@ -222,6 +228,25 @@ export default async function handler(req, res) {
           cloud: 'Cloudflare D1',
           message: 'Đã cập nhật thông tin học sinh lên Cloudflare D1!',
           student: st
+        });
+      }
+
+      // Action: DELETE STUDENT
+      if (body.action === 'delete_student' || body.deleteStudentId) {
+        const stId = String(body.deleteStudentId || body.id || '');
+        const stName = String(body.student_name || '');
+        if (stId) {
+          await d1Query('DELETE FROM cloud_synced_students WHERE id = ?;', [stId]);
+        }
+        if (stName) {
+          await d1Query('DELETE FROM cloud_synced_students WHERE full_name = ? OR username = ?;', [stName, stName]);
+        }
+
+        return res.status(200).json({
+          success: true,
+          cloud: 'Cloudflare D1',
+          message: 'Đã xóa học sinh trên Cloudflare D1 thành công!',
+          deletedStudentId: stId || stName
         });
       }
 

@@ -353,21 +353,14 @@ class ApiService {
 
         if (Array.isArray(res.classes)) {
           try {
-            const localCls = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
-            const clsMap = new Map();
-            localCls.forEach(c => {
-              const code = String(c.class_code || c.id);
-              if (!deletedClassSet.has(code) && !deletedClassSet.has(String(c.id))) {
-                clsMap.set(code, c);
-              }
-            });
+            const validClasses = [];
             res.classes.forEach(c => {
               const code = String(c.class_code || c.id);
               if (!deletedClassSet.has(code) && !deletedClassSet.has(String(c.id))) {
-                clsMap.set(code, c);
+                validClasses.push(c);
               }
             });
-            localStorage.setItem('edukids_custom_classes', JSON.stringify(Array.from(clsMap.values())));
+            localStorage.setItem('edukids_custom_classes', JSON.stringify(validClasses));
           } catch (e) {}
         }
 
@@ -984,21 +977,23 @@ class ApiService {
     }
   }
 
-  deleteCustomClass(classId) {
+  async deleteCustomClass(classId, classCode = null) {
     try {
       let stored = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
-      const target = stored.find(c => String(c.id) === String(classId) || c.class_code === classId);
-      stored = stored.filter(c => String(c.id) !== String(classId) && c.class_code !== classId);
+      const target = stored.find(c => String(c.id) === String(classId) || c.class_code === classId || (classCode && c.class_code === classCode));
+      const codeToDelete = classCode || target?.class_code || classId;
+
+      stored = stored.filter(c => String(c.id) !== String(classId) && c.class_code !== classId && (!codeToDelete || c.class_code !== codeToDelete));
       localStorage.setItem('edukids_custom_classes', JSON.stringify(stored));
 
       // Track deleted class id so sync doesn't restore it
       let deletedClasses = JSON.parse(localStorage.getItem('edukids_deleted_classes') || '[]');
       if (classId && !deletedClasses.includes(String(classId))) deletedClasses.push(String(classId));
-      if (target?.class_code && !deletedClasses.includes(target.class_code)) deletedClasses.push(target.class_code);
+      if (codeToDelete && !deletedClasses.includes(String(codeToDelete))) deletedClasses.push(String(codeToDelete));
       localStorage.setItem('edukids_deleted_classes', JSON.stringify(deletedClasses));
 
       // Dual-tier Cloud sync delete
-      this.syncWithCloud('delete_class', { deleteClassId: classId, class_code: target?.class_code || classId });
+      await this.syncWithCloud('delete_class', { deleteClassId: classId, class_code: codeToDelete });
 
       return { success: true, classes: stored };
     } catch (e) {
@@ -1027,7 +1022,7 @@ class ApiService {
     }
   }
 
-  deleteCustomStudent(studentId, studentName = '') {
+  async deleteCustomStudent(studentId, studentName = '') {
     try {
       let stored = JSON.parse(localStorage.getItem('edukids_custom_students') || '[]');
       const target = stored.find(s => String(s.id) === String(studentId) || s.full_name === studentName);
@@ -1053,7 +1048,7 @@ class ApiService {
       } catch (e) {}
 
       // Dual-tier Cloud sync delete
-      this.syncWithCloud('delete_student', { deleteStudentId: studentId, student_name: nameToDelete });
+      await this.syncWithCloud('delete_student', { deleteStudentId: studentId, student_name: nameToDelete });
 
       return { success: true, students: stored };
     } catch (e) {
@@ -1073,15 +1068,6 @@ class ApiService {
     try {
       customClasses = JSON.parse(localStorage.getItem('edukids_custom_classes') || '[]');
     } catch (e) {}
-
-    const gradesSet = new Set([2]);
-    students.forEach(st => gradesSet.add(st.grade_level || 2));
-    customClasses.forEach(cls => gradesSet.add(parseInt(cls.grade_level || 2, 10)));
-
-    const teacherExs = this.getTeacherExercises();
-    if (teacherExs.success && teacherExs.exercises) {
-      teacherExs.exercises.forEach(ex => gradesSet.add(ex.grade_level || 2));
-    }
 
     const classAnalytics = [];
 
@@ -1151,68 +1137,6 @@ class ApiService {
           className: cls.className || `${cls.grade_level}A1`,
           class_code: cls.class_code || `${cls.className}-8429`,
           gradeLevel: parseInt(cls.grade_level || 2, 10),
-          schoolYear: '2025-2026',
-          stats: {
-            totalStudents: classStudents.length,
-            totalSubmissionsCount: classSubmissions.length,
-            classAverageScore: classAvg,
-            strugglingStudents: studentSummary.filter(s => s.isStruggling),
-            studentSummary
-          }
-        });
-      });
-    } else {
-      Array.from(gradesSet).sort().forEach(g => {
-        const classStudents = students.filter(st => st.grade_level === g);
-
-        const studentSummary = classStudents.map(st => {
-          const stName = (st.full_name || st.student_name || '').toLowerCase();
-          const stUser = (st.username || '').toLowerCase();
-          const stId = String(st.id);
-
-          const userSubs = allSubmissions.filter(s => {
-            const subName = (s.student_name || s.user_name || '').toLowerCase();
-            const subId = String(s.user_id);
-            return (
-              (subId && subId === stId) ||
-              (stName && subName === stName) ||
-              (stUser && subName === stUser) ||
-              (stUser === 'toan2004' && (subName === 'toan2004' || subName === 'trịnh văn toàn' || subName === 'andrew'))
-            );
-          });
-
-          let avg = null;
-          let totalXpEarned = 0;
-          if (userSubs.length > 0) {
-            const total = userSubs.reduce((acc, c) => acc + (c.score10 !== undefined ? c.score10 : (c.score || 0)), 0);
-            avg = (total / userSubs.length).toFixed(1);
-            totalXpEarned = userSubs.reduce((acc, c) => acc + (c.xpEarned || c.earnedXp || 30), 0);
-          }
-
-          const finalXp = Math.max(st.xp || 0, totalXpEarned, userSubs.length > 0 ? 75 : 50);
-
-          return {
-            ...st,
-            xp: finalXp,
-            submissionsCount: userSubs.length,
-            averageScore: avg,
-            isStruggling: avg !== null && parseFloat(avg) < 7.0
-          };
-        });
-
-        const studentsWithScore = studentSummary.filter(s => s.averageScore !== null);
-        let classAvg = null;
-        if (studentsWithScore.length > 0) {
-          const sum = studentsWithScore.reduce((acc, c) => acc + parseFloat(c.averageScore), 0);
-          classAvg = (sum / studentsWithScore.length).toFixed(1);
-        }
-
-        const classSubmissions = allSubmissions.filter(s => s.grade_level === g);
-
-        classAnalytics.push({
-          classId: g,
-          className: `${g}A1`,
-          gradeLevel: g,
           schoolYear: '2025-2026',
           stats: {
             totalStudents: classStudents.length,

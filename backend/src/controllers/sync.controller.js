@@ -60,6 +60,80 @@ class SyncController {
     }
   }
 
+  static async saveClass(req, res) {
+    try {
+      const classObj = req.body.classObj || req.body;
+      if (!classObj) {
+        return res.status(400).json({ success: false, message: 'Dữ liệu lớp học không hợp lệ!' });
+      }
+
+      await d1.saveD1Class(classObj);
+
+      return res.json({
+        success: true,
+        cloud: 'Cloudflare D1',
+        message: 'Đã lưu lớp học lên Cloudflare D1 thành công!',
+        classObj
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  static async deleteClass(req, res) {
+    try {
+      const classId = req.params.id || req.body.deleteClassId || req.body.id;
+      const classCode = req.body.class_code || req.query.class_code;
+      await d1.deleteD1Class(classId, classCode);
+
+      return res.json({
+        success: true,
+        cloud: 'Cloudflare D1',
+        message: 'Đã xóa lớp học trên Cloudflare D1 thành công!',
+        deletedClassId: classId || classCode
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  static async saveStudent(req, res) {
+    try {
+      const student = req.body.student || req.body;
+      if (!student) {
+        return res.status(400).json({ success: false, message: 'Dữ liệu học sinh không hợp lệ!' });
+      }
+
+      await d1.saveD1Student(student);
+
+      return res.json({
+        success: true,
+        cloud: 'Cloudflare D1',
+        message: 'Đã lưu học sinh lên Cloudflare D1 thành công!',
+        student
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
+  static async deleteStudent(req, res) {
+    try {
+      const studentId = req.params.id || req.body.deleteStudentId || req.body.id;
+      const studentName = req.body.student_name || req.query.student_name;
+      await d1.deleteD1Student(studentId, studentName);
+
+      return res.json({
+        success: true,
+        cloud: 'Cloudflare D1',
+        message: 'Đã xóa học sinh trên Cloudflare D1 thành công!',
+        deletedStudentId: studentId || studentName
+      });
+    } catch (error) {
+      return res.status(500).json({ success: false, message: error.message });
+    }
+  }
+
   static async saveSubmission(req, res) {
     try {
       const submission = req.body.submission || req.body;
