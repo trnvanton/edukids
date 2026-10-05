@@ -309,9 +309,22 @@ class ApiService {
         }
 
         if (Array.isArray(res.exercises)) {
+          // Cloudflare D1 is the Single Source of Truth: reset and mirror active cloud exercises
+          curriculumDatabase.exercises = {};
+          curriculumDatabase.lessonsByGradeAndSubject = {
+            1: { 1: [], 2: [], 3: [], 4: [] },
+            2: { 1: [], 2: [], 3: [], 4: [] },
+            3: { 1: [], 2: [], 3: [], 4: [] },
+            4: { 1: [], 2: [], 3: [], 4: [] },
+            5: { 1: [], 2: [], 3: [], 4: [] }
+          };
+
+          const validCustomList = [];
+
           res.exercises.forEach(ex => {
             const numericId = ex && ex.id ? parseInt(ex.id, 10) : null;
             if (numericId && !deletedSet.has(numericId) && Array.isArray(ex.questions) && ex.questions.length > 0) {
+              validCustomList.push(ex);
               curriculumDatabase.exercises[numericId] = ex;
               const g = ex.grade_level || 4;
               const s = ex.subject_id || 1;
@@ -321,36 +334,21 @@ class ApiService {
               if (!curriculumDatabase.lessonsByGradeAndSubject[g][s]) {
                 curriculumDatabase.lessonsByGradeAndSubject[g][s] = [];
               }
-              const exists = curriculumDatabase.lessonsByGradeAndSubject[g][s].some(l => l.exercise_id === numericId);
-              if (!exists) {
-                curriculumDatabase.lessonsByGradeAndSubject[g][s].unshift({
-                  id: numericId + 50000,
-                  subject_id: s,
-                  grade_level: g,
-                  title: ex.title,
-                  topic_tag: `custom-${numericId}`,
-                  description: ex.is_random_pool ? `Ngân hàng ${ex.questions.length} câu (Random ${ex.random_count || 10} câu)` : `Bài tập gồm ${ex.questions.length} câu hỏi`,
-                  icon: ex.is_random_pool ? '🎲' : (s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧'))),
-                  exercise_id: numericId
-                });
-              }
+              curriculumDatabase.lessonsByGradeAndSubject[g][s].push({
+                id: numericId + 50000,
+                subject_id: s,
+                grade_level: g,
+                title: ex.title,
+                topic_tag: `custom-${numericId}`,
+                description: ex.is_random_pool ? `Ngân hàng ${ex.questions.length} câu (Random ${ex.random_count || 10} câu)` : `Bài tập gồm ${ex.questions.length} câu hỏi`,
+                icon: ex.is_random_pool ? '🎲' : (s === 1 ? '📐' : (s === 2 ? '📖' : (s === 3 ? '🔬' : '🇬🇧'))),
+                exercise_id: numericId
+              });
             }
           });
 
-          try {
-            const localCustom = JSON.parse(localStorage.getItem('edukids_custom_exercises') || '[]');
-            const map = new Map();
-            localCustom.forEach(ex => {
-              const numId = parseInt(ex.id, 10);
-              if (numId && !deletedSet.has(numId)) map.set(numId, ex);
-            });
-            res.exercises.forEach(ex => {
-              const numId = parseInt(ex.id, 10);
-              if (numId && !deletedSet.has(numId)) map.set(numId, ex);
-            });
-            const mergedList = Array.from(map.values());
-            localStorage.setItem('edukids_custom_exercises', JSON.stringify(mergedList));
-          } catch (e) {}
+          // Overwrite local custom exercises strictly with Cloudflare D1's active exercises
+          localStorage.setItem('edukids_custom_exercises', JSON.stringify(validCustomList));
         }
 
         if (Array.isArray(res.classes)) {
