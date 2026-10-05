@@ -53,6 +53,14 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
         if (selected) {
           selectOption(q.id, selected);
         }
+      } else if (q.question_type === 'multiple_select') {
+        const key = e.key.toUpperCase();
+        const numMap = { '1': 'A', '2': 'B', '3': 'C', '4': 'D' };
+        const selected = numMap[key] || (['A', 'B', 'C', 'D'].includes(key) ? key : null);
+
+        if (selected) {
+          toggleMultiSelectOption(q.id, selected);
+        }
       }
 
       if (e.key === 'ArrowRight' && currentIdx < (activeQuestions.length - 1)) {
@@ -133,6 +141,29 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
       ...prev,
       [qId]: optionLabel
     }));
+  };
+
+  const toggleMultiSelectOption = (qId, optionLabel) => {
+    sound.pop();
+    setAnswers(prev => {
+      const current = prev[qId];
+      let arr = [];
+      if (Array.isArray(current)) {
+        arr = [...current];
+      } else if (typeof current === 'string' && current.trim()) {
+        arr = current.split(/[,;+\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+      }
+      const label = (optionLabel || '').toUpperCase();
+      if (arr.includes(label)) {
+        arr = arr.filter(x => x !== label);
+      } else {
+        arr.push(label);
+      }
+      return {
+        ...prev,
+        [qId]: arr.sort()
+      };
+    });
   };
 
   const handleFillChange = (qId, value) => {
@@ -454,11 +485,11 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
             borderRadius: '9999px',
             fontSize: '0.85rem',
             fontWeight: 800,
-            background: qType === 'fill_blank' ? '#ECFDF5' : (qType === 'matching' ? '#FFFBEB' : (qType === 'true_false' ? '#F5F3FF' : '#EEF2FF')),
-            color: qType === 'fill_blank' ? '#065F46' : (qType === 'matching' ? '#92400E' : (qType === 'true_false' ? '#5B21B6' : '#3730A3')),
+            background: qType === 'multiple_select' ? '#F0FDF4' : (qType === 'fill_blank' ? '#ECFDF5' : (qType === 'matching' ? '#FFFBEB' : (qType === 'true_false' ? '#F5F3FF' : '#EEF2FF'))),
+            color: qType === 'multiple_select' ? '#15803D' : (qType === 'fill_blank' ? '#065F46' : (qType === 'matching' ? '#92400E' : (qType === 'true_false' ? '#5B21B6' : '#3730A3'))),
             border: '1px solid currentColor'
           }}>
-            {qType === 'fill_blank' ? '✏️ Điền Từ / Điền Số' : (qType === 'matching' ? '🔗 Nối Cặp Tương Ứng' : (qType === 'true_false' ? '✅ Đúng hay Sai' : '🎯 Trắc Nghiệm'))}
+            {qType === 'multiple_select' ? '☑️ Chọn Nhiều Đáp Án' : (qType === 'fill_blank' ? '✏️ Điền Từ / Điền Số' : (qType === 'matching' ? '🔗 Nối Cặp Tương Ứng' : (qType === 'true_false' ? '✅ Đúng hay Sai' : '🎯 Trắc Nghiệm')))}
           </div>
         </div>
 
@@ -485,8 +516,8 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
           </div>
         )}
 
-        {/* ================= TYPE 1: MULTIPLE CHOICE ================= */}
-        {(qType === 'multiple_choice' || !qType) && (
+        {/* ================= TYPE 1: MULTIPLE CHOICE (SINGLE ANSWER) ================= */}
+        {qType === 'multiple_choice' && (
           <div className="options-grid">
             {currentQ.options?.map((opt, idx) => {
               const isSelected = answers[currentQ.id] === opt.option_label;
@@ -504,6 +535,64 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
                 </button>
               );
             })}
+          </div>
+        )}
+
+        {/* ================= TYPE 1.5: MULTIPLE SELECT (CHECKBOX MULTIPLE ANSWERS) ================= */}
+        {qType === 'multiple_select' && (
+          <div>
+            <div style={{
+              background: '#F0FDF4',
+              border: '1.5px solid #BBF7D0',
+              borderRadius: '12px',
+              padding: '10px 16px',
+              marginBottom: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#166534',
+              fontWeight: 800,
+              fontSize: '0.9rem'
+            }}>
+              <span style={{ fontSize: '1.25rem' }}>💡</span>
+              <span>Câu hỏi có <strong>nhiều đáp án đúng</strong>. Bé hãy chọn tất cả các đáp án đúng nhé! (Bấm lần nữa để bỏ chọn)</span>
+            </div>
+
+            <div className="options-grid">
+              {currentQ.options?.map((opt, idx) => {
+                const currentAns = answers[currentQ.id];
+                const selectedArr = Array.isArray(currentAns)
+                  ? currentAns
+                  : (typeof currentAns === 'string' ? currentAns.split(/[,;+\s]+/).map(s => s.trim().toUpperCase()) : []);
+                const isSelected = selectedArr.includes(opt.option_label?.toUpperCase());
+
+                return (
+                  <button
+                    key={opt.option_label || idx}
+                    type="button"
+                    className={`option-card ${isSelected ? 'selected' : ''}`}
+                    onClick={() => toggleMultiSelectOption(currentQ.id, opt.option_label)}
+                    style={{
+                      position: 'relative',
+                      borderWidth: isSelected ? '3px' : '2px',
+                      borderColor: isSelected ? '#10B981' : undefined,
+                      background: isSelected ? '#ECFDF5' : undefined
+                    }}
+                  >
+                    <div className="option-badge" style={{
+                      background: isSelected ? '#10B981' : undefined,
+                      color: isSelected ? 'white' : undefined,
+                      fontWeight: 900
+                    }}>
+                      {isSelected ? '✓' : opt.option_label}
+                    </div>
+                    <div className="option-text" style={{ fontWeight: isSelected ? 800 : 600 }}>
+                      {opt.answer_text}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

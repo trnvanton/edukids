@@ -18,6 +18,18 @@ export function downloadExcelTemplate() {
       "Lời giải thích chi tiết": "Giải: 25 x 4 = 100. Đáp án chính xác là B (100)."
     },
     {
+      "Loại câu hỏi": "multiple_select",
+      "Nội dung câu hỏi": "Những từ nào sau đây là từ chỉ hoạt động của học sinh? (Chọn tất cả các đáp án đúng)",
+      "Link ảnh minh họa": "",
+      "Đáp án A": "Đọc sách",
+      "Đáp án B": "Cây thước kẻ",
+      "Đáp án C": "Viết bài",
+      "Đáp án D": "Chạy nhảy",
+      "Đáp án đúng": "A, C, D",
+      "Gợi ý cho bé": "Tìm các từ chỉ hành động, cử động của cơ thể",
+      "Lời giải thích chi tiết": "Giải: Đọc sách, Viết bài, Chạy nhảy là các từ chỉ hoạt động. 'Cây thước kẻ' là từ chỉ đồ vật."
+    },
+    {
       "Loại câu hỏi": "fill_blank",
       "Nội dung câu hỏi": "Điền số thích hợp vào chỗ trống: 45 + ___ = 100",
       "Link ảnh minh họa": "",
@@ -70,8 +82,8 @@ export function downloadExcelTemplate() {
   const ws = XLSX.utils.json_to_sheet(sampleData);
   // Set column widths for nice appearance
   ws['!cols'] = [
-    { wch: 18 }, // Loại câu hỏi
-    { wch: 45 }, // Nội dung
+    { wch: 20 }, // Loại câu hỏi
+    { wch: 55 }, // Nội dung
     { wch: 35 }, // Link ảnh
     { wch: 20 }, // A
     { wch: 20 }, // B
@@ -79,7 +91,7 @@ export function downloadExcelTemplate() {
     { wch: 20 }, // D
     { wch: 20 }, // Đáp án đúng
     { wch: 35 }, // Gợi ý
-    { wch: 45 }  // Lời giải thích
+    { wch: 50 }  // Lời giải thích
   ];
 
   const wb = XLSX.utils.book_new();
@@ -91,7 +103,7 @@ export function downloadExcelTemplate() {
  * Đọc và chuẩn hóa dữ liệu từ file Excel / CSV tải lên
  */
 export async function parseExcelFile(file) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const reader = new FileReader();
 
     reader.onload = (e) => {
@@ -108,26 +120,42 @@ export async function parseExcelFile(file) {
 
         const parsedQuestions = rawJson.map((row, idx) => {
           // Normalize column names
-          const typeRaw = (row['Loại câu hỏi'] || row['Type'] || row['loai_cau_hoi'] || 'multiple_choice').toString().toLowerCase().trim();
+          const typeRaw = (row['Loại câu hỏi'] || row['Type'] || row['loai_cau_hoi'] || '').toString().toLowerCase().trim();
+          const rawCorrect = (row['Đáp án đúng'] || row['Correct'] || row['Đáp án'] || 'A').toString().trim();
+
           let type = 'multiple_choice';
-          if (typeRaw.includes('fill') || typeRaw.includes('điền') || typeRaw.includes('dien')) {
+          if (
+            typeRaw.includes('select') ||
+            typeRaw.includes('nhiều') ||
+            typeRaw.includes('nhieu') ||
+            typeRaw.includes('checkbox') ||
+            typeRaw.includes('multi_select') ||
+            typeRaw.includes('multiple_select')
+          ) {
+            type = 'multiple_select';
+          } else if (typeRaw.includes('fill') || typeRaw.includes('điền') || typeRaw.includes('dien')) {
             type = 'fill_blank';
           } else if (typeRaw.includes('match') || typeRaw.includes('nối') || typeRaw.includes('noi')) {
             type = 'matching';
           } else if (typeRaw.includes('true') || typeRaw.includes('đúng') || typeRaw.includes('dung') || typeRaw.includes('tf')) {
             type = 'true_false';
+          } else {
+            // Intelligent Auto-detect: if correct answer has multiple choices e.g. "A, B", "A,C,D", "A; B", "A B"
+            const cleanedLetters = rawCorrect.toUpperCase().match(/[A-D]/g);
+            if (cleanedLetters && cleanedLetters.length > 1 && (rawCorrect.includes(',') || rawCorrect.includes(';') || rawCorrect.includes(' ') || rawCorrect.includes('+') || rawCorrect.length > 1)) {
+              type = 'multiple_select';
+            }
           }
 
           const qText = row['Nội dung câu hỏi'] || row['Câu hỏi'] || row['Question'] || `Câu hỏi ${idx + 1}`;
           const imgUrl = row['Link ảnh minh họa'] || row['Ảnh'] || row['Image'] || '';
           const hint = row['Gợi ý cho bé'] || row['Gợi ý'] || row['Hint'] || '';
           const explanation = row['Lời giải thích chi tiết'] || row['Giải thích'] || row['Explanation'] || 'Xem lại kiến thức bài học.';
-          const rawCorrect = (row['Đáp án đúng'] || row['Correct'] || row['Đáp án'] || 'A').toString().trim();
 
           let options = [];
           let matchingData = null;
 
-          if (type === 'multiple_choice') {
+          if (type === 'multiple_choice' || type === 'multiple_select') {
             const optA = (row['Đáp án A'] || row['A'] || 'Đáp án A').toString().trim();
             const optB = (row['Đáp án B'] || row['B'] || 'Đáp án B').toString().trim();
             const optC = (row['Đáp án C'] || row['C'] || 'Đáp án C').toString().trim();
@@ -145,7 +173,6 @@ export async function parseExcelFile(file) {
               { option_label: 'Sai', answer_text: 'Sai 👎' }
             ];
           } else if (type === 'matching') {
-            // Check if options have format "Left || Right" or "Left - Right"
             const rawPairs = [
               row['Đáp án A'] || row['A'],
               row['Đáp án B'] || row['B'],
@@ -157,7 +184,6 @@ export async function parseExcelFile(file) {
             const right = [];
             const correctPairs = {};
 
-            // Check if question text has list of left items e.g., "Nối số với hàng trăm: 245; 361; 508; 790"
             let questionItems = [];
             if (qText.includes(':')) {
               const afterColon = qText.split(':')[1] || '';
@@ -203,7 +229,6 @@ export async function parseExcelFile(file) {
               correctPairs[leftId] = rightId;
             });
 
-            // Shuffle right column for real matching challenge
             const shuffledRight = [...right].sort(() => Math.random() - 0.5);
 
             matchingData = {

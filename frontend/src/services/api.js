@@ -1412,6 +1412,49 @@ class ApiService {
         }
 
         formattedCorrectAns = correctOpt ? `${correctOpt.option_label}. ${correctOpt.answer_text}` : `${correctChoice}`;
+      } else if (qType === 'multiple_select') {
+        // Helper to extract option letters ['A', 'C', 'D']
+        const extractOptionLetters = (val) => {
+          if (!val) return [];
+          if (Array.isArray(val)) {
+            return val.map(v => String(v).trim().toUpperCase()).filter(Boolean);
+          }
+          const str = String(val).toUpperCase();
+          const matches = str.match(/[A-D]/g);
+          if (matches && matches.length > 0) {
+            return Array.from(new Set(matches));
+          }
+          return str.split(/[,;+\s]+/).map(s => s.trim()).filter(Boolean);
+        };
+
+        const correctLetters = extractOptionLetters(q.correct_answer);
+        const studentLetters = extractOptionLetters(studentAns);
+
+        const correctSet = new Set(correctLetters);
+        const studentSet = new Set(studentLetters);
+
+        // Strict Check: Student must choose ALL correct answers and NO extra/wrong answers
+        isCorrect = (
+          studentSet.size === correctSet.size &&
+          studentSet.size > 0 &&
+          [...studentSet].every(item => correctSet.has(item))
+        );
+
+        if (studentSet.size > 0) {
+          const sortedStudent = [...studentSet].sort();
+          formattedStudentAns = sortedStudent.map(lbl => {
+            const opt = (q.options || []).find(o => (o.option_label || '').toUpperCase() === lbl);
+            return opt ? `${lbl}. ${opt.answer_text}` : lbl;
+          }).join(' | ');
+        } else {
+          formattedStudentAns = 'Chưa chọn đáp án';
+        }
+
+        const sortedCorrect = [...correctSet].sort();
+        formattedCorrectAns = sortedCorrect.map(lbl => {
+          const opt = (q.options || []).find(o => (o.option_label || '').toUpperCase() === lbl);
+          return opt ? `${lbl}. ${opt.answer_text}` : lbl;
+        }).join(' | ');
       } else if (qType === 'fill_blank') {
         const correctText = (q.correct_answer || '').toString().trim();
         const userText = (studentAns !== undefined && studentAns !== null) ? studentAns.toString().trim() : '';

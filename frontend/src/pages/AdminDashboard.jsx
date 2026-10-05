@@ -166,7 +166,8 @@ export default function AdminDashboard() {
 
   const getQuestionTypeLabel = (type) => {
     switch (type) {
-      case 'multiple_choice': return '🎯 Trắc Nghiệm';
+      case 'multiple_choice': return '🎯 Trắc Nghiệm (1 Đ.Án)';
+      case 'multiple_select': return '☑️ Chọn Nhiều Đáp Án';
       case 'fill_blank': return '✏️ Điền Ô / Số';
       case 'matching': return '🔗 Nối Cặp';
       case 'true_false': return '✅ Đúng / Sai';
