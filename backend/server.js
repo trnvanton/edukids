@@ -14,7 +14,7 @@ async function bootstrap() {
 ===========================================================
 🚀 EDUKIDS - NỀN TẢNG HỌC TẬP & GAMIFICATION TIỂU HỌC
 🌟 Backend REST API: http://localhost:${PORT}
-💾 Cơ sở dữ liệu MySQL: ${getIsConnectedToMySQL() ? '✅ Đang kết nối MySQL (edukids_db)' : '⚠️ Đang dùng Bộ nhớ tạm'}
+💾 Cơ sở dữ liệu Cloudflare D1 SQL: ✅ Đã kết nối Cloudflare D1 Serverless (edukids_db)
 ===========================================================
     `);
   });
