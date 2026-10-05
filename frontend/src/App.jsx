@@ -12,6 +12,8 @@ import ResultPage from './pages/ResultPage';
 import TeacherDashboard from './pages/TeacherDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import LeaderboardPage from './pages/LeaderboardPage';
+import HistoryPage from './pages/HistoryPage';
+import MistakeNotebookPage from './pages/MistakeNotebookPage';
 
 import Footer from './components/Footer';
 import { api } from './services/api';
@@ -103,6 +105,8 @@ export default function App() {
           <Dashboard
             onStartExercise={handleStartExercise}
             onGoToSubjects={() => setActiveTab('subjects')}
+            onGoToHistory={() => setActiveTab('history')}
+            onGoToMistakes={() => setActiveTab('mistakes')}
           />
         )}
 
@@ -129,6 +133,20 @@ export default function App() {
 
         {user && user.role === 'student' && activeTab === 'leaderboard' && (
           <LeaderboardPage />
+        )}
+
+        {user && user.role === 'student' && activeTab === 'history' && (
+          <HistoryPage
+            onRetakeExercise={handleStartExercise}
+            onGoToSubjects={() => setActiveTab('subjects')}
+          />
+        )}
+
+        {user && user.role === 'student' && activeTab === 'mistakes' && (
+          <MistakeNotebookPage
+            onStartMistakeQuiz={() => handleStartExercise('mistake_review')}
+            onGoToSubjects={() => setActiveTab('subjects')}
+          />
         )}
 
         {/* Teacher Views */}

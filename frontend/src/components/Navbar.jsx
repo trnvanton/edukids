@@ -154,6 +154,56 @@ export default function Navbar({ activeTab, setActiveTab, onOpenJoinClass }) {
 
               <button
                 type="button"
+                onClick={() => { sound.pop(); setActiveTab('history'); }}
+                style={{
+                  padding: '6px 11px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  background: activeTab === 'history' ? '#4F46E5' : 'transparent',
+                  color: activeTab === 'history' ? '#FFFFFF' : '#475569',
+                  boxShadow: activeTab === 'history' ? '0 3px 10px rgba(79, 70, 229, 0.25)' : 'none',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  outline: 'none'
+                }}
+              >
+                <span>📜</span>
+                <span>Lịch Sử Làm Bài</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { sound.pop(); setActiveTab('mistakes'); }}
+                style={{
+                  padding: '6px 11px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  background: activeTab === 'mistakes' ? '#DC2626' : 'transparent',
+                  color: activeTab === 'mistakes' ? '#FFFFFF' : '#DC2626',
+                  boxShadow: activeTab === 'mistakes' ? '0 3px 10px rgba(220, 38, 38, 0.25)' : 'none',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  outline: 'none'
+                }}
+              >
+                <span>🎯</span>
+                <span>Sổ Tay Lỗi Sai</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => { sound.pop(); setActiveTab('leaderboard'); }}
                 style={{
                   padding: '6px 11px',

@@ -9,11 +9,12 @@ export default function BadgeList({ badges = [] }) {
     { id: 1, code: 'starter', name: 'Mầm Non Chăm Học', icon: '🥉', description: 'Hoàn thành bài tập đầu tiên', min_xp: 20 },
     { id: 2, code: 'math_star', name: 'Siêu Toán Học', icon: '🥈', description: 'Đạt từ 150 XP môn học', min_xp: 150 },
     { id: 3, code: 'vietnamese_king', name: 'Vua Tiếng Việt & Anh', icon: '🥇', description: 'Đạt từ 300 XP tổng hợp', min_xp: 300 },
-    { id: 4, code: 'streak_7', name: 'Lửa Chăm Chỉ 7 Ngày', icon: '🔥', description: 'Học tập kiên trì liên tục', min_xp: 500 },
+    { id: 4, code: 'streak_7', name: 'Lửa Chăm Chỉ 7 Ngày', icon: '🔥', description: 'Duy trì chuỗi học tập 7 ngày', type: 'streak', min_streak: 7 },
     { id: 5, code: 'super_scholar', name: 'Trạng Nguyên Toàn Năng', icon: '👑', description: 'Tích lũy 1,000 XP xuất sắc', min_xp: 1000 }
   ];
 
   const list = (badges && badges.length > 0) ? badges : defaultBadges;
+  const currentStreak = user?.streak_days || user?.streak || 1;
 
   return (
     <div className="card" style={{ padding: '26px' }}>
@@ -37,21 +38,34 @@ export default function BadgeList({ badges = [] }) {
               Bộ Sưu Tập Huy Hiệu Danh Dự
             </h3>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Tích lũy điểm XP qua từng bài tập để mở khóa toàn bộ huy hiệu danh giá
+              Tích lũy điểm XP & chuỗi ngày học để mở khóa toàn bộ huy hiệu danh giá
             </p>
           </div>
         </div>
 
-        <div style={{
-          background: '#EEF2FF',
-          padding: '6px 14px',
-          borderRadius: '9999px',
-          fontSize: '0.85rem',
-          fontWeight: 800,
-          color: 'var(--primary)',
-          border: '1px solid #C7D2FE'
-        }}>
-          ⭐ Điểm của bé: {currentXp} XP
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{
+            background: '#FEF3C7',
+            padding: '6px 14px',
+            borderRadius: '9999px',
+            fontSize: '0.85rem',
+            fontWeight: 800,
+            color: '#B45309',
+            border: '1px solid #FDE68A'
+          }}>
+            🔥 Chuỗi học: {currentStreak} ngày
+          </div>
+          <div style={{
+            background: '#EEF2FF',
+            padding: '6px 14px',
+            borderRadius: '9999px',
+            fontSize: '0.85rem',
+            fontWeight: 800,
+            color: 'var(--primary)',
+            border: '1px solid #C7D2FE'
+          }}>
+            ⭐ Điểm của bé: {currentXp} XP
+          </div>
         </div>
       </div>
 
@@ -61,9 +75,22 @@ export default function BadgeList({ badges = [] }) {
         gap: '16px'
       }}>
         {list.map(b => {
-          const minXp = b.min_xp || 100;
-          const isUnlocked = currentXp >= minXp;
-          const percent = Math.min(100, Math.round((currentXp / minXp) * 100));
+          const isStreakBadge = b.code === 'streak_7' || b.type === 'streak';
+          let isUnlocked = false;
+          let progressLabel = '';
+          let percent = 0;
+
+          if (isStreakBadge) {
+            const targetStreak = b.min_streak || 7;
+            isUnlocked = b.unlocked !== undefined ? b.unlocked : currentStreak >= targetStreak;
+            percent = Math.min(100, Math.round((currentStreak / targetStreak) * 100));
+            progressLabel = `${currentStreak} / ${targetStreak} ngày`;
+          } else {
+            const minXp = b.min_xp || 100;
+            isUnlocked = b.unlocked !== undefined ? b.unlocked : currentXp >= minXp;
+            percent = Math.min(100, Math.round((currentXp / minXp) * 100));
+            progressLabel = `${currentXp} / ${minXp} XP`;
+          }
 
           return (
             <div
@@ -115,7 +142,7 @@ export default function BadgeList({ badges = [] }) {
                 minHeight: '28px',
                 lineHeight: 1.35
               }}>
-                {b.description || `Đạt mốc ${b.min_xp} XP`}
+                {b.description || `Đạt mốc ${b.min_xp || b.min_streak} ${isStreakBadge ? 'ngày' : 'XP'}`}
               </p>
 
               {/* Status Chip / Progress Bar */}
@@ -145,7 +172,7 @@ export default function BadgeList({ badges = [] }) {
                     marginBottom: '4px'
                   }}>
                     <span>Tiến độ</span>
-                    <span>{currentXp} / {b.min_xp} XP</span>
+                    <span>{progressLabel}</span>
                   </div>
                   <div style={{
                     width: '100%',
@@ -157,7 +184,7 @@ export default function BadgeList({ badges = [] }) {
                     <div style={{
                       width: `${percent}%`,
                       height: '100%',
-                      background: 'linear-gradient(90deg, #3B82F6, #6366F1)',
+                      background: isStreakBadge ? 'linear-gradient(90deg, #F59E0B, #EF4444)' : 'linear-gradient(90deg, #3B82F6, #6366F1)',
                       borderRadius: '9999px',
                       transition: 'width 0.4s ease'
                     }} />

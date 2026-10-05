@@ -5,7 +5,7 @@ import { sound } from '../services/audio';
 import WeaknessAnalysisCard from '../components/WeaknessAnalysisCard';
 import BadgeList from '../components/BadgeList';
 
-export default function Dashboard({ onStartExercise, onGoToSubjects }) {
+export default function Dashboard({ onStartExercise, onGoToSubjects, onGoToHistory, onGoToMistakes }) {
   const { user, getAvatarEmoji } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -61,11 +61,25 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
           <p className="hero-desc">
             Hôm nay bé có <strong>{currentStreak} ngày học liên tiếp 🔥</strong> (Khối Lớp {currentGrade}). Hoàn thành thử thách hôm nay để nhận thêm <strong>+50 XP</strong> và mở khóa huy hiệu <strong>Trạng Nguyên</strong> nhé!
           </p>
-          <div style={{ marginTop: '18px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ marginTop: '18px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button className="btn-primary" onClick={() => { sound.pop(); onGoToSubjects(); }}>
-              <span>🚀 Bắt Đầu Học Lớp {currentGrade} Ngay</span>
+              <span>🚀 Bắt Đầu Học Lớp {currentGrade}</span>
             </button>
-            <div className="chip chip-level" style={{ fontSize: '1rem' }}>
+            <button
+              className="btn-secondary"
+              onClick={() => { sound.pop(); onGoToMistakes?.(); }}
+              style={{ background: '#FEE2E2', color: '#991B1B', border: '1.5px solid #FCA5A5', fontWeight: 800 }}
+            >
+              <span>🎯 Sổ Tay Lỗi Sai</span>
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => { sound.pop(); onGoToHistory?.(); }}
+              style={{ background: '#EEF2FF', color: '#3730A3', border: '1.5px solid #C7D2FE', fontWeight: 800 }}
+            >
+              <span>📜 Xem Lại Bài Cũ</span>
+            </button>
+            <div className="chip chip-level" style={{ fontSize: '0.95rem' }}>
               <span>{levelDetails.icon}</span>
               <span>Level {levelDetails.level} – {levelDetails.title}</span>
             </div>
@@ -74,10 +88,10 @@ export default function Dashboard({ onStartExercise, onGoToSubjects }) {
                 background: '#EEF2FF',
                 color: '#3730A3',
                 border: '1.5px solid #C7D2FE',
-                fontSize: '0.95rem',
+                fontSize: '0.92rem',
                 fontWeight: 900
               }}>
-                <span>🏫 Lớp {user.class_name || user.class_code.split('-')[0]} (Mã: {user.class_code})</span>
+                <span>🏫 Lớp {user.class_name || user.class_code.split('-')[0]}</span>
               </div>
             )}
           </div>
