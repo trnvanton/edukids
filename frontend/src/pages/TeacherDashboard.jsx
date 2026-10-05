@@ -76,6 +76,12 @@ export default function TeacherDashboard() {
   const [selectedViewExercise, setSelectedViewExercise] = useState(null);
   const [editingExercise, setEditingExercise] = useState(null);
 
+  // Exercise Filter & Search States
+  const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
+  const [exerciseFilterGrade, setExerciseFilterGrade] = useState('all'); // 'all', '1', '2', '3', '4', '5'
+  const [exerciseFilterSubject, setExerciseFilterSubject] = useState('all'); // 'all', '1', '2', '3', '4'
+  const [exerciseFilterClass, setExerciseFilterClass] = useState('all'); // 'all', 'Lớp 1A1', ...
+
   // Edit Modal Specific States
   const [editSearchTerm, setEditSearchTerm] = useState('');
   const [isAddQOpenInEdit, setIsAddQOpenInEdit] = useState(false);
@@ -131,6 +137,45 @@ export default function TeacherDashboard() {
       setTeacherExercises(res.exercises);
     }
   };
+
+  // Dynamic list of classes for filter dropdown
+  const availableClassesList = Array.from(
+    new Set([
+      ...(data?.classes || []).map(c => c.className || c.name || `Lớp ${c.grade_level || 1}A1`),
+      ...teacherExercises.map(e => e.assigned_to).filter(Boolean)
+    ])
+  ).filter(Boolean);
+
+  // Filtered exercises matching active filters and search
+  const filteredTeacherExercises = teacherExercises.filter(ex => {
+    // 1. Search by title, ID or topic
+    if (exerciseSearchTerm.trim()) {
+      const term = exerciseSearchTerm.toLowerCase().trim();
+      const matchTitle = (ex.title || '').toLowerCase().includes(term);
+      const matchId = String(ex.id || '').toLowerCase().includes(term) || `#${ex.id}`.toLowerCase().includes(term);
+      const matchTopic = (ex.topic_tag || '').toLowerCase().includes(term);
+      if (!matchTitle && !matchId && !matchTopic) return false;
+    }
+
+    // 2. Filter by Grade level
+    if (exerciseFilterGrade !== 'all') {
+      if (String(ex.grade_level) !== String(exerciseFilterGrade)) return false;
+    }
+
+    // 3. Filter by Subject
+    if (exerciseFilterSubject !== 'all') {
+      if (String(ex.subject_id) !== String(exerciseFilterSubject)) return false;
+    }
+
+    // 4. Filter by Class (assigned_to)
+    if (exerciseFilterClass !== 'all') {
+      const assigned = String(ex.assigned_to || '').toLowerCase();
+      const targetCls = String(exerciseFilterClass).toLowerCase();
+      if (!assigned.includes(targetCls)) return false;
+    }
+
+    return true;
+  });
 
   // Image upload helper
   const handleImageUpload = (e) => {
@@ -1184,7 +1229,7 @@ export default function TeacherDashboard() {
       {activeTeacherTab === 'assigned-list' && (
         <div>
           <div className="card" style={{ marginBottom: '24px' }}>
-            <div className="card-title" style={{ justifyContent: 'space-between' }}>
+            <div className="card-title" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>📋</span>
                 <span>Danh Sách Bài Tập Đã Giao Cho Học Sinh ({teacherExercises.length} bài)</span>
@@ -1198,6 +1243,168 @@ export default function TeacherDashboard() {
               >
                 <span>➕ Soạn Bài Tập Mới</span>
               </button>
+            </div>
+
+            {/* MODERN FILTER & SEARCH BAR */}
+            <div style={{
+              background: '#F8FAFC',
+              border: '1.5px solid #E2E8F0',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px',
+              marginBottom: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* Search Box */}
+                <div style={{ flex: '1 1 240px', position: 'relative' }}>
+                  <input
+                    type="text"
+                    value={exerciseSearchTerm}
+                    onChange={(e) => setExerciseSearchTerm(e.target.value)}
+                    placeholder="🔍 Tìm theo tên bài tập, mã đề (#)..."
+                    style={{
+                      width: '100%',
+                      padding: '9px 32px 9px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #CBD5E1',
+                      fontSize: '0.88rem',
+                      background: 'white'
+                    }}
+                  />
+                  {exerciseSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setExerciseSearchTerm('')}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94A3B8',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Grade Filter */}
+                <div style={{ flex: '0 0 auto' }}>
+                  <select
+                    value={exerciseFilterGrade}
+                    onChange={(e) => { sound.pop(); setExerciseFilterGrade(e.target.value); }}
+                    style={{
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #CBD5E1',
+                      fontSize: '0.88rem',
+                      background: 'white',
+                      fontWeight: 700,
+                      color: '#334155'
+                    }}
+                  >
+                    <option value="all">🏫 Tất cả các khối</option>
+                    <option value="1">🌱 Khối 1</option>
+                    <option value="2">🐥 Khối 2</option>
+                    <option value="3">🐱 Khối 3</option>
+                    <option value="4">🚀 Khối 4</option>
+                    <option value="5">👑 Khối 5</option>
+                  </select>
+                </div>
+
+                {/* Subject Filter */}
+                <div style={{ flex: '0 0 auto' }}>
+                  <select
+                    value={exerciseFilterSubject}
+                    onChange={(e) => { sound.pop(); setExerciseFilterSubject(e.target.value); }}
+                    style={{
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #CBD5E1',
+                      fontSize: '0.88rem',
+                      background: 'white',
+                      fontWeight: 700,
+                      color: '#334155'
+                    }}
+                  >
+                    <option value="all">📚 Tất cả các môn</option>
+                    <option value="1">📐 Toán Học</option>
+                    <option value="2">📖 Tiếng Việt</option>
+                    <option value="3">🔬 Khoa Học</option>
+                    <option value="4">🇬🇧 Tiếng Anh</option>
+                  </select>
+                </div>
+
+                {/* Class Filter */}
+                <div style={{ flex: '0 0 auto' }}>
+                  <select
+                    value={exerciseFilterClass}
+                    onChange={(e) => { sound.pop(); setExerciseFilterClass(e.target.value); }}
+                    style={{
+                      padding: '9px 12px',
+                      borderRadius: '8px',
+                      border: '1.5px solid #CBD5E1',
+                      fontSize: '0.88rem',
+                      background: 'white',
+                      fontWeight: 700,
+                      color: '#334155'
+                    }}
+                  >
+                    <option value="all">👥 Tất cả các lớp</option>
+                    {availableClassesList.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Reset Filters Button */}
+                {(exerciseSearchTerm || exerciseFilterGrade !== 'all' || exerciseFilterSubject !== 'all' || exerciseFilterClass !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.pop();
+                      setExerciseSearchTerm('');
+                      setExerciseFilterGrade('all');
+                      setExerciseFilterSubject('all');
+                      setExerciseFilterClass('all');
+                    }}
+                    style={{
+                      padding: '9px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #FECDD3',
+                      background: '#FFF1F2',
+                      color: '#E11D48',
+                      fontWeight: 800,
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <span>🔄</span>
+                    <span>Đặt lại lọc</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Status summary */}
+              <div style={{ fontSize: '0.82rem', color: '#64748B', fontWeight: 700, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>
+                  Đang hiển thị <strong style={{ color: 'var(--primary)' }}>{filteredTeacherExercises.length}</strong> / {teacherExercises.length} bài tập
+                </span>
+                {(exerciseSearchTerm || exerciseFilterGrade !== 'all' || exerciseFilterSubject !== 'all' || exerciseFilterClass !== 'all') && (
+                  <span style={{ color: '#059669', fontSize: '0.78rem' }}>
+                    ✨ Đang lọc danh sách
+                  </span>
+                )}
+              </div>
             </div>
 
             <div style={{ overflowX: 'auto' }}>
@@ -1214,110 +1421,128 @@ export default function TeacherDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {teacherExercises.map(ex => (
-                    <tr key={ex.id}>
-                      <td>
-                        <strong>{ex.title}</strong>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mã đề: #{ex.id} • Hạn: {ex.due_date}</div>
-                      </td>
-                      <td>
-                        <span style={{
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          fontWeight: 800,
-                          fontSize: '0.8rem',
-                          background: '#EEF2FF',
-                          color: '#4F46E5'
-                        }}>
-                          {ex.subject_icon || '📚'} Lớp {ex.grade_level}
-                        </span>
-                      </td>
-                      <td>
-                        {ex.is_random_pool || (ex.random_count && ex.random_count < (ex.questionsCount || ex.questions?.length)) ? (
-                          <span style={{
-                            padding: '4px 10px',
-                            borderRadius: '9999px',
-                            fontWeight: 900,
-                            fontSize: '0.82rem',
-                            background: '#F5F3FF',
-                            color: '#7C3AED',
-                            border: '1.5px solid #DDD6FE',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}>
-                            <span>🎲</span>
-                            <span>Random {ex.random_count || 10}/{ex.questionsCount || ex.questions?.length || 0} câu</span>
-                          </span>
-                        ) : (
-                          <span style={{ fontWeight: 800, color: '#059669' }}>{ex.questionsCount || ex.questions?.length || 0} câu</span>
-                        )}
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: 700, color: '#334155' }}>{ex.assigned_to || 'Lớp 4A1'}</span>
-                      </td>
-                      <td>
-                        {ex.submissions_count === 0 ? (
-                          <span style={{
-                            padding: '3px 8px',
-                            borderRadius: '9999px',
-                            fontSize: '0.75rem',
-                            fontWeight: 800,
-                            background: '#F1F5F9',
-                            color: '#64748B'
-                          }}>
-                            0/{ex.total_students || 3} đã nộp
-                          </span>
-                        ) : (
-                          <span style={{
-                            padding: '3px 8px',
-                            borderRadius: '9999px',
-                            fontSize: '0.75rem',
-                            fontWeight: 800,
-                            background: '#D1FAE5',
-                            color: '#065F46'
-                          }}>
-                            {ex.submissions_count}/{ex.total_students || 3} đã nộp
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        {ex.average_score !== null ? (
-                          <span style={{ fontWeight: 900, color: '#B45309' }}>{ex.average_score}/10</span>
-                        ) : (
-                          <span style={{ color: '#94A3B8', fontWeight: 700 }}>Chưa có</span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
-                          <button
-                            type="button"
-                            onClick={() => { sound.pop(); setSelectedViewExercise(ex); }}
-                            title="Xem chi tiết câu hỏi & danh sách học sinh nộp bài"
-                            style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#4F46E5', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
-                          >
-                            👁️ Xem
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleStartEdit(ex)}
-                            title="Chỉnh sửa câu hỏi và đáp án"
-                            style={{ background: '#FEF3C7', border: '1px solid #FDE68A', color: '#B45309', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
-                          >
-                            ✏️ Sửa
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteExercise(ex)}
-                            title="Xóa bài tập"
-                            style={{ background: '#FEE2E2', border: '1px solid #FECDD3', color: '#DC2626', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
-                          >
-                            🗑️ Xóa
-                          </button>
+                  {filteredTeacherExercises.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" style={{ textAlign: 'center', padding: '40px 20px', color: '#64748B' }}>
+                        <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>🔍</div>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', color: '#334155' }}>
+                          Không tìm thấy bài tập nào phù hợp!
+                        </div>
+                        <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+                          Cô hãy thử đổi từ khóa tìm kiếm hoặc bấm "Đặt lại lọc" để xem tất cả bài tập nhé.
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredTeacherExercises.map(ex => (
+                      <tr key={ex.id}>
+                        <td>
+                          <strong style={{ fontSize: '0.95rem' }}>{ex.title}</strong>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <span>Mã đề: <strong>#{ex.id}</strong></span>
+                            <span>•</span>
+                            <span style={{ color: '#F59E0B', fontWeight: 800 }}>+{ex.reward_xp || 50} XP thưởng ⭐</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
+                            background: '#EEF2FF',
+                            color: '#4F46E5'
+                          }}>
+                            {ex.subject_icon || '📚'} Lớp {ex.grade_level}
+                          </span>
+                        </td>
+                        <td>
+                          {ex.is_random_pool || (ex.random_count && ex.random_count < (ex.questionsCount || ex.questions?.length)) ? (
+                            <span style={{
+                              padding: '4px 10px',
+                              borderRadius: '9999px',
+                              fontWeight: 900,
+                              fontSize: '0.82rem',
+                              background: '#F5F3FF',
+                              color: '#7C3AED',
+                              border: '1.5px solid #DDD6FE',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <span>🎲</span>
+                              <span>Random {ex.random_count || 10}/{ex.questionsCount || ex.questions?.length || 0} câu</span>
+                            </span>
+                          ) : (
+                            <span style={{ fontWeight: 800, color: '#059669' }}>{ex.questionsCount || ex.questions?.length || 0} câu</span>
+                          )}
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 700, color: '#334155' }}>{ex.assigned_to || 'Lớp 4A1'}</span>
+                        </td>
+                        <td>
+                          {ex.submissions_count === 0 ? (
+                            <span style={{
+                              padding: '3px 8px',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              background: '#F1F5F9',
+                              color: '#64748B'
+                            }}>
+                              0/{ex.total_students || 3} đã nộp
+                            </span>
+                          ) : (
+                            <span style={{
+                              padding: '3px 8px',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              background: '#D1FAE5',
+                              color: '#065F46'
+                            }}>
+                              {ex.submissions_count}/{ex.total_students || 3} đã nộp
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          {ex.average_score !== null ? (
+                            <span style={{ fontWeight: 900, color: '#B45309' }}>{ex.average_score}/10</span>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontWeight: 700 }}>Chưa có</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={() => { sound.pop(); setSelectedViewExercise(ex); }}
+                              title="Xem chi tiết câu hỏi & danh sách học sinh nộp bài"
+                              style={{ background: '#EEF2FF', border: '1px solid #C7D2FE', color: '#4F46E5', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
+                            >
+                              👁️ Xem
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(ex)}
+                              title="Chỉnh sửa câu hỏi và đáp án"
+                              style={{ background: '#FEF3C7', border: '1px solid #FDE68A', color: '#B45309', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
+                            >
+                              ✏️ Sửa
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteExercise(ex)}
+                              title="Xóa bài tập"
+                              style={{ background: '#FEE2E2', border: '1px solid #FECDD3', color: '#DC2626', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 800, fontSize: '0.8rem' }}
+                            >
+                              🗑️ Xóa
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
