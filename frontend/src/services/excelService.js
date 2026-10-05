@@ -4,7 +4,8 @@ import * as XLSX from 'xlsx';
  * Tạo và tải xuống file Excel mẫu dành cho giáo viên soạn bài tập
  */
 export function downloadExcelTemplate() {
-  const sampleData = [
+  // Sheet 1: Dữ liệu mẫu câu hỏi chuẩn EduKids
+  const sampleQuestions = [
     {
       "Loại câu hỏi": "multiple_choice",
       "Nội dung câu hỏi": "Tính nhẩm: 25 x 4 = ?",
@@ -26,8 +27,20 @@ export function downloadExcelTemplate() {
       "Đáp án C": "Viết bài",
       "Đáp án D": "Chạy nhảy",
       "Đáp án đúng": "A, C, D",
-      "Gợi ý cho bé": "Tìm các từ chỉ hành động, cử động của cơ thể",
+      "Gợi ý cho bé": "Tìm các từ chỉ hành động cử động của cơ thể",
       "Lời giải thích chi tiết": "Giải: Đọc sách, Viết bài, Chạy nhảy là các từ chỉ hoạt động. 'Cây thước kẻ' là từ chỉ đồ vật."
+    },
+    {
+      "Loại câu hỏi": "multiple_select",
+      "Nội dung câu hỏi": "Trong các số dưới đây, những số nào chia hết cho cả 2 và 5? (Chọn các đáp án đúng)",
+      "Link ảnh minh họa": "",
+      "Đáp án A": "120",
+      "Đáp án B": "135",
+      "Đáp án C": "244",
+      "Đáp án D": "350",
+      "Đáp án đúng": "A, D",
+      "Gợi ý cho bé": "Số chia hết cho cả 2 và 5 có chữ số tận cùng là 0",
+      "Lời giải thích chi tiết": "Giải: Các số có chữ số tận cùng là 0 thì chia hết cho cả 2 và 5. Đó là 120 và 350. Đáp án đúng là A và D."
     },
     {
       "Loại câu hỏi": "fill_blank",
@@ -79,23 +92,71 @@ export function downloadExcelTemplate() {
     }
   ];
 
-  const ws = XLSX.utils.json_to_sheet(sampleData);
-  // Set column widths for nice appearance
+  // Sheet 2: Bảng hướng dẫn chi tiết từng dạng câu hỏi
+  const guideData = [
+    {
+      "Loại câu hỏi (Cột 1)": "multiple_choice",
+      "Tên dạng bài": "Trắc nghiệm 1 đáp án đúng",
+      "Quy cách điền Cột 'Đáp án A, B, C, D'": "Điền nội dung các lựa chọn vào cột A, B, C, D",
+      "Quy cách điền Cột 'Đáp án đúng'": "Ghi 1 chữ cái đúng: A hoặc B hoặc C hoặc D",
+      "Ghi chú & Quy tắc chấm điểm": "Học sinh chọn 1 đáp án đúng duy nhất."
+    },
+    {
+      "Loại câu hỏi (Cột 1)": "multiple_select",
+      "Tên dạng bài": "Trắc nghiệm NHIỀU đáp án đúng (Mới ⭐)",
+      "Quy cách điền Cột 'Đáp án A, B, C, D'": "Điền nội dung các lựa chọn vào cột A, B, C, D",
+      "Quy cách điền Cột 'Đáp án đúng'": "Ghi các chữ cái đúng cách nhau bằng dấu phẩy. Ví dụ: A, C, D hoặc A, B",
+      "Ghi chú & Quy tắc chấm điểm": "Học sinh phải chọn ĐÚNG VÀ ĐỦ 100% tất cả các đáp án đúng. Chọn thiếu 1 đáp án hoặc chọn thừa 1 đáp án đều tính là SAI."
+    },
+    {
+      "Loại câu hỏi (Cột 1)": "fill_blank",
+      "Tên dạng bài": "Điền từ / Điền số vào chỗ trống",
+      "Quy cách điền Cột 'Đáp án A, B, C, D'": "Để trống các cột A, B, C, D",
+      "Quy cách điền Cột 'Đáp án đúng'": "Ghi số hoặc từ cần điền (Ví dụ: 55 hoặc sáng)",
+      "Ghi chú & Quy tắc chấm điểm": "Hệ thống tự động so khớp không phân biệt chữ hoa/thường."
+    },
+    {
+      "Loại câu hỏi (Cột 1)": "true_false",
+      "Tên dạng bài": "Đúng hay Sai",
+      "Quy cách điền Cột 'Đáp án A, B, C, D'": "Cột A ghi 'Đúng', Cột B ghi 'Sai' (Cột C, D để trống)",
+      "Quy cách điền Cột 'Đáp án đúng'": "Ghi chữ 'Đúng' hoặc 'Sai'",
+      "Ghi chú & Quy tắc chấm điểm": "Học sinh bấm nút Đúng hoặc Sai."
+    },
+    {
+      "Loại câu hỏi (Cột 1)": "matching",
+      "Tên dạng bài": "Nối cặp tương ứng",
+      "Quy cách điền Cột 'Đáp án A, B, C, D'": "Mỗi cột ghi dạng: Vế trái || Vế phải (Ví dụ: 3 x 5 || 15)",
+      "Quy cách điền Cột 'Đáp án đúng'": "Ghi: 1-A, 2-B, 3-C, 4-D",
+      "Ghi chú & Quy tắc chấm điểm": "Hệ thống tự động xáo trộn cột phải để học sinh nối cặp."
+    }
+  ];
+
+  const ws = XLSX.utils.json_to_sheet(sampleQuestions);
   ws['!cols'] = [
-    { wch: 20 }, // Loại câu hỏi
+    { wch: 18 }, // Loại câu hỏi
     { wch: 55 }, // Nội dung
     { wch: 35 }, // Link ảnh
     { wch: 20 }, // A
     { wch: 20 }, // B
     { wch: 20 }, // C
     { wch: 20 }, // D
-    { wch: 20 }, // Đáp án đúng
+    { wch: 18 }, // Đáp án đúng
     { wch: 35 }, // Gợi ý
     { wch: 50 }  // Lời giải thích
   ];
 
+  const wsGuide = XLSX.utils.json_to_sheet(guideData);
+  wsGuide['!cols'] = [
+    { wch: 24 }, // Loại câu hỏi
+    { wch: 35 }, // Tên dạng bài
+    { wch: 45 }, // Quy cách A, B, C, D
+    { wch: 45 }, // Quy cách Đáp án đúng
+    { wch: 60 }  // Ghi chú
+  ];
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Mau_Cau_Hoi_EduKids");
+  XLSX.utils.book_append_sheet(wb, ws, "Mau_Cau_Hoi");
+  XLSX.utils.book_append_sheet(wb, wsGuide, "Huong_Dan_Soan_De");
   XLSX.writeFile(wb, "EduKids_Mau_Nhap_Bai_Tap.xlsx");
 }
 

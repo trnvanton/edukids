@@ -3052,7 +3052,7 @@ export default function TeacherDashboard() {
             </div>
 
             <p style={{ fontSize: '0.95rem', color: '#64748B', lineHeight: 1.6, marginBottom: '20px' }}>
-              Giáo viên có thể soạn đề thi nhanh chóng trên Microsoft Excel hoặc Google Sheets theo file mẫu chuẩn, sau đó tải lên hệ thống. EduKids sẽ tự động nhận diện cả 4 dạng câu hỏi (Trắc nghiệm, Điền ô, Nối cặp, Đúng/Sai) kèm ảnh minh họa và lời giải!
+              Giáo viên có thể soạn đề thi nhanh chóng trên Microsoft Excel hoặc Google Sheets theo file mẫu chuẩn, sau đó tải lên hệ thống. EduKids sẽ tự động nhận diện cả 5 dạng câu hỏi (Trắc nghiệm 1 đáp án, Chọn nhiều đáp án đúng, Điền ô, Nối cặp, Đúng/Sai) kèm ảnh minh họa và lời giải!
             </p>
 
             {/* Step 1: Download Template */}
