@@ -107,15 +107,10 @@ async function saveD1Class(classObj) {
   const teacher = classObj.teacher_name || 'Cô Hoàng Mai';
   const dataJson = JSON.stringify(classObj);
 
+  await d1Query('DELETE FROM cloud_synced_classes WHERE id = ? OR class_code = ?;', [id, code]);
   await d1Query(
     `INSERT INTO cloud_synced_classes (id, class_code, class_name, grade_level, teacher_name, data_json)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       class_code = excluded.class_code,
-       class_name = excluded.class_name,
-       grade_level = excluded.grade_level,
-       teacher_name = excluded.teacher_name,
-       data_json = excluded.data_json;`,
+     VALUES (?, ?, ?, ?, ?, ?);`,
     [id, code, name, grade, teacher, dataJson]
   );
 }
@@ -135,18 +130,10 @@ async function saveD1Student(student) {
   const xp = parseInt(student.xp || 50, 10);
   const dataJson = JSON.stringify(student);
 
+  await d1Query('DELETE FROM cloud_synced_students WHERE id = ? OR (username != "" AND username = ?);', [id, username]);
   await d1Query(
     `INSERT INTO cloud_synced_students (id, username, full_name, parent_phone, class_code, grade_level, xp, data_json, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(id) DO UPDATE SET
-       username = excluded.username,
-       full_name = excluded.full_name,
-       parent_phone = excluded.parent_phone,
-       class_code = excluded.class_code,
-       grade_level = excluded.grade_level,
-       xp = excluded.xp,
-       data_json = excluded.data_json,
-       updated_at = datetime('now');`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'));`,
     [id, username, fullName, phone, classCode, grade, xp, dataJson]
   );
 }
