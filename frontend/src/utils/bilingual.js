@@ -18,9 +18,9 @@ export function parseBilingualText(rawText) {
 
   const str = rawText.trim();
 
-  // 1. [EN]: ... [VN]: ...
-  const enVnMatch = str.match(/^\[EN\]:?\s*(.*?)\s*\[VN\]:?\s*(.*)$/is);
-  if (enVnMatch) {
+  // 1. [EN]/[ENG]: ... [VN]/[VI]/[VIE]: ...
+  const enVnMatch = str.match(/(?:\[|\()?(?:EN|ENG)(?:\]|\))?:?\s*(.*?)\s*(?:\[|\()?(?:VN|VI|VIE)(?:\]|\))?:?\s*(.*)$/is);
+  if (enVnMatch && enVnMatch[1] && enVnMatch[2]) {
     return {
       en: enVnMatch[1].trim(),
       vn: enVnMatch[2].trim(),
@@ -28,9 +28,9 @@ export function parseBilingualText(rawText) {
     };
   }
 
-  // 2. [VN]: ... [EN]: ...
-  const vnEnMatch = str.match(/^\[VN\]:?\s*(.*?)\s*\[EN\]:?\s*(.*)$/is);
-  if (vnEnMatch) {
+  // 2. [VN]/[VI]/[VIE]: ... [EN]/[ENG]: ...
+  const vnEnMatch = str.match(/(?:\[|\()?(?:VN|VI|VIE)(?:\]|\))?:?\s*(.*?)\s*(?:\[|\()?(?:EN|ENG)(?:\]|\))?:?\s*(.*)$/is);
+  if (vnEnMatch && vnEnMatch[1] && vnEnMatch[2]) {
     return {
       en: vnEnMatch[2].trim(),
       vn: vnEnMatch[1].trim(),
