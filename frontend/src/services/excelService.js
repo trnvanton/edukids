@@ -101,6 +101,18 @@ export function downloadExcelTemplate() {
       "Đáp án đúng": "A",
       "Gợi ý cho bé": "Món bánh ngọt ngào có cắm nến trong ngày sinh nhật",
       "Lời giải thích chi tiết": "Bánh kem sinh nhật (Birthday cake) là món ăn phổ biến nhất trong bữa tiệc sinh nhật."
+    },
+    {
+      "Loại câu hỏi": "multiple_select",
+      "Nội dung câu hỏi": "[EN]: Which items are classroom supplies? (Select all correct answers) [VN]: Những đồ vật nào là dụng cụ học tập trong lớp học? (Chọn tất cả các đáp án đúng)",
+      "Link ảnh minh họa": "",
+      "Đáp án A": "Pencil (Bút chì)",
+      "Đáp án B": "Notebook (Vở ghi bài)",
+      "Đáp án C": "Ruler (Cây thước kẻ)",
+      "Đáp án D": "Motorbike (Xe máy)",
+      "Đáp án đúng": "A, B, C",
+      "Gợi ý cho bé": "Tìm các đồ dùng thường để trong hộp bút hoặc cặp sách",
+      "Lời giải thích chi tiết": "Bút chì (Pencil), Vở ghi (Notebook) và Thước kẻ (Ruler) là dụng cụ học tập. Xe máy (Motorbike) là phương tiện đi lại."
     }
   ];
 
