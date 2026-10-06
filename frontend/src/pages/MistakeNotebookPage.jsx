@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { sound } from '../services/audio';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { parseBilingualText } from '../utils/bilingual';
 
 export default function MistakeNotebookPage({ onStartMistakeQuiz, onGoToSubjects }) {
   const { user } = useAuth();
@@ -238,9 +239,21 @@ export default function MistakeNotebookPage({ onStartMistakeQuiz, onGoToSubjects
               </div>
 
               {/* Question Text */}
-              <h4 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#1E293B', marginBottom: '12px', lineHeight: 1.45 }}>
-                {m.question_text || m.questionText}
-              </h4>
+              {(() => {
+                const parsedQ = parseBilingualText(m.question_text || m.questionText);
+                return (
+                  <div style={{ marginBottom: '12px' }}>
+                    <h4 style={{ fontSize: '1.08rem', fontWeight: 800, color: '#1E293B', marginBottom: '4px', lineHeight: 1.45 }}>
+                      {parsedQ.en}
+                    </h4>
+                    {parsedQ.hasTranslation && (
+                      <div style={{ fontSize: '0.9rem', color: '#047857', fontWeight: 700, background: '#F0FDF4', padding: '3px 8px', borderRadius: '6px', display: 'inline-block' }}>
+                        🇻🇳 {parsedQ.vn}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {m.image_url && (
                 <div style={{ marginBottom: '14px' }}>

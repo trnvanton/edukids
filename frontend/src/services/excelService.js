@@ -89,6 +89,18 @@ export function downloadExcelTemplate() {
       "Đáp án đúng": "1-A, 2-B, 3-C, 4-D",
       "Gợi ý cho bé": "Áp dụng bảng cửu chương nhân 3, 4, 8, 9",
       "Lời giải thích chi tiết": "3 x 5 = 15; 4 x 6 = 24; 9 x 2 = 18; 8 x 5 = 40."
+    },
+    {
+      "Loại câu hỏi": "multiple_choice",
+      "Nội dung câu hỏi": "[EN]: Which foods and drinks are popular at a birthday party? [VN]: Những món ăn và đồ uống nào phổ biến trong tiệc sinh nhật?",
+      "Link ảnh minh họa": "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=400",
+      "Đáp án A": "Birthday cake (Bánh kem sinh nhật)",
+      "Đáp án B": "Bitter medicine (Thuốc đắng)",
+      "Đáp án C": "Pencil (Bút chì)",
+      "Đáp án D": "Eraser (Cục tẩy)",
+      "Đáp án đúng": "A",
+      "Gợi ý cho bé": "Món bánh ngọt ngào có cắm nến trong ngày sinh nhật",
+      "Lời giải thích chi tiết": "Bánh kem sinh nhật (Birthday cake) là món ăn phổ biến nhất trong bữa tiệc sinh nhật."
     }
   ];
 
@@ -128,6 +140,13 @@ export function downloadExcelTemplate() {
       "Quy cách điền Cột 'Đáp án A, B, C, D'": "Mỗi cột ghi dạng: Vế trái || Vế phải (Ví dụ: 3 x 5 || 15)",
       "Quy cách điền Cột 'Đáp án đúng'": "Ghi: 1-A, 2-B, 3-C, 4-D",
       "Ghi chú & Quy tắc chấm điểm": "Hệ thống tự động xáo trộn cột phải để học sinh nối cặp."
+    },
+    {
+      "Loại câu hỏi (Cột 1)": "Mẹo Song Ngữ (Mới 🌐)",
+      "Tên dạng bài": "Tự động tạo nút Dịch EN ➔ VN & Loa phát âm",
+      "Quy cách điền Cột 'Đáp án A, B, C, D'": "Ghi: English (Tiếng Việt) hoặc English || Tiếng Việt (Ví dụ: Birthday cake (Bánh kem sinh nhật))",
+      "Quy cách điền Cột 'Đáp án đúng'": "Theo quy cách dạng bài tương ứng",
+      "Ghi chú & Quy tắc chấm điểm": "Câu hỏi ghi: [EN]: Tiếng Anh [VN]: Tiếng Việt. Web sẽ mặc định hiện Tiếng Anh và tự có nút [🌐 Dịch Tiếng Việt] + [🔊 Nghe]!"
     }
   ];
 

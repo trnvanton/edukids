@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../context/AuthContext';
 import { sound } from '../services/audio';
+import { parseBilingualText } from '../utils/bilingual';
 
 export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBackToSubjects }) {
   const { addXp } = useAuth();
@@ -156,9 +157,19 @@ export default function ResultPage({ result, onRetake, onGoToLeaderboard, onBack
               </span>
             </div>
 
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '18px', color: '#1E293B', lineHeight: 1.5 }}>
-              {q.questionText}
-            </div>
+            {(() => {
+              const parsedQ = parseBilingualText(q.questionText);
+              return (
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '18px', color: '#1E293B', lineHeight: 1.5 }}>
+                  <div>{parsedQ.en}</div>
+                  {parsedQ.hasTranslation && (
+                    <div style={{ fontSize: '0.98rem', color: '#047857', fontWeight: 700, marginTop: '4px', background: '#F0FDF4', padding: '4px 10px', borderRadius: '6px', display: 'inline-block' }}>
+                      🇻🇳 {parsedQ.vn}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Attached image if any */}
             {q.imageUrl && (

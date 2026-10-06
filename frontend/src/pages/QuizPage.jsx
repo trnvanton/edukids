@@ -4,6 +4,7 @@ import { sound } from '../services/audio';
 import { sampleRandomQuestions } from '../services/randomPoolService';
 import { useDialog } from '../context/DialogContext';
 import { useToast } from '../context/ToastContext';
+import { parseBilingualText, speakEnglish } from '../utils/bilingual';
 
 export default function QuizPage({ exerciseId, onFinish, onBack }) {
   const { confirm } = useDialog();
@@ -17,6 +18,10 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Bilingual translation state: { [qId]: boolean } and { [`${qId}_${optLabel}`]: boolean }
+  const [translatedQuestions, setTranslatedQuestions] = useState({});
+  const [translatedOptions, setTranslatedOptions] = useState({});
 
   // Random Pool Mode State
   const [isPreQuizPrompt, setIsPreQuizPrompt] = useState(false);
@@ -563,10 +568,106 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
           </div>
         </div>
 
-        {/* Question Statement */}
-        <h3 style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.5, marginBottom: currentQ.image_url ? '16px' : '24px', color: '#1E293B' }}>
-          {currentQ.question_text}
-        </h3>
+        {/* Question Statement with Bilingual Support */}
+        {(() => {
+          const parsedQ = parseBilingualText(currentQ.question_text);
+          const isQTranslated = !!translatedQuestions[currentQ.id];
+
+          return (
+            <div style={{ marginBottom: currentQ.image_url ? '16px' : '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
+                <h3 style={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.5, color: '#1E293B', flex: 1, margin: 0 }}>
+                  {parsedQ.en}
+                </h3>
+
+                <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                  {/* English Pronunciation Audio */}
+                  <button
+                    type="button"
+                    onClick={() => { sound.pop(); speakEnglish(parsedQ.en); }}
+                    title="Nghe phát âm tiếng Anh chuẩn"
+                    style={{
+                      background: '#EEF2FF',
+                      border: '1.5px solid #C7D2FE',
+                      color: '#4F46E5',
+                      borderRadius: '10px',
+                      padding: '7px 12px',
+                      fontWeight: 800,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      boxShadow: '0 2px 6px rgba(79, 70, 229, 0.08)',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <span>🔊 Nghe</span>
+                  </button>
+
+                  {/* Bilingual Translation Toggle Button */}
+                  {parsedQ.hasTranslation && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.pop();
+                        setTranslatedQuestions(prev => ({
+                          ...prev,
+                          [currentQ.id]: !prev[currentQ.id]
+                        }));
+                      }}
+                      title={isQTranslated ? 'Ẩn bản dịch tiếng Việt' : 'Bấm để xem bản dịch tiếng Việt'}
+                      style={{
+                        background: isQTranslated ? '#FEF3C7' : '#F0FDF4',
+                        border: isQTranslated ? '1.5px solid #FDE68A' : '1.5px solid #86EFAC',
+                        color: isQTranslated ? '#92400E' : '#166534',
+                        borderRadius: '10px',
+                        padding: '7px 14px',
+                        fontWeight: 800,
+                        fontSize: '0.88rem',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: isQTranslated ? '0 2px 8px rgba(217, 119, 6, 0.15)' : '0 2px 8px rgba(16, 185, 129, 0.12)',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span>{isQTranslated ? '🇻🇳 Ẩn Dịch VN' : '🌐 Dịch Tiếng Việt'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Translation Slide Box */}
+              {parsedQ.hasTranslation && isQTranslated && (
+                <div style={{
+                  marginTop: '14px',
+                  padding: '12px 18px',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #F0FDF4, #ECFDF5)',
+                  border: '1.5px solid #86EFAC',
+                  color: '#166534',
+                  fontSize: '1.15rem',
+                  fontWeight: 700,
+                  lineHeight: 1.5,
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.08)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px'
+                }}>
+                  <span style={{ fontSize: '1.3rem', marginTop: '-2px' }}>🇻🇳</span>
+                  <div>
+                    <span style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#047857', display: 'block', fontWeight: 800, marginBottom: '2px' }}>
+                      Bản dịch Tiếng Việt:
+                    </span>
+                    <span>{parsedQ.vn}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Question Image Attachment (if present) */}
         {currentQ.image_url && (
@@ -591,16 +692,68 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
           <div className="options-grid">
             {currentQ.options?.map((opt, idx) => {
               const isSelected = answers[currentQ.id] === opt.option_label;
+              const parsedOpt = parseBilingualText(opt.answer_text);
+              const optKey = `${currentQ.id}_${opt.option_label}`;
+              const isQTranslated = !!translatedQuestions[currentQ.id];
+              const isOptTranslated = isQTranslated || !!translatedOptions[optKey];
+
               return (
                 <button
                   key={opt.option_label || idx}
                   type="button"
                   className={`option-card ${isSelected ? 'selected' : ''}`}
                   onClick={() => selectOption(currentQ.id, opt.option_label)}
+                  style={{ position: 'relative' }}
                 >
                   <div className="option-badge">{opt.option_label}</div>
-                  <div className="option-text">
-                    {opt.answer_text}
+                  <div className="option-text" style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <span style={{ fontSize: '1.05rem', fontWeight: isSelected ? 800 : 700 }}>
+                        {parsedOpt.en}
+                      </span>
+                      {parsedOpt.hasTranslation && !isQTranslated && (
+                        <span
+                          role="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            sound.pop();
+                            setTranslatedOptions(prev => ({
+                              ...prev,
+                              [optKey]: !prev[optKey]
+                            }));
+                          }}
+                          title={isOptTranslated ? 'Ẩn nghĩa tiếng Việt' : 'Xem nghĩa tiếng Việt'}
+                          style={{
+                            background: isOptTranslated ? '#FEF3C7' : '#F1F5F9',
+                            border: isOptTranslated ? '1px solid #FDE68A' : '1px solid #CBD5E1',
+                            color: isOptTranslated ? '#92400E' : '#475569',
+                            borderRadius: '6px',
+                            padding: '2px 6px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            flexShrink: 0
+                          }}
+                        >
+                          {isOptTranslated ? '🇻🇳' : '🌐'}
+                        </span>
+                      )}
+                    </div>
+                    {parsedOpt.hasTranslation && isOptTranslated && (
+                      <div style={{
+                        marginTop: '6px',
+                        fontSize: '0.9rem',
+                        color: '#047857',
+                        fontWeight: 700,
+                        background: '#F0FDF4',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        borderLeft: '3px solid #10B981',
+                        display: 'inline-block'
+                      }}>
+                        🇻🇳 {parsedOpt.vn}
+                      </div>
+                    )}
                   </div>
                 </button>
               );
@@ -635,6 +788,10 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
                   ? currentAns
                   : (typeof currentAns === 'string' ? currentAns.split(/[,;+\s]+/).map(s => s.trim().toUpperCase()) : []);
                 const isSelected = selectedArr.includes(opt.option_label?.toUpperCase());
+                const parsedOpt = parseBilingualText(opt.answer_text);
+                const optKey = `${currentQ.id}_${opt.option_label}`;
+                const isQTranslated = !!translatedQuestions[currentQ.id];
+                const isOptTranslated = isQTranslated || !!translatedOptions[optKey];
 
                 return (
                   <button
@@ -656,8 +813,54 @@ export default function QuizPage({ exerciseId, onFinish, onBack }) {
                     }}>
                       {isSelected ? '✓' : opt.option_label}
                     </div>
-                    <div className="option-text" style={{ fontWeight: isSelected ? 800 : 600 }}>
-                      {opt.answer_text}
+                    <div className="option-text" style={{ flex: 1, fontWeight: isSelected ? 800 : 600 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ fontSize: '1.05rem' }}>
+                          {parsedOpt.en}
+                        </span>
+                        {parsedOpt.hasTranslation && !isQTranslated && (
+                          <span
+                            role="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              sound.pop();
+                              setTranslatedOptions(prev => ({
+                                ...prev,
+                                [optKey]: !prev[optKey]
+                              }));
+                            }}
+                            title={isOptTranslated ? 'Ẩn nghĩa tiếng Việt' : 'Xem nghĩa tiếng Việt'}
+                            style={{
+                              background: isOptTranslated ? '#FEF3C7' : '#F1F5F9',
+                              border: isOptTranslated ? '1px solid #FDE68A' : '1px solid #CBD5E1',
+                              color: isOptTranslated ? '#92400E' : '#475569',
+                              borderRadius: '6px',
+                              padding: '2px 6px',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              flexShrink: 0
+                            }}
+                          >
+                            {isOptTranslated ? '🇻🇳' : '🌐'}
+                          </span>
+                        )}
+                      </div>
+                      {parsedOpt.hasTranslation && isOptTranslated && (
+                        <div style={{
+                          marginTop: '6px',
+                          fontSize: '0.9rem',
+                          color: '#047857',
+                          fontWeight: 700,
+                          background: '#F0FDF4',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          borderLeft: '3px solid #10B981',
+                          display: 'inline-block'
+                        }}>
+                          🇻🇳 {parsedOpt.vn}
+                        </div>
+                      )}
                     </div>
                   </button>
                 );
